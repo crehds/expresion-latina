@@ -1,6 +1,7 @@
 const express = require("express");
 const debug = require("debug")("app:server");
 const loginRouter = require("./routes/api/login");
+const inicioRouter = require("./routes/api/inicio");
 //app
 const app = express();
 
@@ -13,7 +14,7 @@ app.use(express.json());
 //   next();
 // });
 app.use("/login", loginRouter)
-
+app.use("/inicio", inicioRouter)
 
 const server = app.listen(4000, function () {
   debug(`Listening http://localhost:${server.address().port}`);
