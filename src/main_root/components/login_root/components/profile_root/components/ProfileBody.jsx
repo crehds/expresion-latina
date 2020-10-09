@@ -22,6 +22,10 @@ export default function ProfileBody(props) {
           <input type="text" value={user.telefono} disabled />
         </div>
         <div className="profile-body__datos-row">
+          <label htmlFor="">Edad</label>
+          <input type="text" value={user.edad} disabled />
+        </div>
+        <div className="profile-body__datos-row">
           <label htmlFor="">Correo</label>
           <input type="text" value={user.email} disabled />
         </div>

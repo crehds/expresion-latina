@@ -72,25 +72,26 @@ export default class Register extends Component {
               name="lastname"
               placeholder="Apellidos"
             />
-            <input key="4" type="email" name="email" placeholder="Correo" />
-            <input key="3" type="tel" name="telefono" placeholder="Teléfono" />
+            <input key="3" type="email" name="email" placeholder="Correo" />
+            <input key="4" type="text" name="edad" placeholder="Edad" />
+            <input key="5" type="tel" name="telefono" placeholder="Teléfono" />
           </React.Fragment>
         ) : (
           <React.Fragment>
             <input
-              key="5"
+              key="6"
               type="text"
               name="usuario"
               placeholder="Nombre de usuario"
             />
             <input
-              key="6"
+              key="7"
               type="password"
               name="password"
               placeholder="Contraseña"
             />
             <input
-              key="7"
+              key="8"
               type="password"
               name="re-password"
               placeholder="Re-Contraseña"
