@@ -119,7 +119,12 @@ class MySqlLib {
     );
   }
 
-  getTypesUser() {
+  getTypeUser(typeOfUser) {
+    debug(`Id de tipo de usuario a buscar: ${typeOfUser}`)
+    return this.query(`select * from tipo_usuario where idTipo_usuario='${typeOfUser}'`).then((rows) => rows);
+  }
+
+  getTypesUsers() {
     return this.query(`select * from tipo_usuario`).then((rows) => rows);
   }
 

@@ -38,9 +38,22 @@ router.post("/findUser", async function (req, res, next) {
   }
 });
 
+router.get("/TypeOfUser/:typeOfUser", async function (req, res, next) {
+  const { typeOfUser } = req.params;
+  try {
+    const TypeUser = await loginService.GetTypeUser(typeOfUser);
+    res.status(200).json({
+      data: TypeUser,
+      message: "Type of User listed",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/TypesOfUsers", async function (req, res, next) {
   try {
-    const TypeUsers = await loginService.TypesUsers();
+    const TypeUsers = await loginService.GetTypesUsers();
     res.status(200).json({
       data: TypeUsers,
       message: "Types of Users listed",

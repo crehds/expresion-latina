@@ -16,8 +16,13 @@ class LoginService {
     return login || [];
   }
 
-  async TypesUsers() {
-    const TypesUsers = await this.mysqlDB.getTypesUser();
+  async GetTypeUser(typeOfUser) {
+    const TypesUser = await this.mysqlDB.getTypeUser(typeOfUser);
+    return TypesUser || [];
+  }
+
+  async GetTypesUsers() {
+    const TypesUsers = await this.mysqlDB.getTypesUsers();
     return TypesUsers || [];
   }
 
