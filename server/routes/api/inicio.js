@@ -99,7 +99,7 @@ router.delete("/?", async function (req, res, next) {
   }
 });
 
-router.delete("/", async function (req, res, next) {
+router.delete("/deleteall", async function (req, res, next) {
   try {
     const deletedPosters = await postersService.deletePosters();
     res.status(200).json({
