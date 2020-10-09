@@ -48,12 +48,22 @@ export default class Login extends Component {
         },
       }),
     }).then((result) => result.json());
-    this.props.headerFunc(true);
-    this.props.handleInfoLogin("Profile", data.user[0], data.login[0]);
+    console.log(data);
+
+    if (data) {
+      this.props.headerFunc(true);
+      this.props.handleInfoLogin("Profile", data.user[0], data.login[0]);
+    } else {
+      Swal.fire({
+        icon: "error",
+        text:
+          "Datos erróneos",
+      });
+    }
   };
 
   showDataForm = async (user, login) => {
-    const result= await fetch("/login/createUser", {
+    const result = await fetch("/login/createUser", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

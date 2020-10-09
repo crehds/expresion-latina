@@ -23,6 +23,10 @@ class LoginService {
 
   async getUser(findlogin) {
     const login = await this.getLogin(findlogin);
+    
+    if (Object.keys(login).length === 0) {
+      return null;
+    }
     const user = await this.mysqlDB.getUser(login[0].Usuario)
     return {login, user} || [];
   }
