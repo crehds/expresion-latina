@@ -14,7 +14,8 @@ import Admin from "../admin_root/Admin";
 export default class Main extends Component {
   state = {
     isLoading: false,
-    isAdmin: false,
+    displayConfig: false,
+    typeOfUser: undefined,
     globalProps: undefined,
     func: undefined,
     Login: {
@@ -33,7 +34,7 @@ export default class Main extends Component {
   };
   handleLoading = () => {
     this.setState({ isLoading: false });
-    if (this.state.isAdmin) {
+    if (this.state.displayConfig) {
       setTimeout(() => this.setState({ isLoading: true }), 1000);
     }
   };
@@ -42,9 +43,19 @@ export default class Main extends Component {
     return this.setState({ func });
   };
 
-  handleIsAdmin = () => {
-    this.setState({ isAdmin: true });
+  handleDisplayConfig = () => {
+    this.setState({ displayConfig: true });
   };
+
+  handleTypeOfUser = async (idtypeOfUser) => {
+    const typeOfUser = await fetch(`/login/TypeOfUser/${idtypeOfUser}`, {
+      method: "GET",
+    }).then(result => result.json());
+    console.log(typeOfUser);
+    this.setState({typeOfUser: typeOfUser.data[0].tipo_usuario})
+    this.handleDisplayConfig();
+
+  }
   componentDidUpdate(prevProps) {
     if (this.props !== prevProps) {
       setTimeout(() => this.setState({ isLoading: true }), 1000);
@@ -93,12 +104,13 @@ export default class Main extends Component {
         return (
           <Login
             handleLoading={this.handleLoading}
-            handleIsAdmin={this.handleIsAdmin}
+            handleDisplayConfig={this.handleDisplayConfig}
             getFunction={this.getFunction}
             headerFunc={this.props.headerFunc}
             Login={this.state.Login}
             handleContentLogin={this.handleContentLogin}
             handleInfoLogin={this.handleInfoLogin}
+            handleTypeOfUser={this.handleTypeOfUser}
           />
         );
 
@@ -114,8 +126,9 @@ export default class Main extends Component {
     return (
       <MainContainer>
         {this.showContent(this.props.content)}
-        {this.state.isAdmin && (
-          <Admin globalProps={this.state.globalProps} func={this.state.func} />
+        {this.state.displayConfig && (
+          <Admin maincontent={this.props.content} typeOfUser={this.state.typeOfUser}
+          globalProps={this.state.globalProps} func={this.state.func} />
         )}
       </MainContainer>
     );

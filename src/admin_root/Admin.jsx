@@ -7,6 +7,8 @@ export default function Admin(props) {
     <ModalAdmin
       globalProps={props.globalProps}
       func={props.func}
+      mainContent={props.maincontent}
+      typeOfUser={props.typeOfUser}
     />,
     document.getElementById("administrador")
   );

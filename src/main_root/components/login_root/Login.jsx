@@ -52,6 +52,7 @@ export default class Login extends Component {
 
     if (data) {
       this.props.headerFunc(true);
+      this.props.handleTypeOfUser(data.user[0].Tipo_usuario);
       this.props.handleInfoLogin("Profile", data.user[0], data.login[0]);
     } else {
       Swal.fire({
