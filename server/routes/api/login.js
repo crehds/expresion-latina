@@ -20,13 +20,19 @@ router.get("/", async function (req, res, next) {
 
 router.post("/findUser", async function (req, res, next) {
   const { login } = req.body;
-  console.log(login);
   try {
     const user = await loginService.getUser(login);
-    res.status(200).json({
-      data: user,
-      message: "login exists"
-    })
+    if (user) {
+      res.status(200).json({
+        data: user,
+        message: "user exists"
+      })
+    } else {
+      res.status(200).json({
+        data: user,
+        message: "user doesn't exists"
+      })
+    }
   } catch (error) {
     next(error);
   }
