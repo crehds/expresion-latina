@@ -44,8 +44,18 @@ export default class Main extends Component {
   };
 
   handleDisplayConfig = () => {
-    this.setState({ displayConfig: true });
+    this.setState({ displayConfig: !this.state.displayConfig });
   };
+
+  unLogged = () => {
+    this.handleDisplayConfig();
+    this.setState({Login: {
+      content: "Session",
+      user: "",
+      login: "",
+    },})
+    this.props.headerFunc(false);
+  }
 
   handleTypeOfUser = async (idtypeOfUser) => {
     const typeOfUser = await fetch(`/login/TypeOfUser/${idtypeOfUser}`, {
@@ -104,7 +114,6 @@ export default class Main extends Component {
         return (
           <Login
             handleLoading={this.handleLoading}
-            handleDisplayConfig={this.handleDisplayConfig}
             getFunction={this.getFunction}
             headerFunc={this.props.headerFunc}
             Login={this.state.Login}
@@ -128,7 +137,7 @@ export default class Main extends Component {
         {this.showContent(this.props.content)}
         {this.state.displayConfig && (
           <Admin maincontent={this.props.content} typeOfUser={this.state.typeOfUser}
-          globalProps={this.state.globalProps} func={this.state.func} />
+          globalProps={this.state.globalProps} func={this.state.func} unLogged={this.unLogged} />
         )}
       </MainContainer>
     );

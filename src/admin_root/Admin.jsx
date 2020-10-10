@@ -9,6 +9,7 @@ export default function Admin(props) {
       func={props.func}
       mainContent={props.maincontent}
       typeOfUser={props.typeOfUser}
+      unLogged={props.unLogged}
     />,
     document.getElementById("administrador")
   );

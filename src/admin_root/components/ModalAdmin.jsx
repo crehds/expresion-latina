@@ -19,6 +19,7 @@ export default class ModalAdmin extends Component {
           <ConfigAdmin globalProps={this.props.globalProps} func={this.props.func} handleDisplayConfig={this.handleDisplayConfig}
           display={this.state.display}
           mainContent={this.props.mainContent}
+          unLogged={this.props.unLogged}
           />
         );
       case "Estudiante":

@@ -12,7 +12,9 @@ export default class ConfigAdmin extends Component {
           <Config globalProps={this.props.globalProps} func={this.props.func} />
         );
       case "Login":
-        return (<ConfigLogin func={this.props.func} />)
+        return (<ConfigLogin func={this.props.func} 
+          unLogged={this.props.unLogged}/>)
+          
       default:
         break;
     }
