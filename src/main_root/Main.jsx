@@ -49,23 +49,24 @@ export default class Main extends Component {
 
   unLogged = () => {
     this.handleDisplayConfig();
-    this.setState({Login: {
-      content: "Session",
-      user: "",
-      login: "",
-    },})
+    this.setState({
+      Login: {
+        content: "Session",
+        user: "",
+        login: "",
+      },
+    });
     this.props.headerFunc(false);
-  }
+  };
 
   handleTypeOfUser = async (idtypeOfUser) => {
     const typeOfUser = await fetch(`/login/TypeOfUser/${idtypeOfUser}`, {
       method: "GET",
-    }).then(result => result.json());
+    }).then((result) => result.json());
     console.log(typeOfUser);
-    this.setState({typeOfUser: typeOfUser.data[0].tipo_usuario})
+    this.setState({ typeOfUser: typeOfUser.data[0].tipo_usuario });
     this.handleDisplayConfig();
-
-  }
+  };
   componentDidUpdate(prevProps) {
     if (this.props !== prevProps) {
       setTimeout(() => this.setState({ isLoading: true }), 1000);
@@ -85,7 +86,7 @@ export default class Main extends Component {
       Login: {
         content,
         user,
-        login
+        login,
       },
     });
   };
@@ -136,8 +137,13 @@ export default class Main extends Component {
       <MainContainer>
         {this.showContent(this.props.content)}
         {this.state.displayConfig && (
-          <Admin maincontent={this.props.content} typeOfUser={this.state.typeOfUser}
-          globalProps={this.state.globalProps} func={this.state.func} unLogged={this.unLogged} />
+          <Admin
+            maincontent={this.props.content}
+            typeOfUser={this.state.typeOfUser}
+            globalProps={this.state.globalProps}
+            func={this.state.func}
+            unLogged={this.unLogged}
+          />
         )}
       </MainContainer>
     );
