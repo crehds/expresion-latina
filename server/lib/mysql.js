@@ -119,6 +119,9 @@ class MySqlLib {
     );
   }
 
+  updateUser({user}) {
+    return this.query(`update usuario set nombre='${user.nombre}', apellido='${user.apellido}', edad='${user.edad}', email='${user.email}', telefono='${user.telefono}' where idUsuario=${user.idUsuario}`)
+  }
   getTypeUser(typeOfUser) {
     debug(`Id de tipo de usuario a buscar: ${typeOfUser}`)
     return this.query(`select * from tipo_usuario where idTipo_usuario='${typeOfUser}'`).then((rows) => rows);

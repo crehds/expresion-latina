@@ -2,32 +2,31 @@ import React from "react";
 import "../css/profilebody.css";
 
 export default function ProfileBody(props) {
-  const { user } = props.userRegistered;
-  console.log(user);
+  const { profile:user } = props;
   return (
     <div className="profile-body">
       <div className="profile-body__datos">
         <h4>Datos Personales</h4>
         <div className="profile-body__datos-row">
           <label htmlFor="">Nombres</label>
-          <input type="text" value={user.name || user.nombre} disabled />
+          <input type="text" name="nombre" value={user.name || user.nombre} disabled onChange={props.handleChange} />
         </div>
 
         <div className="profile-body__datos-row">
           <label htmlFor="">Apellidos</label>
-          <input type="text" value={user.lastname ||user.apellido}disabled />
+          <input type="text" name="apellido" value={user.lastname ||user.apellido}disabled onChange={props.handleChange}/>
         </div>
         <div className="profile-body__datos-row">
           <label htmlFor="">Teléfono</label>
-          <input type="text" value={user.telefono} disabled />
+          <input type="text" name="telefono" value={user.telefono} disabled onChange={props.handleChange}/>
         </div>
         <div className="profile-body__datos-row">
           <label htmlFor="">Edad</label>
-          <input type="text" value={user.edad} disabled />
+          <input type="text" name="edad" value={user.edad} disabled onChange={props.handleChange}/>
         </div>
         <div className="profile-body__datos-row">
           <label htmlFor="">Correo</label>
-          <input type="text" value={user.email} disabled />
+          <input type="text" name="email" value={user.email} disabled onChange={props.handleChange}/>
         </div>
       </div>
       <div className="profile-body__social-media">
