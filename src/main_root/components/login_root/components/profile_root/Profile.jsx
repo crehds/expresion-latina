@@ -3,10 +3,16 @@ import "./css/profile.css";
 import ProfileHead from "./components/ProfileHead";
 import ProfileBody from "./components/ProfileBody";
 // import ProfileFooter from "./components/ProfileFooter";
+import Swal from "sweetalert2";
 
 export default class Profile extends Component {
   state = {
     profile: { ...this.props.userRegistered.user },
+    socialMedia: {
+      facebook: "",
+      twitter: "",
+      instagram: "",
+    },
   };
 
   handleChange = (e) => {
@@ -26,25 +32,46 @@ export default class Profile extends Component {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(this.state.profile),
-    }).then(result => result.json());
+    }).then((result) => result.json());
     console.log(result);
   };
 
   componentDidMount() {
-    this.props.getFunction(this.updateProfile)
+    this.props.getFunction(this.updateProfile);
   }
 
+  addOrUpdate = async (event) => {
+    const id = event.target.id;
+    console.log(id);
+    const { value: link } = await Swal.fire({
+      title: "Ingresa el link",
+      input: "text",
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) {
+          return "No haz ingresado nada";
+        }
+      },
+    });
+    this.setState({
+      socialMedia: {
+        ...this.state.socialMedia,
+        [id]: link,
+      },
+    });
+  };
+
   render() {
-    console.log();
+    console.log(this.state.twitter);
     return (
       <div className="profile">
-        <ProfileHead
-          profile={this.state.profile}
-        />
+        <ProfileHead profile={this.state.profile} />
         <ProfileBody
           profile={this.state.profile}
           handleChange={this.handleChange}
+          addOrUpdate={this.addOrUpdate}
           getDataProfile={this.props.getDataProfile}
+          socialMedia={this.state.socialMedia}
         />
       </div>
     );
