@@ -1,7 +1,7 @@
 import React from "react";
 import "../css/profilehead.css";
 export default function ProfileHead(props) {
-  const {user} = props.userRegistered;
+  const {profile:user} = props;
   return (
     <div className="profile-head">
       <h4 className="profile-head__name">{`${user.name || user.nombre} ${user.lastname || user.apellido}`}</h4>

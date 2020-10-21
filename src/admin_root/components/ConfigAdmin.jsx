@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import AdminContainer from "./AdminContainer";
 import Config from "./Config";
+import ConfigLogin from "./ConfigLogin";
 import IconConfig from "./IconConfig";
 
 export default class ConfigAdmin extends Component {
@@ -11,7 +12,9 @@ export default class ConfigAdmin extends Component {
           <Config globalProps={this.props.globalProps} func={this.props.func} />
         );
       case "Login":
-        return (<div> Modal en desarrollo</div>)
+        return (<ConfigLogin func={this.props.func} 
+          unLogged={this.props.unLogged}/>)
+          
       default:
         break;
     }

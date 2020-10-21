@@ -25,13 +25,13 @@ router.post("/findUser", async function (req, res, next) {
     if (user) {
       res.status(200).json({
         data: user,
-        message: "user exists"
-      })
+        message: "user exists",
+      });
     } else {
       res.status(200).json({
         data: user,
-        message: "user doesn't exists"
-      })
+        message: "user doesn't exists",
+      });
     }
   } catch (error) {
     next(error);
@@ -86,6 +86,19 @@ router.post("/createUser", async function (req, res, next) {
     res.status(200).json({
       data,
       message: "user created",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/updateUser", async function (req, res, next) {
+  const { body:user } = req;
+  try {
+    const data = await loginService.updateUser({ user });
+    res.status(200).json({
+      data,
+      message: "user updated",
     });
   } catch (error) {
     next(error);

@@ -63,6 +63,8 @@ export default class Login extends Component {
     }
   };
 
+  
+
   showDataForm = async (user, login) => {
     const result = await fetch("/login/createUser", {
       method: "POST",
@@ -121,6 +123,8 @@ export default class Login extends Component {
           <Profile
             toggleContent={this.toggleContent}
             userRegistered={this.props.Login}
+            updateProfile={this.updateProfile}
+            getFunction={this.props.getFunction}
           />
         );
       default:

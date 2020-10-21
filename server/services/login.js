@@ -49,6 +49,10 @@ class LoginService {
     );
     return { userCreated, loginCreated } || [];
   }
+  async updateUser({user}){
+    const updatedUser = await this.mysqlDB.updateUser({user});
+    return updatedUser || [];
+  }
 }
 
 module.exports = LoginService;
