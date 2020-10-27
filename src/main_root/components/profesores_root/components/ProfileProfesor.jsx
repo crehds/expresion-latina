@@ -14,7 +14,10 @@ export default class ProfileProfesor extends Component {
             src={process.env.PUBLIC_URL + this.props.src}
             alt={this.props.profesor}
           />
+          
           <div className="profesor-socialmedia">
+          <i className="icon3-info infoGenres" onClick={this.handleInfoGenresProfesor}>
+          </i>
             <i className="icon-facebook2 socialmedia"></i>
             <i className="icon-instagram socialmedia"></i>
             <i className="icon-twitter socialmedia"></i>
