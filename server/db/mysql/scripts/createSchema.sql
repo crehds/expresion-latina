@@ -11,7 +11,7 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,N
 -- -----------------------------------------------------
 -- Schema expresionlatina
 -- -----------------------------------------------------
-DROP SCHEMA IF EXISTS `expresioonlatina`;
+DROP SCHEMA IF EXISTS `expresionlatina`;
 CREATE SCHEMA IF NOT EXISTS `expresionlatina` DEFAULT CHARACTER SET utf8 ;
 USE `expresionlatina` ;
 
@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS `expresionlatina`.`usuario` (
   `email` VARCHAR(45) NOT NULL,
   `telefono` VARCHAR(45) NOT NULL,
   `Tipo_usuario` INT NOT NULL,
+  `ruta_imageProfile` VARCHAR(45) NULL,
   PRIMARY KEY (`idUsuario`, `Tipo_usuario`),
   UNIQUE INDEX `email_UNIQUE` (`email` ASC) VISIBLE,
   UNIQUE INDEX `idUsuario_UNIQUE` (`idUsuario` ASC) VISIBLE,
@@ -148,6 +149,8 @@ CREATE TABLE IF NOT EXISTS `expresionlatina`.`profesor` (
   `email` VARCHAR(45) NOT NULL,
   `telefono` VARCHAR(45) NOT NULL,
   `estado` TINYINT NOT NULL DEFAULT '1',
+  `ruta_imageProfile` VARCHAR(45) NULL,
+  `ruta_imageProfesor` VARCHAR(45) NULL,
   PRIMARY KEY (`idProfesor`),
   UNIQUE INDEX `idProfesor_UNIQUE` (`idProfesor` ASC) VISIBLE)
 ENGINE = InnoDB
@@ -317,9 +320,67 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8;
 
 
+-- -----------------------------------------------------
+-- Table `expresionlatina`.`logro_profesor`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `expresionlatina`.`logro_profesor` (
+  `idLogro_Profesor` INT NOT NULL AUTO_INCREMENT,
+  `logro` VARCHAR(45) NOT NULL,
+  `profesor_idProfesor` INT NOT NULL,
+  PRIMARY KEY (`idLogro_Profesor`, `profesor_idProfesor`),
+  INDEX `fk_Logro_Profesor_profesor1_idx` (`profesor_idProfesor` ASC) VISIBLE,
+  CONSTRAINT `fk_Logro_Profesor_profesor1`
+    FOREIGN KEY (`profesor_idProfesor`)
+    REFERENCES `expresionlatina`.`profesor` (`idProfesor`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `expresionlatina`.`usuario_has_red_social`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `expresionlatina`.`usuario_has_red_social` (
+  `usuario_idUsuario` INT NOT NULL,
+  `red_social_idRed_social` INT NOT NULL,
+  `link` VARCHAR(45) NOT NULL,
+  `estado` TINYINT NOT NULL,
+  PRIMARY KEY (`usuario_idUsuario`, `red_social_idRed_social`),
+  INDEX `fk_usuario_has_red_social_red_social1_idx` (`red_social_idRed_social` ASC) VISIBLE,
+  CONSTRAINT `fk_usuario_has_red_social_usuario1`
+    FOREIGN KEY (`usuario_idUsuario`)
+    REFERENCES `expresionlatina`.`usuario` (`idUsuario`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_usuario_has_red_social_red_social1`
+    FOREIGN KEY (`red_social_idRed_social`)
+    REFERENCES `expresionlatina`.`red_social` (`idRed_social`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `expresionlatina`.`Reseñas`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `expresionlatina`.`Reseñas` (
+  `idReseñas` INT NOT NULL,
+  `contenidoReseñas` VARCHAR(45) NOT NULL,
+  `usuario_idUsuario` INT NOT NULL,
+  PRIMARY KEY (`idReseñas`, `usuario_idUsuario`),
+  INDEX `fk_Reseñas_usuario1_idx` (`usuario_idUsuario` ASC) VISIBLE,
+  CONSTRAINT `fk_Reseñas_usuario1`
+    FOREIGN KEY (`usuario_idUsuario`)
+    REFERENCES `expresionlatina`.`usuario` (`idUsuario`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+
 
 INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('1', 'Administrador');
 INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('2', 'Desarrollador');
