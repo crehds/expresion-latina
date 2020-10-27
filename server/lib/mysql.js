@@ -104,6 +104,10 @@ class MySqlLib {
     return this.query(`select * from login where login_name='${login.name}' and login_password='${login.password}'`)
   }
 
+  nameLogin(loginName) {
+    return this.query(`select * from login where login_name='${loginName}'`)
+  }
+
   getUser(idusuario) {
     return this.query(`select * from usuario where idUsuario=${idusuario}`)
   }
@@ -115,7 +119,7 @@ class MySqlLib {
 
   createUser({ user }) {
     return this.query(
-      `insert into usuario (nombre, apellido,edad,email, telefono,Tipo_usuario) values ('${user.name}', '${user.lastname}','${user.edad}','${user.email}','${user.telefono}', 3)`
+      `insert into usuario (nombre, apellido,edad,email, telefono,Tipo_usuario) values ('${user.name}', '${user.lastname}','${user.edad}','${user.email}','${user.telefono}', 1)`
     );
   }
 

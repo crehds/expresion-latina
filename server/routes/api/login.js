@@ -38,6 +38,18 @@ router.post("/findUser", async function (req, res, next) {
   }
 });
 
+router.get("/getLogin/:nameLogin", async function (req, res, next) {
+  const { nameLogin } = req.params;
+  try {
+    const NameLogin = await loginService.nameLogin(nameLogin);
+    res.status(200).json({
+      data: NameLogin,
+    })
+  } catch (error) {
+    next(error);
+  }
+})
+
 router.get("/TypeOfUser/:typeOfUser", async function (req, res, next) {
   const { typeOfUser } = req.params;
   try {

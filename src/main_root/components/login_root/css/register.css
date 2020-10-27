@@ -84,8 +84,35 @@
   color: white;
 }
 
+#username.nametrue {
+  border-bottom: 2px solid green;
+}
+
+#username.namefalse {
+  border-bottom: 2px solid red;
+}
+
+#password.nametrue {
+  border-bottom: 2px solid green;
+}
+
+#repassword.nametrue{
+  border-bottom: 2px solid green;
+}
+
+#password.namefalse {
+  border-bottom: 2px solid red;
+}
+
+#repassword.namefalse{
+  border-bottom: 2px solid red;
+}
 .form-register-buttons {
   display: flex;
   width: 100%;
   justify-content: space-around;
+}
+
+.form-register-buttons button:disabled {
+  opacity: 0.6;
 }
