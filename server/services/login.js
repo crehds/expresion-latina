@@ -16,6 +16,11 @@ class LoginService {
     return login || [];
   }
 
+  async nameLogin(nameLogin) {
+    const NameLogin = await this.mysqlDB.nameLogin(nameLogin);
+    return NameLogin.length !== 0 ? true : false;
+  }
+
   async GetTypeUser(typeOfUser) {
     const TypesUser = await this.mysqlDB.getTypeUser(typeOfUser);
     return TypesUser || [];
@@ -42,7 +47,11 @@ class LoginService {
   }
 
   async createUser({ user, login }) {
+    
     const userCreated = await this.mysqlDB.createUser({ user });
+    if(userCreated.sqlMessage) {
+      return "Email Repetido"
+    }
     const loginCreated = await this.mysqlDB.createLogin(
       { login },
       userCreated.insertId
