@@ -12,6 +12,19 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,N
 -- Schema expresionlatina
 -- -----------------------------------------------------
 DROP SCHEMA IF EXISTS `expresionlatina`;
+-- MySQL Workbench Forward Engineering
+
+SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
+
+-- -----------------------------------------------------
+-- Schema expresionlatina
+-- -----------------------------------------------------
+
+-- -----------------------------------------------------
+-- Schema expresionlatina
+-- -----------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS `expresionlatina` DEFAULT CHARACTER SET utf8 ;
 USE `expresionlatina` ;
 
@@ -377,12 +390,34 @@ CREATE TABLE IF NOT EXISTS `expresionlatina`.`Reseñas` (
 ENGINE = InnoDB;
 
 
+-- -----------------------------------------------------
+-- Table `expresionlatina`.`Generos_Profesor`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `expresionlatina`.`Generos_Profesor` (
+  `genero_baile_idGenero_baile` INT NOT NULL,
+  `profesor_idProfesor` INT NOT NULL,
+  PRIMARY KEY (`genero_baile_idGenero_baile`, `profesor_idProfesor`),
+  INDEX `fk_Generos_Profesor_profesor1_idx` (`profesor_idProfesor` ASC) VISIBLE,
+  CONSTRAINT `fk_Generos_Profesor_genero_baile1`
+    FOREIGN KEY (`genero_baile_idGenero_baile`)
+    REFERENCES `expresionlatina`.`genero_baile` (`idGenero_baile`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Generos_Profesor_profesor1`
+    FOREIGN KEY (`profesor_idProfesor`)
+    REFERENCES `expresionlatina`.`profesor` (`idProfesor`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 
-
 INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('1', 'Administrador');
 INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('2', 'Desarrollador');
-INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('3', 'Estudiante');
+INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('3', 'Profesor');
 INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('4', 'Becado');
+INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('5', 'Semi-Becado');
+INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('6', 'Estudiante');
