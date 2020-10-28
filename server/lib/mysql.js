@@ -34,8 +34,8 @@ class MySqlLib {
       return results;
     } catch (error) {
       debug("Algo salió mal...");
-      debug(error.stack)
-      debug(error.sqlMessage)
+      debug(error.stack);
+      debug(error.sqlMessage);
       return error;
     }
   }
@@ -48,11 +48,11 @@ class MySqlLib {
   //   try {
   //     const results = new Promise((resolve, reject) => {
   //       this.connect();
-  //       this.client.query(sql, args, 
+  //       this.client.query(sql, args,
   //         (err,rows) => {
   //           this.client.end()
   //           debug(`Processing the query: ${sql}`);
-  //           if (err) reject(err)          
+  //           if (err) reject(err)
   //           debug("Query results...")
   //           console.log(this.client.state);
   //           this.client.end()
@@ -61,7 +61,7 @@ class MySqlLib {
   //     })
   //     this.client.end();
   //     console.log(this.client.state);
-      
+
   //     return results;
   //   } catch (error) {
   //     debug("Algo salió mal...");
@@ -74,11 +74,11 @@ class MySqlLib {
   //   let template = this
   //   client.on('error', function (error) {
   //     if (!error.fatal) return;
-      
+
   //     if (error.code !== 'PROTOCOL_CONNECTION_LOST') throw error;
-  
+
   //     debug('> Re-connecting lost MySQL connection: ' + error.stack);
-  
+
   //     NOTE: This assignment is to a variable from an outer scope; this is extremely important
   //     If this said `client =` it wouldn't do what you want. The assignment here is implicitly changed
   //     to `global.mysqlClient =` in node.
@@ -86,7 +86,7 @@ class MySqlLib {
   //     template.handleDisconnect(template.client)
   //     template.connect();
   //     console.log('aqui');
-  //   }); 
+  //   });
   // }
 
   async login(table) {
@@ -101,15 +101,17 @@ class MySqlLib {
   }
 
   getLogin(login) {
-    return this.query(`select * from login where login_name='${login.name}' and login_password='${login.password}'`)
+    return this.query(
+      `select * from login where login_name='${login.name}' and login_password='${login.password}'`
+    );
   }
 
   nameLogin(loginName) {
-    return this.query(`select * from login where login_name='${loginName}'`)
+    return this.query(`select * from login where login_name='${loginName}'`);
   }
 
   getUser(idusuario) {
-    return this.query(`select * from usuario where idUsuario=${idusuario}`)
+    return this.query(`select * from usuario where idUsuario=${idusuario}`);
   }
 
   // INSERT INTO `expresionlatina`.`tipo_usuario` (`idTipo_usuario`, `tipo_usuario`) VALUES ('4', 'Becado');
@@ -119,24 +121,30 @@ class MySqlLib {
 
   createUser({ user }) {
     return this.query(
-      `insert into usuario (nombre, apellido,edad,email, telefono,Tipo_usuario) values ('${user.name}', '${user.lastname}','${user.edad}','${user.email}','${user.telefono}', 1)`
+      `insert into usuario (nombre, apellido,fechaNacimiento,email, telefono,genero,Tipo_usuario) values ('${user.name}', '${user.lastname}','${user.fechaNacimiento}','${user.email}','${user.telefono}', '${user.genero}',1)`
     );
   }
 
-  updateUser({user}) {
-    return this.query(`update usuario set nombre='${user.nombre}', apellido='${user.apellido}', edad='${user.edad}', email='${user.email}', telefono='${user.telefono}' where idUsuario=${user.idUsuario}`)
+  updateUser({ user }) {
+    return this.query(
+      `update usuario set nombre='${user.nombre}', apellido='${user.apellido}', edad='${user.edad}', email='${user.email}', telefono='${user.telefono}' where idUsuario=${user.idUsuario}`
+    );
   }
   getTypeUser(typeOfUser) {
-    debug(`Id de tipo de usuario a buscar: ${typeOfUser}`)
-    return this.query(`select * from tipo_usuario where idTipo_usuario='${typeOfUser}'`).then((rows) => rows);
+    debug(`Id de tipo de usuario a buscar: ${typeOfUser}`);
+    return this.query(
+      `select * from tipo_usuario where idTipo_usuario='${typeOfUser}'`
+    ).then((rows) => rows);
   }
 
   getTypesUsers() {
     return this.query(`select * from tipo_usuario`).then((rows) => rows);
   }
 
-  createLogin({login}, userId) {
-    return this.query(`insert into login (login_name, login_password, Usuario) values('${login.usuario}', '${login.password}', ${userId})`)
+  createLogin({ login }, userId) {
+    return this.query(
+      `insert into login (login_name, login_password, Usuario) values('${login.usuario}', '${login.password}', ${userId})`
+    );
   }
 }
 
