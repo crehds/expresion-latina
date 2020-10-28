@@ -12,19 +12,6 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,N
 -- Schema expresionlatina
 -- -----------------------------------------------------
 DROP SCHEMA IF EXISTS `expresionlatina`;
--- MySQL Workbench Forward Engineering
-
-SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
-SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
-SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
-
--- -----------------------------------------------------
--- Schema expresionlatina
--- -----------------------------------------------------
-
--- -----------------------------------------------------
--- Schema expresionlatina
--- -----------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS `expresionlatina` DEFAULT CHARACTER SET utf8 ;
 USE `expresionlatina` ;
 
@@ -60,9 +47,10 @@ CREATE TABLE IF NOT EXISTS `expresionlatina`.`usuario` (
   `nombre` VARCHAR(45) NOT NULL,
   `apellido` VARCHAR(45) NOT NULL,
   `nickname` VARCHAR(45) NULL DEFAULT NULL,
-  `edad` VARCHAR(45) NOT NULL,
+  `fechaNacimiento` DATE NOT NULL,
   `email` VARCHAR(45) NOT NULL,
   `telefono` VARCHAR(45) NOT NULL,
+  `genero` CHAR(1) NOT NULL,
   `Tipo_usuario` INT NOT NULL,
   `ruta_imageProfile` VARCHAR(45) NULL,
   PRIMARY KEY (`idUsuario`, `Tipo_usuario`),
