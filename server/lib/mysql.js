@@ -146,6 +146,17 @@ class MySqlLib {
       `insert into login (login_name, login_password, Usuario) values('${login.usuario}', '${login.password}', ${userId})`
     );
   }
+
+  getProfesors() {
+    return this.query(`select * from profesor`);
+  }
+
+  createProfesor({ profesor }) {
+    return this.query(
+      `insert into profesor (nombre, apellido, fechaNacimiento, email, telefono, genero, estado) values ('${profesor.nombre}','${profesor.apellido}','${profesor.fechaNacimiento}','${profesor.email}',
+      '${profesor.telefono}','${profesor.genero}', 1)`
+    );
+  }
 }
 
 module.exports = MySqlLib;
