@@ -37,6 +37,19 @@
   grid-column: 3 / 5;
 }
 
+.imageProfesor-prueba {
+  position: absolute;
+  right:0;
+  top:0;
+  border:1px solid gray;
+  width: 100%;
+  height: 100%;
+}
+.imageProfesor-prueba img {
+  max-width: 100%;
+  height: 100%;
+}
+
 .div-container-profesor-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

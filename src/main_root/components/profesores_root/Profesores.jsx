@@ -11,6 +11,7 @@ export default class Profesores extends Component {
     profesor: "",
     genero: "",
     carousel: [],
+    test:null
   };
 
   handleProfesors = (profesores) => {
@@ -52,8 +53,19 @@ export default class Profesores extends Component {
     }
   };
 
+  testGettingImage = async () => {
+    const imagePath = await fetch("/admin/imageProfesor/3", {
+      method: "GET"
+    }).then(result => result.json());
+    console.log(...imagePath.data);
+    const ruta = imagePath.data[0].ruta_imageProfesor
+    console.log(ruta);
+    this.setState({test:ruta})
+  }
+
   componentDidMount() {
     this.handleProfesors(profesores.images);
+    this.testGettingImage();
   }
 
   componentWillUnmount() {
@@ -70,6 +82,9 @@ export default class Profesores extends Component {
           handleProfesors={this.handleProfesors}
           carousel={carousel}
         />
+        {this.state.test && <div className="imageProfesor-prueba">
+          <img src={"http://localhost:4000"+this.state.test} alt=""/>
+        </div>}
         {this.state.profile && (
           <ProfileProfesorModal
             showProfile={this.showProfile}

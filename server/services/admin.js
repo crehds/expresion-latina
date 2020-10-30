@@ -15,6 +15,16 @@ class AdminService {
     const profesorCreated = await this.mysqlDB.createProfesor({profesor});
     return profesorCreated || [];
   }
+
+  async saveImageProfesor({profesorId}, pathImageProfesor) {
+    const imageProfesor = await this.mysqlDB.saveImageProfesor({profesorId},pathImageProfesor)
+    return imageProfesor || [];
+  }
+
+  async getImageProfesor({profesorId}) {
+    const pathImageProfesor = await this.mysqlDB.getImageProfesor({profesorId});
+    return pathImageProfesor || [];
+  }
 }
 
 module.exports = AdminService;

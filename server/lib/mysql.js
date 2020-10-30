@@ -157,6 +157,16 @@ class MySqlLib {
       '${profesor.telefono}','${profesor.genero}', 1)`
     );
   }
+
+  saveImageProfesor({ profesorId }, pathImageprofesor) {
+    return this.query(
+      `update profesor set ruta_imageProfesor='${pathImageprofesor}' where idProfesor='${profesorId}'`
+    );
+  }
+
+  getImageProfesor({ profesorId }) {
+    return this.query(`select ruta_imageProfesor from profesor where idProfesor='${profesorId}'`)
+  }
 }
 
 module.exports = MySqlLib;
