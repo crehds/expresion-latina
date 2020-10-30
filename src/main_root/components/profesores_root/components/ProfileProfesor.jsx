@@ -11,7 +11,7 @@ export default class ProfileProfesor extends Component {
         </div>
         <div className="profesor-image">
           <img
-            src={process.env.PUBLIC_URL + this.props.src}
+            src={this.props.src}
             alt={this.props.profesor}
           />
           <div className="profesor-socialmedia">

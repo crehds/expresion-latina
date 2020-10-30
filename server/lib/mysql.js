@@ -167,6 +167,10 @@ class MySqlLib {
   getImageProfesor({ profesorId }) {
     return this.query(`select ruta_imageProfesor from profesor where idProfesor='${profesorId}'`)
   }
+
+  getPathsImagesProfesors() {
+    return this.query(`select idProfesor,nombre,apellido,ruta_imageProfesor from profesor`)
+  }
 }
 
 module.exports = MySqlLib;

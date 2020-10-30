@@ -25,6 +25,11 @@ class AdminService {
     const pathImageProfesor = await this.mysqlDB.getImageProfesor({profesorId});
     return pathImageProfesor || [];
   }
+
+  async getPathsImagesProfesors() {
+    const pathsImagesProfesors = await this.mysqlDB.getPathsImagesProfesors();
+    return pathsImagesProfesors || [];
+  }
 }
 
 module.exports = AdminService;

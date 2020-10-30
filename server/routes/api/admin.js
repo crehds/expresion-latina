@@ -21,9 +21,23 @@ router.get("/getProfesors", async function (req, res, next) {
 router.get("/imageProfesor/:profesorId", async function (req, res, next) {
   try {
     const { profesorId } = req.params;
-    const pathImageProfesor = await adminService.getImageProfesor({ profesorId });
+    const pathImageProfesor = await adminService.getImageProfesor({
+      profesorId,
+    });
     res.status(200).json({
       data: pathImageProfesor,
+      message: "success",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/getAllPathsImagesProfesors", async function (req, res, next) {
+  try {
+    const pathsImagesProfesors = await adminService.getPathsImagesProfesors();
+    res.status(200).json({
+      data: pathsImagesProfesors,
       message: "success",
     });
   } catch (error) {
@@ -58,7 +72,7 @@ router.post(
   "/imageProfesor/:profesorId",
   upload.single("image"),
   async function (req, res, next) {
-    const pathImageProfesor = "./server/uploads/" + req.file.originalname;
+    const pathImageProfesor = "/static/" + req.file.originalname;
     const { profesorId } = req.params;
 
     const result = await adminService.saveImageProfesor(
