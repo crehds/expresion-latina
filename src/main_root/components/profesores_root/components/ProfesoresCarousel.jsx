@@ -42,14 +42,14 @@ export default class ProfesoresCarousel extends Component {
     // condicionales insertadas para evadir el valor inicial de ...............000undefined del carousel
     // En el componente padre es el subarreglo del carousel
     const { carouselId } = this.state;
-    console.log(this.props.carousel2);
-    let aux = this.props.carousel2[carouselId]
-      ? this.props.carousel2[carouselId].length
+    console.log(this.props.carousel);
+    let aux = this.props.carousel[carouselId]
+      ? this.props.carousel[carouselId].length
       : 4;
     return (
       <div className={`div-container-profesor-${aux}`}>
-        {this.props.carousel2[carouselId] &&
-          this.props.carousel2[carouselId].map((e,i) => (
+        {this.props.carousel[carouselId] &&
+          this.props.carousel[carouselId].map((e,i) => (
             <Profesor
               handleProfile={this.props.handleProfile}
               id={e.idProfesor}
