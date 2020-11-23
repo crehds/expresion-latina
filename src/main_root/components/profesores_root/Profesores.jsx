@@ -21,7 +21,7 @@ export default class Profesores extends Component {
       (e) => e.idProfesor === profesorId
     );
     this.setState({
-      src: "http://localhost:4000" + profesor.ruta_imageProfesor,
+      src: profesor.ruta_imageProfesor,
       profesor: profesor.nombre + " " + profesor.apellido,
       genero: "No definido",
     });

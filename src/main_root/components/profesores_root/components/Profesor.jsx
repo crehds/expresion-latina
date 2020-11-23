@@ -13,7 +13,7 @@ export default class Profesor extends PureComponent {
 
   setSrc = (event) => {
     let elementImg = event.target;
-    elementImg.src = "http://localhost:4000" + this.props.src;
+    elementImg.src = this.props.src;
     elementImg.removeEventListener("load", this.setSrc, false);
   };
 

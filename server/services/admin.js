@@ -1,5 +1,5 @@
 const MySqlLib = require("../lib/mysql");
-
+const { localAddress } = require("../utils/localAddress");
 class AdminService {
   constructor() {
     this.mysqlDB = new MySqlLib();
@@ -11,23 +11,29 @@ class AdminService {
     return profesors || [];
   }
 
-  async createProfesor ({profesor}) {
-    const profesorCreated = await this.mysqlDB.createProfesor({profesor});
+  async createProfesor({ profesor }) {
+    const profesorCreated = await this.mysqlDB.createProfesor({ profesor });
     return profesorCreated || [];
   }
 
-  async saveImageProfesor({profesorId}, pathImageProfesor) {
-    const imageProfesor = await this.mysqlDB.saveImageProfesor({profesorId},pathImageProfesor)
+  async saveImageProfesor({ profesorId }, pathImageProfesor) {
+    const imageProfesor = await this.mysqlDB.saveImageProfesor(
+      { profesorId },
+      pathImageProfesor
+    );
     return imageProfesor || [];
   }
 
-  async getImageProfesor({profesorId}) {
-    const pathImageProfesor = await this.mysqlDB.getImageProfesor({profesorId});
+  async getImageProfesor({ profesorId }) {
+    const pathImageProfesor = await this.mysqlDB.getImageProfesor({
+      profesorId,
+    });
     return pathImageProfesor || [];
   }
 
   async getPathsImagesProfesors() {
-    const pathsImagesProfesors = await this.mysqlDB.getPathsImagesProfesors();
+    let pathsImagesProfesors = await this.mysqlDB.getPathsImagesProfesors();
+    pathsImagesProfesors = localAddress(pathsImagesProfesors);
     return pathsImagesProfesors || [];
   }
 }
