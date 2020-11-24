@@ -171,6 +171,10 @@ class MySqlLib {
   getPathsImagesProfesors() {
     return this.query(`select idProfesor,nombre,apellido,ruta_imageProfesor from profesor`)
   }
+
+  setDanceGenresProfesor(idProfesor,idDanceGenre) {
+    return this.query(`insert into generos_profesor (idProfesor, idGenero_baile) values ('${idProfesor}','${idDanceGenre}')` )
+  }
 }
 
 module.exports = MySqlLib;

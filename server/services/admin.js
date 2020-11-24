@@ -36,6 +36,18 @@ class AdminService {
     pathsImagesProfesors = localAddress(pathsImagesProfesors);
     return pathsImagesProfesors || [];
   }
+
+  async setDanceGenresProfesor(idProfesor, arrIdsDanceGenres) {
+    const promises = arrIdsDanceGenres.map(
+      async (idDanceGenre) =>
+        await this.mysqlDB.setDanceGenresProfesor(
+          idProfesor,
+          idDanceGenre
+        )
+    );
+    const resolvedPromises = await Promise.all(promises);
+    return resolvedPromises || [];
+  }
 }
 
 module.exports = AdminService;
