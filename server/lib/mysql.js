@@ -181,6 +181,10 @@ class MySqlLib {
       `select idProfesor, idGenero_baile from generos_profesor where idProfesor=${ProfesorId}`
     );
   }
+  
+  getDanceGenres(danceGenreId) {
+    return this.query(`select genero_baile from genero_baile where idGenero_baile=${danceGenreId}`)
+  }
 
   setDanceGenresProfesor(ProfesorId, idDanceGenre) {
     return this.query(

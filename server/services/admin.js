@@ -1,3 +1,4 @@
+const e = require("express");
 const MySqlLib = require("../lib/mysql");
 const { localAddress } = require("../utils/localAddress");
 class AdminService {
@@ -38,8 +39,14 @@ class AdminService {
   }
 
   async getDanceGenresProfesor(ProfesorId) {
-    const danceGenres = this.mysqlDB.getDanceGenresProfesor(ProfesorId);
-    return danceGenres || [];
+    const danceGenresProfesor = await this.mysqlDB.getDanceGenresProfesor(
+      ProfesorId
+    );
+    const danceGenres = danceGenresProfesor.map(async (e) => {
+      let aux = await this.mysqlDB.getDanceGenres(e.idGenero_baile);
+      return aux[0].genero_baile;
+    });
+    return Promise.all(danceGenres) || [];
   }
 
   async setDanceGenresProfesor(ProfesorId, arrIdsDanceGenres) {
