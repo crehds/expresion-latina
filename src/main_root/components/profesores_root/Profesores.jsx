@@ -11,15 +11,15 @@ export default class Profesores extends Component {
     profesor: "",
     genero: "",
     carousel: [],
+    carouselImagesStructure: 4,
   };
 
-  handleProfesors = (profesores) => {
+  handleProfesors = (profesores,size= this.state.carouselImagesStructure) => {
     let length = profesores.length;
     let carousel = [];
-    for (let i = 0; i <= length; i = i + 4) {
-      carousel.push(profesores.slice(i, i + 4));
+    for (let i = 0; i < length; i = i + size) {
+      carousel.push(profesores.slice(i, i + size));
     }
-
     this.setState({
       carousel,
     });
@@ -52,8 +52,15 @@ export default class Profesores extends Component {
     }
   };
 
+  handleCarouselImagesStructure = (structure) => {
+    console.log(structure);
+    this.handleProfesors(profesores.images,parseInt(structure));
+    this.setState({ carouselImagesStructure: structure });
+  };
+
   componentDidMount() {
     this.handleProfesors(profesores.images);
+    this.props.getFunction(this.handleCarouselImagesStructure);
   }
 
   componentWillUnmount() {
@@ -69,6 +76,8 @@ export default class Profesores extends Component {
           handleProfile={this.handleProfile}
           handleProfesors={this.handleProfesors}
           carousel={carousel}
+          getFunction={this.props.getFunction}
+          carouselImagesStructure={this.state.carouselImagesStructure}
         />
         {this.state.profile && (
           <ProfileProfesorModal

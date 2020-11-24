@@ -23,8 +23,6 @@ export default class Profesor extends PureComponent {
 
   componentDidUpdate(prevProps) {
     if (prevProps.src !== this.props.src) {
-      console.log("aqui");
-
       this.handleLoad();
     }
   }
