@@ -90,20 +90,40 @@ router.post(
   }
 );
 
-router.post("/danceGenresProfesor/:profesorId",async function (req, res, next) {
-  const { body } = req;
+router.get("/danceGenresProfesor/:profesorId", async function (req, res, next) {
   const { profesorId } = req.params;
   try {
-    const danceGenresProfesor = await adminService.setDanceGenresProfesor(profesorId, body)
+    const danceGenresProfesor = await adminService.getDanceGenresProfesor(
+      profesorId
+    );
     res.status(200).json({
       data: danceGenresProfesor,
-      message: "success"
-    })
-  } catch(error) {
+      message: "success",
+    });
+  } catch (error) {
     next(error);
   }
-}
-)
+});
+
+router.post(
+  "/danceGenresProfesor/:profesorId",
+  async function (req, res, next) {
+    const { body } = req;
+    const { profesorId } = req.params;
+    try {
+      const danceGenresProfesor = await adminService.setDanceGenresProfesor(
+        profesorId,
+        body
+      );
+      res.status(200).json({
+        data: danceGenresProfesor,
+        message: "success",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 // var storage = multer.diskStorage({
 //   destination: function (req, file, cb) {
 //     cb(null, "./server/uploads");

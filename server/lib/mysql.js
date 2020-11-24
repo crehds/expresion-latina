@@ -165,15 +165,27 @@ class MySqlLib {
   }
 
   getImageProfesor({ profesorId }) {
-    return this.query(`select ruta_imageProfesor from profesor where idProfesor='${profesorId}'`)
+    return this.query(
+      `select ruta_imageProfesor from profesor where idProfesor='${profesorId}'`
+    );
   }
 
   getPathsImagesProfesors() {
-    return this.query(`select idProfesor,nombre,apellido,ruta_imageProfesor from profesor`)
+    return this.query(
+      `select idProfesor,nombre,apellido,ruta_imageProfesor from profesor`
+    );
   }
 
-  setDanceGenresProfesor(idProfesor,idDanceGenre) {
-    return this.query(`insert into generos_profesor (idProfesor, idGenero_baile) values ('${idProfesor}','${idDanceGenre}')` )
+  getDanceGenresProfesor(ProfesorId) {
+    return this.query(
+      `select idProfesor, idGenero_baile from generos_profesor where idProfesor=${ProfesorId}`
+    );
+  }
+
+  setDanceGenresProfesor(ProfesorId, idDanceGenre) {
+    return this.query(
+      `insert into generos_profesor (idProfesor, idGenero_baile) values ('${ProfesorId}','${idDanceGenre}')`
+    );
   }
 }
 

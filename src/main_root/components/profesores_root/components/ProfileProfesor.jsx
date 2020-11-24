@@ -1,7 +1,18 @@
 import React, { Component } from "react";
 import "../css/profileProfesor.css";
-
+import Swal from "sweetalert2";
 export default class ProfileProfesor extends Component {
+
+  handleInfoGenresProfesor = async () => {
+    console.log(this.props.idProfesor);
+    const result = await fetch(`/admin/danceGenresProfesor/${this.props.idProfesor}`).then(result =>result.json())
+    console.log(result);
+    Swal.fire({
+      title: "Géneros que el profesor domina:",
+      text: result.data.map(e =>e.idGenero_baile).join("-")
+    })
+  }
+
   render() {
     return (
       <div className="profile-profesor">

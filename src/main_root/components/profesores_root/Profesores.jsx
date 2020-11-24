@@ -11,6 +11,7 @@ export default class Profesores extends Component {
     profesor: "",
     genero: "",
     carousel: [],
+    idProfesor: null,
     profesors: null,
   };
 
@@ -23,6 +24,7 @@ export default class Profesores extends Component {
     this.setState({
       src: profesor.ruta_imageProfesor,
       profesor: profesor.nombre + " " + profesor.apellido,
+      idProfesor: profesor.idProfesor,
       genero: "No definido",
     });
     this.showProfile();
@@ -79,7 +81,7 @@ export default class Profesores extends Component {
   }
 
   render() {
-    const { src, profesor, genero, carousel } = this.state;
+    const { src, idProfesor, profesor, genero, carousel } = this.state;
 
     return (
       <div className="profesores">
@@ -90,6 +92,7 @@ export default class Profesores extends Component {
         {this.state.profile && (
           <ProfileProfesorModal
             showProfile={this.showProfile}
+            idProfesor={idProfesor}
             src={src}
             profesor={profesor}
             genero={genero}

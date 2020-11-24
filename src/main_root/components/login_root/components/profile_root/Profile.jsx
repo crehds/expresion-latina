@@ -62,7 +62,6 @@ export default class Profile extends Component {
   };
 
   render() {
-    console.log(this.state.twitter);
     return (
       <div className="profile">
         <ProfileHead profile={this.state.profile} />

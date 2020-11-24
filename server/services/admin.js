@@ -37,13 +37,15 @@ class AdminService {
     return pathsImagesProfesors || [];
   }
 
-  async setDanceGenresProfesor(idProfesor, arrIdsDanceGenres) {
+  async getDanceGenresProfesor(ProfesorId) {
+    const danceGenres = this.mysqlDB.getDanceGenresProfesor(ProfesorId);
+    return danceGenres || [];
+  }
+
+  async setDanceGenresProfesor(ProfesorId, arrIdsDanceGenres) {
     const promises = arrIdsDanceGenres.map(
       async (idDanceGenre) =>
-        await this.mysqlDB.setDanceGenresProfesor(
-          idProfesor,
-          idDanceGenre
-        )
+        await this.mysqlDB.setDanceGenresProfesor(ProfesorId, idDanceGenre)
     );
     const resolvedPromises = await Promise.all(promises);
     return resolvedPromises || [];
