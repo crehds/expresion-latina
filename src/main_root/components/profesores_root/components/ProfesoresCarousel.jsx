@@ -11,7 +11,7 @@ export default class ProfesoresCarousel extends Component {
 
     const { carousel } = this.props;
     const { carouselId } = this.state;
-
+    console.log(carousel);
     if (direction === "left") {
       if (carouselId === 0) {
         return this.setState({
@@ -47,9 +47,9 @@ export default class ProfesoresCarousel extends Component {
       ? this.props.carousel[carouselId].length
       : 4;
     return (
-      <div className={`div-container-profesor-${aux}`}>
+      <div className={`div-container-profesor-${this.props.carouselImagesStructure}`}>
         {this.props.carousel[carouselId] &&
-          this.props.carousel[carouselId].map((e,i) => (
+          this.props.carousel[carouselId].map((e, i) => (
             <Profesor
               handleProfile={this.props.handleProfile}
               id={e.idProfesor}

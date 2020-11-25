@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import AdminContainer from "./AdminContainer";
 import Config from "./Config";
 import ConfigLogin from "./ConfigLogin";
+import ConfigProfesores from "./ConfigProfesores";
 import IconConfig from "./IconConfig";
 
 export default class ConfigAdmin extends Component {
@@ -12,11 +13,13 @@ export default class ConfigAdmin extends Component {
           <Config globalProps={this.props.globalProps} func={this.props.func} />
         );
       case "Login":
-        return (<ConfigLogin func={this.props.func} 
-          unLogged={this.props.unLogged}/>)
-          
+        return (
+          <ConfigLogin func={this.props.func} unLogged={this.props.unLogged} />
+        );
+      case "Profesores": 
+      return (<ConfigProfesores func={this.props.func} />)
       default:
-        break;
+        break; 
     }
   };
 

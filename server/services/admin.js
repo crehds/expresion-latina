@@ -1,4 +1,3 @@
-const e = require("express");
 const MySqlLib = require("../lib/mysql");
 const { localAddress } = require("../utils/localAddress");
 class AdminService {
