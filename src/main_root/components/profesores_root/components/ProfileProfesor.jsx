@@ -1,7 +1,25 @@
 import React, { Component } from "react";
 import "../css/profileProfesor.css";
-
+import Swal from "sweetalert2";
 export default class ProfileProfesor extends Component {
+
+  handleInfoGenresProfesor = async () => {
+    console.log(this.props.idProfesor);
+    const result = await fetch(`/admin/danceGenresProfesor/${this.props.idProfesor}`).then(result =>result.json())
+    if(result.data.length !== 0) {
+      Swal.fire({
+        title: "Géneros que el profesor domina:",
+        text: result.data.join("-")
+      })
+    } else {
+      Swal.fire({
+        title: "Géneros que el profesor domina:",
+        text: "Se asignará pronto..."
+      })
+    }
+    
+  }
+
   render() {
     return (
       <div className="profile-profesor">
@@ -11,10 +29,13 @@ export default class ProfileProfesor extends Component {
         </div>
         <div className="profesor-image">
           <img
-            src={process.env.PUBLIC_URL + this.props.src}
+            src={this.props.src}
             alt={this.props.profesor}
           />
+          
           <div className="profesor-socialmedia">
+          <i className="icon3-info infoGenres" onClick={this.handleInfoGenresProfesor}>
+          </i>
             <i className="icon-facebook2 socialmedia"></i>
             <i className="icon-instagram socialmedia"></i>
             <i className="icon-twitter socialmedia"></i>

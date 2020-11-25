@@ -26,6 +26,7 @@
 
 .profesor-image {
   display:grid;
+  
   grid-template-columns: 80% 20%;
 }
 
@@ -39,6 +40,7 @@
 .profesor-socialmedia {
   display: flex;
   flex-direction: column;
+  position: relative;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
@@ -59,4 +61,12 @@
 
 .x {
   font-size: 20px;
+}
+
+.infoGenres {
+  position: absolute;
+  /* right: px; */
+  top: 5px;
+  /* color: black; */
+  font-size: 25px;
 }
