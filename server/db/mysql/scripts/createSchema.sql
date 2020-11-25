@@ -383,17 +383,17 @@ ENGINE = InnoDB;
 -- Table `expresionlatina`.`Generos_Profesor`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `expresionlatina`.`Generos_Profesor` (
-  `genero_baile_idGenero_baile` INT NOT NULL,
-  `profesor_idProfesor` INT NOT NULL,
-  PRIMARY KEY (`genero_baile_idGenero_baile`, `profesor_idProfesor`),
-  INDEX `fk_Generos_Profesor_profesor1_idx` (`profesor_idProfesor` ASC) VISIBLE,
+  `idProfesor` INT NOT NULL,
+  `idGenero_baile` INT NOT NULL,
+  PRIMARY KEY (`idProfesor`, `idGenero_baile`),
+  INDEX `fk_Generos_Profesor_profesor1_idx` (`idProfesor` ASC) VISIBLE,
   CONSTRAINT `fk_Generos_Profesor_genero_baile1`
-    FOREIGN KEY (`genero_baile_idGenero_baile`)
+    FOREIGN KEY (`idGenero_baile`)
     REFERENCES `expresionlatina`.`genero_baile` (`idGenero_baile`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_Generos_Profesor_profesor1`
-    FOREIGN KEY (`profesor_idProfesor`)
+    FOREIGN KEY (`idProfesor`)
     REFERENCES `expresionlatina`.`profesor` (`idProfesor`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
