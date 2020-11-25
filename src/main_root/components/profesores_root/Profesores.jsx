@@ -18,7 +18,7 @@ export default class Profesores extends Component {
 
   handleProfile = (event) => {
     let element = event.target.id;
-    let profesorId = parseInt(element.slice(-1));
+    let profesorId = parseInt(element.match(/\d+/)[0]);
     let profesor = this.state.profesors.find(
       (e) => e.idProfesor === profesorId
     );
