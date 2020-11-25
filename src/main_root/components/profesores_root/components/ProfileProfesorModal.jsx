@@ -4,10 +4,11 @@ import ProfileProfesor from "./ProfileProfesor";
 
 export default class ProfileProfesorModal extends PureComponent {
   render() {
-    const { showProfile, src, profesor, genero } = this.props;
+    const { showProfile, src, idProfesor, profesor, genero } = this.props;
     return createPortal(
       <ProfileProfesor
         showProfile={showProfile}
+        idProfesor={idProfesor}
         src={src}
         profesor={profesor}
         genero={genero}
