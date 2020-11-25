@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import Profesor from "./Profesor";
 import Arrow from "./Arrow";
+import { log } from "debug";
 export default class ProfesoresCarousel extends Component {
   state = {
     carouselId: 0,
@@ -39,27 +40,31 @@ export default class ProfesoresCarousel extends Component {
     }
   }
   render() {
-    // condicionales insertadas para evadir el valor inicial de ...............000undefined del carousel
-    // En el componente padre es el subarreglo del carousel
     const { carouselId } = this.state;
-    console.log(this.props.carousel);
-    let aux = this.props.carousel[carouselId]
-      ? this.props.carousel[carouselId].length
-      : 4;
+    let { carousel, carouselImagesStructure, handleProfile } = this.props;
     return (
-      <div className={`div-container-profesor-${this.props.carouselImagesStructure}`}>
-        {this.props.carousel[carouselId] &&
-          this.props.carousel[carouselId].map((e, i) => (
-            <Profesor
-              handleProfile={this.props.handleProfile}
-              id={e.idProfesor}
-              src={e.ruta_imageProfesor}
-              key={i}
-              profesor={e.nombre + e.apellido}
-            />
-          ))}
-        <Arrow handleArrow={this.handleArrow} />
-      </div>
+      <React.Fragment>
+        {carousel[carouselId] && (
+          <div
+            className={`div-container-profesor-${
+              carouselImagesStructure === carousel[carouselId].length
+                ? carouselImagesStructure
+                : carousel[carouselId].length
+            }`}
+          >
+            {carousel[carouselId].map((e, i) => (
+              <Profesor
+                handleProfile={handleProfile}
+                id={e.idProfesor}
+                src={e.ruta_imageProfesor}
+                key={i}
+                profesor={e.nombre + e.apellido}
+              />
+            ))}
+            <Arrow handleArrow={this.handleArrow} />
+          </div>
+        )}
+      </React.Fragment>
     );
   }
 }
