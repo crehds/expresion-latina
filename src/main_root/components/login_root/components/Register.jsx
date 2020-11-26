@@ -103,6 +103,17 @@ export default class Register extends Component {
     }
   };
 
+  handleChecked = (event) => {
+    let id = event.target.id;
+    if(id === "M") {
+      let element = document.getElementById("F");
+      element.checked = false;
+    } else {
+      let element = document.getElementById("M");
+      element.checked = false;
+    }
+
+  }
   render() {
     return (
       <form
@@ -136,11 +147,11 @@ export default class Register extends Component {
               <input className="register-container__auxiliar-date" key="4" type="date" name="edad" />
 
               <div className="register-container__auxiliar-checkbox">
-                <input type="checkbox" id="M" name="genero" value="M" />
+                <input type="checkbox" id="M" name="genero" value="M" onClick={this.handleChecked} />
                 <label htmlFor="M">M</label>
               </div>
               <div className="register-container__auxiliar-checkbox">
-                <input type="checkbox" id="F" name="genero" value="F" />
+                <input type="checkbox" id="F" name="genero" value="F" onClick={this.handleChecked}/>
                 <label htmlFor="F">F</label>
               </div>
             </div>
