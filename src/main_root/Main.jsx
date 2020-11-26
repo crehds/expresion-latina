@@ -102,7 +102,12 @@ export default class Main extends Component {
           />
         );
       case "Profesores":
-        return <Profesores handleLoading={this.handleLoading} getFunction={this.getFunction} />;
+        return (
+          <Profesores
+            handleLoading={this.handleLoading}
+            getFunction={this.getFunction}
+          />
+        );
       case "Clases":
         return <Clases handleLoading={this.handleLoading} />;
       case "Horario":

@@ -53,17 +53,23 @@ export default class Login extends Component {
     if (data) {
       this.props.headerFunc(true);
       this.props.handleTypeOfUser(data.user[0].Tipo_usuario);
+      data.user[0].fechaNacimiento = this.gettingAgeUser({ ...data.user[0] });
       this.props.handleInfoLogin("Profile", data.user[0], data.login[0]);
     } else {
       Swal.fire({
         icon: "error",
-        text:
-          "Datos erróneos",
+        text: "Datos erróneos",
       });
     }
   };
 
-  
+  gettingAgeUser = (user) => {
+    // console.log(user);
+    let edad = user.fechaNacimiento || user.edad;
+    let temp = new Date(Date.now() - new Date(edad).getTime());
+
+    return Math.abs(temp.getUTCFullYear() - 1970);
+  };
 
   showDataForm = async (user, login) => {
     const result = await fetch("/login/createUser", {
@@ -75,6 +81,7 @@ export default class Login extends Component {
     }).then((result) => result.json());
     console.log(result);
     this.props.headerFunc(true);
+    user.edad = this.gettingAgeUser({ ...user });
     this.props.handleInfoLogin("Profile", user, login);
   };
 

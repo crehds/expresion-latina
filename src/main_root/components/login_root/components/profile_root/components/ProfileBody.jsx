@@ -44,7 +44,7 @@ export default function ProfileBody(props) {
           <input
             type="text"
             name="edad"
-            value={props.gettingAgeUser(user)}
+            value={user.edad || user.fechaNacimiento}
             disabled
             onChange={props.handleChange}
           />
