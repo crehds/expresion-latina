@@ -3,6 +3,7 @@ import "../css/modalAdmin.css";
 
 import ConfigStudent from "./ConfigStudent";
 import ConfigAdmin from "./ConfigAdmin";
+import ConfigVisit from "./ConfigVisit";
 
 export default class ModalAdmin extends Component {
   state = {
@@ -27,6 +28,16 @@ export default class ModalAdmin extends Component {
       case "Estudiante":
         return (
           <ConfigStudent
+            handleDisplayConfig={this.handleDisplayConfig}
+            func={this.props.func}
+            display={this.state.display}
+            mainContent={this.props.mainContent}
+            unLogged={this.props.unLogged}
+          />
+        );
+      case "Visitante":
+        return (
+          <ConfigVisit
             handleDisplayConfig={this.handleDisplayConfig}
             func={this.props.func}
             display={this.state.display}
