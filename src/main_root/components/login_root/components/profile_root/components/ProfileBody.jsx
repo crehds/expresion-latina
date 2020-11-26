@@ -44,7 +44,7 @@ export default function ProfileBody(props) {
           <input
             type="text"
             name="edad"
-            value={user.edad}
+            value={props.gettingAgeUser(user)}
             disabled
             onChange={props.handleChange}
           />
@@ -66,6 +66,7 @@ export default function ProfileBody(props) {
         </h4>
         <div className="profile-social-media__container">
           <label htmlFor="red-social-1">
+            {/* eslint-disable-next-line */}
             <a
               href={facebook}
               target="_blank"
@@ -84,6 +85,7 @@ export default function ProfileBody(props) {
         </div>
         <div className="profile-social-media__container">
           <label htmlFor="red-social-2">
+            {/* eslint-disable-next-line */}
             <a
               href={twitter}
               target="_blank"
@@ -102,6 +104,7 @@ export default function ProfileBody(props) {
         </div>
         <div className="profile-social-media__container">
           <label htmlFor="red-social-3">
+            {/* eslint-disable-next-line */}
             <a
               href={instagram}
               target="_blank"

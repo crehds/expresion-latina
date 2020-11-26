@@ -24,6 +24,12 @@ export default class Profile extends Component {
     });
   };
 
+  gettingAgeUser = (user) => {
+    let temp = new Date(Date.now() - new Date(user.fechaNacimiento).getTime());
+
+    return Math.abs(temp.getUTCFullYear() - 1970);
+  };
+
   updateProfile = async () => {
     console.log(this.state.profile);
     const result = await fetch("/login/updateUser", {
@@ -70,6 +76,7 @@ export default class Profile extends Component {
           handleChange={this.handleChange}
           addOrUpdate={this.addOrUpdate}
           getDataProfile={this.props.getDataProfile}
+          gettingAgeUser={this.gettingAgeUser}
           socialMedia={this.state.socialMedia}
         />
       </div>

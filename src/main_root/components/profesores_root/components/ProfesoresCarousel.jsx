@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import Profesor from "./Profesor";
 import Arrow from "./Arrow";
-import { log } from "debug";
+
 export default class ProfesoresCarousel extends Component {
   state = {
     carouselId: 0,
