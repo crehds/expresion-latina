@@ -132,7 +132,19 @@ export default class Register extends Component {
               placeholder="Apellidos"
             />
             <input key="3" type="email" name="email" placeholder="Correo" />
-            <input key="4" type="text" name="edad" placeholder="Edad" />
+            <div className="register-container__auxiliar">
+              <input className="register-container__auxiliar-date" key="4" type="date" name="edad" />
+
+              <div className="register-container__auxiliar-checkbox">
+                <input type="checkbox" id="M" name="genero" value="M" />
+                <label htmlFor="M">M</label>
+              </div>
+              <div className="register-container__auxiliar-checkbox">
+                <input type="checkbox" id="F" name="genero" value="F" />
+                <label htmlFor="F">F</label>
+              </div>
+            </div>
+
             <input key="5" type="tel" name="telefono" placeholder="Teléfono" />
           </React.Fragment>
         ) : (
@@ -169,9 +181,9 @@ export default class Register extends Component {
         <div className="form-register-buttons">
           {this.state.partRegister === true ? (
             <button
-              key="1"
+              key="register-1"
               type="button"
-              id="register-change-button"
+              id="register-change-button-1"
               className="form-button"
               onClick={this.handleData}
             >

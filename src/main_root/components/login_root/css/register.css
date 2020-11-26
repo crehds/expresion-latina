@@ -116,3 +116,25 @@
 .form-register-buttons button:disabled {
   opacity: 0.6;
 }
+
+.register-container__auxiliar {
+  /* border:1px solid red; */
+  display: grid;
+  grid-template-columns: 3fr 1fr 1fr;
+  column-gap: 5px;
+  width: 100%;
+}
+
+.register-form .register-container__auxiliar .register-container__auxiliar-date {
+  width: 80%;
+}
+
+.register-container__auxiliar-checkbox{
+  display: flex;
+  align-items: center;
+  /* height: 15px; */
+}
+
+.register-container__auxiliar-checkbox input {
+  height: 15px;
+}

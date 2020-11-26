@@ -121,7 +121,7 @@ class MySqlLib {
 
   createUser({ user }) {
     return this.query(
-      `insert into usuario (nombre, apellido,fechaNacimiento,email, telefono,genero,Tipo_usuario) values ('${user.name}', '${user.lastname}','${user.fechaNacimiento}','${user.email}','${user.telefono}', '${user.genero}',1)`
+      `insert into usuario (nombre, apellido,fechaNacimiento,email, telefono,genero,Tipo_usuario) values ('${user.name}', '${user.lastname}','${user.edad}','${user.email}','${user.telefono}', '${user.genero}',7)`
     );
   }
 
