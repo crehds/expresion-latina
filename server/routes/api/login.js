@@ -1,4 +1,5 @@
 const express = require("express");
+const multer = require('multer');
 const router = express.Router();
 const LoginService = require("../../services/login");
 
@@ -116,5 +117,31 @@ router.put("/updateUser", async function (req, res, next) {
     next(error);
   }
 });
+
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./server/uploads/users");
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.originalname);
+  },
+});
+
+var upload = multer({ storage: storage });
+
+router.put("/setPathUserProfileImage/:userId",upload.single("imageUserProfile"), async function (req, res, next) {
+  const pathImageUserProfile = "/static/users/" + req.file.originalname;
+  const {userId} = req.params;
+  try {
+    const result = await loginService.setPathUserProfileImage({userId}, pathImageUserProfile)
+    console.log(result);
+    res.status(200).json({
+      data: result,
+      message:"success"
+    })
+  } catch (error) {
+    next(error);
+  }
+})
 
 module.exports = router;

@@ -62,6 +62,11 @@ class LoginService {
     const updatedUser = await this.mysqlDB.updateUser({user});
     return updatedUser || [];
   }
+
+  async setPathUserProfileImage({userId}, pathImageUserProfile){
+    const pathUserImageProfile = await this.mysqlDB.setPathUserPofileImage({userId}, pathImageUserProfile)
+    return pathUserImageProfile || [];
+  }
 }
 
 module.exports = LoginService;

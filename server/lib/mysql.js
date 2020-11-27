@@ -191,6 +191,10 @@ class MySqlLib {
       `insert into generos_profesor (idProfesor, idGenero_baile) values ('${ProfesorId}','${idDanceGenre}')`
     );
   }
+
+  setPathUserPofileImage({userId}, pathImageUserProfile){
+    return this.query(`update usuario set ruta_imageProfile='${pathImageUserProfile}' where idUsuario='${userId}'`)
+  }
 }
 
 module.exports = MySqlLib;
