@@ -181,9 +181,11 @@ class MySqlLib {
       `select idProfesor, idGenero_baile from generos_profesor where idProfesor=${ProfesorId}`
     );
   }
-  
+
   getDanceGenres(danceGenreId) {
-    return this.query(`select genero_baile from genero_baile where idGenero_baile=${danceGenreId}`)
+    return this.query(
+      `select genero_baile from genero_baile where idGenero_baile=${danceGenreId}`
+    );
   }
 
   setDanceGenresProfesor(ProfesorId, idDanceGenre) {
@@ -192,12 +194,22 @@ class MySqlLib {
     );
   }
 
-  setPathUserPofileImage({userId}, pathImageUserProfile){
-    return this.query(`update usuario set ruta_imageProfile='${pathImageUserProfile}' where idUsuario='${userId}'`)
+  setPathUserPofileImage({ userId }, pathImageUserProfile) {
+    return this.query(
+      `update usuario set ruta_imageProfile='${pathImageUserProfile}' where idUsuario='${userId}'`
+    );
   }
 
-  setUserSocialMedia(socialMedia,userId){
-    return this.query(`insert into usuario_has_red_social (usuario_IdUsuario,red_social_idRed_social,link, estado) values ('${userId}','${socialMedia.socialMediaId}','${socialMedia.link}', 1)`)
+  setUserSocialMedia(socialMedia, userId) {
+    return this.query(
+      `insert into usuario_has_red_social (usuario_idUsuario,red_social_idRed_social,link, estado) values ('${userId}','${socialMedia.socialMediaId}','${socialMedia.link}', 1)`
+    );
+  }
+
+  updateUserSocialMedia(socialMedia, userId) {
+    return this.query(
+      `update usuario_has_red_social set link='${socialMedia.link}' where  usuario_IdUsuario='${userId}' and red_social_idRed_social='${socialMedia.socialMediaId}'`
+    );
   }
 }
 

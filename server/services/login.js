@@ -74,6 +74,11 @@ class LoginService {
     const resolvedPromises = await Promise.all(promises);
     return resolvedPromises || [];
   }
+
+  async updateUserSocialMedia(socialMedia,userId) {
+    const updateUserSocialMedia = await this.mysqlDB.updateUserSocialMedia(socialMedia,userId)
+    return updateUserSocialMedia || [];
+  }
 }
 
 module.exports = LoginService;

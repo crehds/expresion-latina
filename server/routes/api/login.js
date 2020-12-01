@@ -1,5 +1,5 @@
 const express = require("express");
-const multer = require('multer');
+const multer = require("multer");
 const router = express.Router();
 const LoginService = require("../../services/login");
 
@@ -45,11 +45,11 @@ router.get("/getLogin/:nameLogin", async function (req, res, next) {
     const NameLogin = await loginService.nameLogin(nameLogin);
     res.status(200).json({
       data: NameLogin,
-    })
+    });
   } catch (error) {
     next(error);
   }
-})
+});
 
 router.get("/TypeOfUser/:typeOfUser", async function (req, res, next) {
   const { typeOfUser } = req.params;
@@ -106,7 +106,7 @@ router.post("/createUser", async function (req, res, next) {
 });
 
 router.put("/updateUser", async function (req, res, next) {
-  const { body:user } = req;
+  const { body: user } = req;
   try {
     const data = await loginService.updateUser({ user });
     res.status(200).json({
@@ -129,35 +129,59 @@ var storage = multer.diskStorage({
 
 var upload = multer({ storage: storage });
 
-router.put("/setPathUserProfileImage/:userId",upload.single("imageUserProfile"), async function (req, res, next) {
-  const pathImageUserProfile = "/static/users/" + req.file.originalname;
-  const {userId} = req.params;
+router.put(
+  "/setPathUserProfileImage/:userId",
+  upload.single("imageUserProfile"),
+  async function (req, res, next) {
+    const pathImageUserProfile = "/static/users/" + req.file.originalname;
+    const { userId } = req.params;
+    try {
+      const result = await loginService.setPathUserProfileImage(
+        { userId },
+        pathImageUserProfile
+      );
+      console.log(result);
+      res.status(200).json({
+        data: result,
+        message: "success",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post("/setUserSocialMedias/:userId", async function (req, res, next) {
+  const { userId } = req.params;
+  const { socialMedias } = req.body;
+  console.log(socialMedias);
   try {
-    const result = await loginService.setPathUserProfileImage({userId}, pathImageUserProfile)
+    const result = await loginService.setSocialMedias({ socialMedias, userId });
     console.log(result);
     res.status(200).json({
       data: result,
-      message:"success"
-    })
+      message: "success",
+    });
   } catch (error) {
     next(error);
   }
-})
+});
 
-router.post("/setUserSocialMedias/:userId", async function(req, res,next) {
-  const {userId} = req.params;
-  const {socialMedias} = req.body;
-  console.log(socialMedias);
+router.put("/updateUserSocialMedia/:userId", async function (req, res, next) {
+  const { userId } = req.params;
+  const { body: socialMedia } = req;
   try {
-    const result = await loginService.setSocialMedias({socialMedias, userId});
-    console.log(result);
+    const result = await loginService.updateUserSocialMedia(
+      socialMedia,
+      userId
+    );
     res.status(200).json({
       data: result,
-      message:"success"
-    })
+      message: "success",
+    });
   } catch (error) {
-    next(error)
+    next(error);
   }
-})
+});
 
 module.exports = router;
