@@ -68,10 +68,10 @@ export default class Profile extends Component {
     this.props.getFunction(this.updateProfile);
   }
 
-  addOrUpdate = async (event) => {
-    const id = event.target.id;
-    console.log(id);
-    const { value: link } = await Swal.fire({
+  addOrUpdate = (event) => {
+    const socialMedia = /[A-z]+/.exec(event.target.id);
+    const id = event.target.id.slice(-1);
+    Swal.fire({
       title: "Ingresa el link",
       input: "text",
       showCancelButton: true,
@@ -80,12 +80,34 @@ export default class Profile extends Component {
           return "No haz ingresado nada";
         }
       },
-    });
-    this.setState({
-      socialMedia: {
-        ...this.state.socialMedia,
-        [id]: link,
+      showLoaderOnConfirm: true,
+      preConfirm: (value) => {
+        return fetch(
+          `/login/updateUserSocialMedia/${this.state.profile.idUsuario}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              socialMediaId: id,
+              link: value,
+            }),
+          }
+        ).then(() => value);
       },
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        this.setState({
+          socialMedia: {
+            ...this.state.socialMedia,
+            [socialMedia]: result.value,
+          },
+        });
+        Swal.fire({
+          title: `${socialMedia} actualizado`,
+        });
+      }
     });
   };
 

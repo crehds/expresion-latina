@@ -76,7 +76,7 @@ export default function ProfileBody(props) {
           </label>
           <div>
             <i
-              id="facebook"
+              id="facebook-1"
               className="icon3-edit-pencil"
               onClick={props.addOrUpdate}
             ></i>
@@ -95,7 +95,7 @@ export default function ProfileBody(props) {
           </label>
           <div>
             <i
-              id="twitter"
+              id="twitter-2"
               className="icon3-edit-pencil"
               onClick={props.addOrUpdate}
             ></i>
@@ -114,7 +114,7 @@ export default function ProfileBody(props) {
           </label>
           <div>
             <i
-              id="instagram"
+              id="instagram-3"
               className="icon3-edit-pencil"
               onClick={props.addOrUpdate}
             ></i>
