@@ -33,7 +33,7 @@ class AdminService {
 
   async getPathsImagesProfesors() {
     let pathsImagesProfesors = await this.mysqlDB.getPathsImagesProfesors();
-    pathsImagesProfesors = localAddress(pathsImagesProfesors);
+    pathsImagesProfesors = localAddress(pathsImagesProfesors, "ruta_imageProfesor");
     return pathsImagesProfesors || [];
   }
 

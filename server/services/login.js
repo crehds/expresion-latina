@@ -1,5 +1,5 @@
 const MySqlLib = require("../lib/mysql");
-
+const {localAddress} = require("../utils/localAddress")
 class LoginService {
   constructor() {
     this.collection = "login";
@@ -37,7 +37,8 @@ class LoginService {
     if (Object.keys(login).length === 0) {
       return null;
     }
-    const user = await this.mysqlDB.getUser(login[0].Usuario)
+    let user = await this.mysqlDB.getUser(login[0].Usuario)
+    user = localAddress(user,"ruta_imageProfile")
     return {login, user} || [];
   }
 
