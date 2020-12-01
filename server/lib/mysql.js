@@ -195,6 +195,10 @@ class MySqlLib {
   setPathUserPofileImage({userId}, pathImageUserProfile){
     return this.query(`update usuario set ruta_imageProfile='${pathImageUserProfile}' where idUsuario='${userId}'`)
   }
+
+  setUserSocialMedia(socialMedia,userId){
+    return this.query(`insert into usuario_has_red_social (usuario_IdUsuario,red_social_idRed_social,link, estado) values ('${userId}','${socialMedia.socialMediaId}','${socialMedia.link}', 1)`)
+  }
 }
 
 module.exports = MySqlLib;

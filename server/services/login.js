@@ -68,6 +68,12 @@ class LoginService {
     const pathUserImageProfile = await this.mysqlDB.setPathUserPofileImage({userId}, pathImageUserProfile)
     return pathUserImageProfile || [];
   }
+
+  async setSocialMedias({socialMedias, userId}) {
+    const promises = socialMedias.map(async (socialMedia) => await this.mysqlDB.setUserSocialMedia(socialMedia, userId));
+    const resolvedPromises = await Promise.all(promises);
+    return resolvedPromises || [];
+  }
 }
 
 module.exports = LoginService;

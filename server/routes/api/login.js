@@ -144,4 +144,20 @@ router.put("/setPathUserProfileImage/:userId",upload.single("imageUserProfile"),
   }
 })
 
+router.post("/setUserSocialMedias/:userId", async function(req, res,next) {
+  const {userId} = req.params;
+  const {socialMedias} = req.body;
+  console.log(socialMedias);
+  try {
+    const result = await loginService.setSocialMedias({socialMedias, userId});
+    console.log(result);
+    res.status(200).json({
+      data: result,
+      message:"success"
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 module.exports = router;
