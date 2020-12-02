@@ -68,8 +68,8 @@ export default function ProfileBody(props) {
           <label htmlFor="red-social-1">
             {/* eslint-disable-next-line */}
             <a
-              href={facebook}
-              target="_blank"
+              href={facebook || "#"}
+              target={facebook ? "_blank" : undefined}
               rel="noopener noreferrer"
               className="icon-facebook2 icon-social-profile"
             ></a>
@@ -87,8 +87,8 @@ export default function ProfileBody(props) {
           <label htmlFor="red-social-2">
             {/* eslint-disable-next-line */}
             <a
-              href={twitter}
-              target="_blank"
+              href={twitter || "#"}
+              target={twitter ? "_blank" : undefined}
               rel="noopener noreferrer"
               className="icon-twitter icon-social-profile"
             ></a>
@@ -106,8 +106,8 @@ export default function ProfileBody(props) {
           <label htmlFor="red-social-3">
             {/* eslint-disable-next-line */}
             <a
-              href={instagram}
-              target="_blank"
+              href={instagram || "#"}
+              target={instagram ? "_blank" : undefined}
               rel="noopener noreferrer"
               className="icon-instagram icon-social-profile"
             ></a>

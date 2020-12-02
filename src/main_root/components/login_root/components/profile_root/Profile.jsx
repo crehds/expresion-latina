@@ -64,10 +64,6 @@ export default class Profile extends Component {
     });
   };
 
-  componentDidMount() {
-    this.props.getFunction(this.updateProfile);
-  }
-
   addOrUpdate = (event) => {
     const socialMedia = /[A-z]+/.exec(event.target.id);
     const id = event.target.id.slice(-1);
@@ -167,6 +163,24 @@ export default class Profile extends Component {
     inputCheck[0].style.display = display;
     inputCheck[1].style.display = display;
   };
+
+  getUserSocialMedias = async (userId) => {
+    const socialMedias = await fetch(
+      `/login/getUserSocialMedias/${userId}`
+    ).then((result) => result.json());
+    return this.setState((state) => {
+      let obj = {}
+      Object.keys(state.socialMedia).forEach(
+        (key, i) => (obj[key] = socialMedias.data[i].link)
+      );
+      return { socialMedia: obj };
+    });
+  };
+
+  componentDidMount() {
+    this.getUserSocialMedias(this.state.profile.idUsuario);
+    this.props.getFunction(this.updateProfile);
+  }
 
   render() {
     return (
