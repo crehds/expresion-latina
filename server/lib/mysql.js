@@ -200,6 +200,10 @@ class MySqlLib {
     );
   }
 
+  getUserSocialMedias(userId) {
+    return this.query(`select link from usuario_has_red_social where usuario_idUsuario=${userId}`)
+  }
+
   setUserSocialMedia(socialMedia, userId) {
     return this.query(
       `insert into usuario_has_red_social (usuario_idUsuario,red_social_idRed_social,link, estado) values ('${userId}','${socialMedia.socialMediaId}','${socialMedia.link}', 1)`

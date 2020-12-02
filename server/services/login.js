@@ -69,6 +69,11 @@ class LoginService {
     return pathUserImageProfile || [];
   }
 
+  async getUserSocialMedias(userId){
+    const socialMedias = this.mysqlDB.getUserSocialMedias(userId);
+    return socialMedias || [];
+  }
+
   async setSocialMedias({socialMedias, userId}) {
     const promises = socialMedias.map(async (socialMedia) => await this.mysqlDB.setUserSocialMedia(socialMedia, userId));
     const resolvedPromises = await Promise.all(promises);

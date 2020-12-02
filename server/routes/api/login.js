@@ -151,6 +151,19 @@ router.put(
   }
 );
 
+router.get("/getUserSocialMedias/:userId", async function (req, res, next) {
+  const { userId } = req.params;
+  try {
+    const socialMedias = await loginService.getUserSocialMedias(userId);
+    res.status(200).json({
+      data: socialMedias,
+      message: "success",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/setUserSocialMedias/:userId", async function (req, res, next) {
   const { userId } = req.params;
   const { socialMedias } = req.body;
