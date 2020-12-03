@@ -127,7 +127,7 @@ class MySqlLib {
 
   updateUser({ user }) {
     return this.query(
-      `update usuario set nombre='${user.nombre}', apellido='${user.apellido}', edad='${user.edad}', email='${user.email}', telefono='${user.telefono}' where idUsuario=${user.idUsuario}`
+      `update usuario set nombre='${user.nombre}', apellido='${user.apellido}', fechaNacimiento='${user.fechaNacimiento}', email='${user.email}', telefono='${user.telefono}' where idUsuario=${user.idUsuario}`
     );
   }
   getTypeUser(typeOfUser) {
@@ -201,7 +201,7 @@ class MySqlLib {
   }
 
   getUserSocialMedias(userId) {
-    return this.query(`select link from usuario_has_red_social where usuario_idUsuario=${userId}`)
+    return this.query(`select link,estado from usuario_has_red_social where usuario_idUsuario=${userId}`)
   }
 
   setUserSocialMedia(socialMedia, userId) {
@@ -212,7 +212,7 @@ class MySqlLib {
 
   updateUserSocialMedia(socialMedia, userId) {
     return this.query(
-      `update usuario_has_red_social set link='${socialMedia.link}' where  usuario_IdUsuario='${userId}' and red_social_idRed_social='${socialMedia.socialMediaId}'`
+      `update usuario_has_red_social set link='${socialMedia.link}', estado=${socialMedia.estado} where  usuario_IdUsuario='${userId}' and red_social_idRed_social='${socialMedia.socialMediaId}'`
     );
   }
 }
