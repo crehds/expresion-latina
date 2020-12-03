@@ -6,29 +6,25 @@ export default class ConfigLogin extends Component {
     inputsValue: [],
     saveButton: false,
   };
+
   editInputstag = () => {
-    if(!this.state.saveButton) {
-      const inputs = [
-        ...document.querySelectorAll("input[type=text],input[type=date]"),
-      ];
+    const inputs = [
+      ...document.querySelectorAll("input[type=text],input[type=date]"),
+    ];
+    if (!this.state.saveButton) {
       const inputsValue = inputs.map((input) => input.value);
-      console.log(inputsValue);
       this.setState({
         inputsValue,
-        saveButton:true
+        saveButton: true,
       });
     } else {
-      const inputs = [
-        ...document.querySelectorAll("input[type=text],input[type=date]"),
-      ];
       for (let i = 0; i < inputs.length; i++) {
         inputs[i].value = this.state.inputsValue[i];
       }
       this.setState({
-        inputsValue:[],
-        saveButton:false
+        inputsValue: [],
+        saveButton: false,
       });
-      
     }
     this.getInputstag();
   };
@@ -54,15 +50,15 @@ export default class ConfigLogin extends Component {
     this.props.func();
     return this.setState({
       inputsValue: [],
-      saveButton:false
-    })
+      saveButton: false,
+    });
   };
 
-  componentWillUnmount(){
+  componentWillUnmount() {
     this.setState({
-      inputValues:[],
-      saveButton: false
-    })
+      inputValues: [],
+      saveButton: false,
+    });
   }
 
   render() {
