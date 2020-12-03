@@ -40,10 +40,10 @@ export default function ProfileBody(props) {
           />
         </div>
         <div className="profile-body__datos-row">
-          <label htmlFor="">Edad</label>
+          <label htmlFor="">Cumpleaños</label>
           <input
-            type="text"
-            name="edad"
+            type="date"
+            name="fechaNacimiento"
             value={user.edad || user.fechaNacimiento}
             disabled
             onChange={props.handleChange}
@@ -62,63 +62,85 @@ export default function ProfileBody(props) {
       </div>
       <div className="profile-body__social-media">
         <h4 className="profile-body__social-media-title">
-          Redes Sociales<i className="icon3-info"></i>
+          Redes Sociales
+          <i
+            className="icon3-info"
+            onClick={props.handleInfoUserSocialMedias}
+          ></i>
         </h4>
         <div className="profile-social-media__container">
           <label htmlFor="red-social-1">
             {/* eslint-disable-next-line */}
             <a
-              href={facebook || "#"}
-              target={facebook ? "_blank" : undefined}
+              href={facebook.link || "#"}
+              target={facebook.link ? "_blank" : undefined}
               rel="noopener noreferrer"
-              className="icon-facebook2 icon-social-profile"
+              className={`icon-facebook2 icon-social-profile ${facebook.link ?"with-data": "without-data"}`}
             ></a>
           </label>
-          <div>
+          <div className="profile-icon-input__container">
             <i
               id="facebook-1"
               className="icon3-edit-pencil"
               onClick={props.addOrUpdate}
             ></i>
-            <input type="checkbox" name="facebook" id="red-social-1" />
+            <input
+              type="checkbox"
+              name="facebook"
+              id="red-social-1"
+              checked={facebook.estado}
+              onChange={props.handleInputChecked}
+            />
           </div>
         </div>
         <div className="profile-social-media__container">
           <label htmlFor="red-social-2">
             {/* eslint-disable-next-line */}
             <a
-              href={twitter || "#"}
-              target={twitter ? "_blank" : undefined}
+              href={twitter.link || "#"}
+              target={twitter.link ? "_blank" : undefined}
               rel="noopener noreferrer"
-              className="icon-twitter icon-social-profile"
+              className={`icon-twitter icon-social-profile ${twitter.link ?"with-data": "without-data"}`}
             ></a>
           </label>
-          <div>
+          <div className="profile-icon-input__container">
             <i
               id="twitter-2"
               className="icon3-edit-pencil"
               onClick={props.addOrUpdate}
             ></i>
-            <input type="checkbox" name="twitter" id="red-social-2" />
+            <input
+              type="checkbox"
+              name="twitter"
+              id="red-social-2"
+              checked={twitter.estado}
+              onChange={props.handleInputChecked}
+            />
           </div>
         </div>
         <div className="profile-social-media__container">
           <label htmlFor="red-social-3">
             {/* eslint-disable-next-line */}
             <a
-              href={instagram || "#"}
-              target={instagram ? "_blank" : undefined}
+              href={instagram.link || "#"}
+              target={instagram.link ? "_blank" : undefined}
               rel="noopener noreferrer"
-              className="icon-instagram icon-social-profile"
+              className="icon-instagram icon-social-profile without-data"
             ></a>
           </label>
-          <div>
+          <div className="profile-icon-input__container">
             <i
               id="instagram-3"
               className="icon3-edit-pencil"
               onClick={props.addOrUpdate}
             ></i>
-            <input type="checkbox" name="instagram" id="red-social-3" />
+            <input
+              type="checkbox"
+              name="instagram"
+              id="red-social-3"
+              checked={instagram.estado}
+              onChange={props.handleInputChecked}
+            />
           </div>
         </div>
       </div>

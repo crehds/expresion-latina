@@ -9,13 +9,23 @@ export default class Profile extends Component {
   state = {
     profile: { ...this.props.userRegistered.user },
     socialMedia: {
-      facebook: "",
-      twitter: "",
-      instagram: "",
+      facebook: {
+        link: "",
+        estado: 0,
+      },
+      twitter: {
+        link: "",
+        estado: 0,
+      },
+      instagram: {
+        link: "",
+        estado: 0,
+      },
     },
   };
 
   handleChange = (e) => {
+    console.log(e.target.value);
     this.setState({
       profile: {
         ...this.state.profile,
@@ -24,11 +34,9 @@ export default class Profile extends Component {
     });
   };
 
-  gettingAgeUser = (user) => {
-    let temp = new Date(Date.now() - new Date(user.fechaNacimiento).getTime());
-
-    return Math.abs(temp.getUTCFullYear() - 1970);
-  };
+  // convertAgeUser = (user) => {
+    
+  // };
 
   updateProfile = async () => {
     console.log(this.state.profile);
@@ -88,6 +96,7 @@ export default class Profile extends Component {
             body: JSON.stringify({
               socialMediaId: id,
               link: value,
+              estado: this.state.socialMedia[socialMedia].estado,
             }),
           }
         ).then(() => value);
@@ -97,7 +106,10 @@ export default class Profile extends Component {
         this.setState({
           socialMedia: {
             ...this.state.socialMedia,
-            [socialMedia]: result.value,
+            [socialMedia]: {
+              ...this.state.socialMedia[socialMedia],
+              link: result.value,
+            },
           },
         });
         Swal.fire({
@@ -169,11 +181,34 @@ export default class Profile extends Component {
       `/login/getUserSocialMedias/${userId}`
     ).then((result) => result.json());
     return this.setState((state) => {
-      let obj = {}
-      Object.keys(state.socialMedia).forEach(
-        (key, i) => (obj[key] = socialMedias.data[i].link)
-      );
+      let obj = Object.assign({}, state.socialMedia);
+      Object.keys(state.socialMedia).forEach((key, i) => {
+        obj[key].link = socialMedias.data[i].link;
+        obj[key].estado = socialMedias.data[i].estado;
+      });
       return { socialMedia: obj };
+    });
+  };
+
+  handleInputChecked = (event) => {
+    let estado = event.target.checked;
+    this.setState({
+      socialMedia: {
+        ...this.state.socialMedia,
+        [event.target.name]: {
+          ...this.state.socialMedia[event.target.name],
+          estado,
+        },
+      },
+    });
+  };
+
+  handleInfoUserSocialMedias = () => {
+    Swal.fire({
+      icon: "info",
+      title: "Redes Sociales",
+      text:
+        "Al activar o desactivar el cuadrado(cerca al icono) controlaras que red social mostrar en tu perfil",
     });
   };
 
@@ -199,6 +234,8 @@ export default class Profile extends Component {
           getDataProfile={this.props.getDataProfile}
           gettingAgeUser={this.gettingAgeUser}
           socialMedia={this.state.socialMedia}
+          handleInfoUserSocialMedias={this.handleInfoUserSocialMedias}
+          handleInputChecked={this.handleInputChecked}
         />
       </div>
     );

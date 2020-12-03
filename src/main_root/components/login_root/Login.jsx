@@ -53,7 +53,7 @@ export default class Login extends Component {
     if (data) {
       this.props.headerFunc(true);
       this.props.handleTypeOfUser(data.user[0].Tipo_usuario);
-      data.user[0].fechaNacimiento = this.gettingAgeUser({ ...data.user[0] });
+      data.user[0].fechaNacimiento = this.convertToDate({ ...data.user[0] });
       this.props.handleInfoLogin("Profile", data.user[0], data.login[0]);
     } else {
       Swal.fire({
@@ -71,6 +71,18 @@ export default class Login extends Component {
     return Math.abs(temp.getUTCFullYear() - 1970);
   };
 
+  convertToDate = (user) => {
+    let edad = user.fechaNacimiento || user.edad;
+    console.log();
+    let date = new Date(edad);
+    let yyyy = date.getFullYear();
+    let mm = (date.getMonth() + 1).toString();
+    let dd = date.getDate().toString();
+
+    return `${yyyy}-${mm.length === 1 ? `0${mm}` : mm}-${
+      dd.length === 1 ? `0${dd}` : dd
+    }`;
+  };
   showDataForm = async (user, login) => {
     const result = await fetch("/login/createUser", {
       method: "POST",
@@ -81,7 +93,7 @@ export default class Login extends Component {
     }).then((result) => result.json());
     console.log(result);
     this.props.headerFunc(true);
-    user.edad = this.gettingAgeUser({ ...user });
+    user.edad = this.convertToDate({ ...user });
     this.props.handleInfoLogin("Profile", user, login);
   };
 
@@ -128,9 +140,7 @@ export default class Login extends Component {
       case "Profile":
         return (
           <Profile
-            toggleContent={this.toggleContent}
             userRegistered={this.props.Login}
-            updateProfile={this.updateProfile}
             getFunction={this.props.getFunction}
           />
         );

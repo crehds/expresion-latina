@@ -59,6 +59,10 @@
 .profile-body__social-media label i {
   font-size: 35px;
 }
+
+.profile-icon-input__container {
+  display: none;
+}
 .profile-body__description {
   padding: 0 8px;
 }
@@ -70,12 +74,19 @@
   box-shadow: 0 0 4px 4px rgba(230, 230, 230, 0.9);
 }
 
-.profile-social-media__container label a {
+.profile-social-media__container label .icon-social-profile.without-data{
   text-decoration: none;
   color: rgba(62, 83, 104, 1);
+  opacity: 0.4;
 }
 
-.profile-social-media__container label a:hover {
+.profile-social-media__container label .icon-social-profile.with-data{
+  text-decoration: none;
+  color: rgba(62, 83, 104, 1);
+  /* opacity: 0.4; */
+}
+
+.profile-social-media__container label .icon-social-profile.with-data:hover {
   background-image: radial-gradient(
     circle farthest-corner at 12.3% 19.3%,
     rgba(116, 106, 255, 0.4) 0%,
