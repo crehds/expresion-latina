@@ -127,6 +127,10 @@
 
 .register-form .register-container__auxiliar .register-container__auxiliar-date {
   width: 80%;
+  /* color:white; */
+}
+.register-form .register-container__auxiliar .register-container__auxiliar-date::placeholder {
+  color:white;
 }
 
 .register-container__auxiliar-checkbox{

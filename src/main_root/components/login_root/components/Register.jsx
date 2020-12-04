@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import Swal from "sweetalert2";
 import "../css/register.css";
 
 export default class Register extends Component {
@@ -31,16 +32,26 @@ export default class Register extends Component {
     return user;
   };
 
-  handleData = (event) => {
-    console.log("formaluario de registro");
+  handleCheckFieldsInput = (event) => {
+    event.preventDefault();
     const form = new FormData(document.getElementById("form-prueba"));
     const data = Object.assign({}, this.getKeysAndValues(form));
+    const allInputsWithContent = Object.values(data).every((e) => e);
+    if (allInputsWithContent) {
+      this.handleData(data);
+    } else {
+      Swal.fire({
+        icon: "warning",
+        text: "Faltan llenar campos",
+      });
+    }
+  };
+  handleData = (data) => {
     console.log(data);
     if (this.state.partRegister) {
       this.setState({ user: { ...data } });
       this.handlePartRegister();
     } else {
-      event.preventDefault();
       this.setState({ login: { ...data } });
       setTimeout(() =>
         this.props.showDataForm(this.state.user, this.state.login)
@@ -119,7 +130,7 @@ export default class Register extends Component {
         id="form-prueba"
         action=""
         className="register-form"
-        onSubmit={this.handleData}
+        onSubmit={this.handleCheckFieldsInput}
       >
         <div className="title-form__container">
           <h3>Regístrate</h3>
@@ -146,8 +157,11 @@ export default class Register extends Component {
               <input
                 className="register-container__auxiliar-date"
                 key="4"
-                type="date"
+                type="text"
+                onBlur={(event) => (event.target.type = "text")}
+                onFocus={(event) => (event.target.type = "date")}
                 name="edad"
+                placeholder="Fecha de Nacimiento"
               />
 
               <div className="register-container__auxiliar-checkbox">
@@ -213,7 +227,7 @@ export default class Register extends Component {
               type="button"
               id="register-change-button-1"
               className="form-button"
-              onClick={this.handleData}
+              onClick={this.handleCheckFieldsInput}
             >
               Siguiente Paso
             </button>
