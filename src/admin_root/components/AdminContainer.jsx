@@ -1,9 +1,5 @@
-import React from 'react'
+import React from 'react';
 
 export default function AdminContainer(props) {
-  return (
-    <div className="admin-modal_container">
-      {props.children}
-    </div>
-  )
+  return <div className='admin-modal_container'>{props.children}</div>;
 }

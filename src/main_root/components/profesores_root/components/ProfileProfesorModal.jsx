@@ -1,6 +1,6 @@
-import React, { PureComponent } from "react";
-import { createPortal } from "react-dom";
-import ProfileProfesor from "./ProfileProfesor";
+import React, { PureComponent } from 'react';
+import { createPortal } from 'react-dom';
+import ProfileProfesor from './ProfileProfesor';
 
 export default class ProfileProfesorModal extends PureComponent {
   render() {
@@ -13,7 +13,7 @@ export default class ProfileProfesorModal extends PureComponent {
         profesor={profesor}
         genero={genero}
       />,
-      document.getElementById("modal")
+      document.getElementById('modal')
     );
   }
 }

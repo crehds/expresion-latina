@@ -2,12 +2,11 @@
   /* border: 1px solid red; */
   /* padding: 5px; */
   border-radius: 5px;
-  border-left: 2px inset rgba(140,140,140,.8);
-  border-top: 2px inset rgba(140,140,140,.8);
-  border-right: 2px outset rgba(140,140,140,.8);
-  border-bottom: 2px outset rgba(140,140,140,.8);
+  border-left: 2px inset rgba(140, 140, 140, 0.8);
+  border-top: 2px inset rgba(140, 140, 140, 0.8);
+  border-right: 2px outset rgba(140, 140, 140, 0.8);
+  border-bottom: 2px outset rgba(140, 140, 140, 0.8);
   /* outline: 2px outset rgba(140,140,140,.8); */
-  
 }
 
 .div-profesor img {

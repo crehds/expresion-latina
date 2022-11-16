@@ -1,7 +1,7 @@
 .days-schedule {
-  display:grid;
-  grid-template-columns: repeat(8,1fr);
-  color:black;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  color: black;
   font-family: 'Tenali Ramakrishna';
 }
 
@@ -12,7 +12,7 @@
 }
 
 .day-schedule-item {
-  outline: 1px solid rgba(15, 15, 15, .8);
+  outline: 1px solid rgba(15, 15, 15, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;

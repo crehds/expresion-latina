@@ -1,6 +1,6 @@
-const MySQL = require("mysql");
-const { config_mysql: config } = require("../config/");
-const debug = require("debug")("app:mysql");
+const MySQL = require('mysql');
+const { config_mysql: config } = require('../config/');
+const debug = require('debug')('app:mysql');
 
 class MySqlLib {
   constructor() {
@@ -8,7 +8,7 @@ class MySqlLib {
       host: config.dbHostMysql,
       user: config.dbUserMysql,
       password: config.dbPasswordMysql,
-      database: config.dbNameDBMysql,
+      database: config.dbNameDBMysql
     });
   }
 
@@ -20,7 +20,7 @@ class MySqlLib {
   }
 
   async query(sql, args) {
-    debug("conectando");
+    debug('conectando');
     this.connect();
     try {
       const results = await new Promise((resolve, reject) => {
@@ -30,10 +30,10 @@ class MySqlLib {
           resolve(rows);
         });
       });
-      debug("Query results...");
+      debug('Query results...');
       return results;
     } catch (error) {
-      debug("Algo salió mal...");
+      debug('Algo salió mal...');
       debug(error.stack);
       debug(error.sqlMessage);
       return error;
@@ -181,9 +181,11 @@ class MySqlLib {
       `select idProfesor, idGenero_baile from generos_profesor where idProfesor=${ProfesorId}`
     );
   }
-  
+
   getDanceGenres(danceGenreId) {
-    return this.query(`select genero_baile from genero_baile where idGenero_baile=${danceGenreId}`)
+    return this.query(
+      `select genero_baile from genero_baile where idGenero_baile=${danceGenreId}`
+    );
   }
 
   setDanceGenresProfesor(ProfesorId, idDanceGenre) {

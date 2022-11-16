@@ -1,7 +1,7 @@
 @font-face {
   font-family: 'icomoon';
-  src:  url('fonts/icomoon2.eot?okdd8y');
-  src:  url('fonts/icomoon2.eot?okdd8y#iefix') format('embedded-opentype'),
+  src: url('fonts/icomoon2.eot?okdd8y');
+  src: url('fonts/icomoon2.eot?okdd8y#iefix') format('embedded-opentype'),
     url('fonts/icomoon2.ttf?okdd8y') format('truetype'),
     url('fonts/icomoon2.woff?okdd8y') format('woff'),
     url('fonts/icomoon2.svg?okdd8y#icomoon') format('svg');
@@ -10,7 +10,8 @@
   font-display: block;
 }
 
-[class^="icon-"], [class*=" icon-"] {
+[class^='icon-'],
+[class*=' icon-'] {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'icomoon' !important;
   speak: none;
@@ -26,11 +27,11 @@
 }
 
 .icon-calendar2:before {
-  content: "\e901";
+  content: '\e901';
 }
 .icon-calendar1:before {
-  content: "\e900";
+  content: '\e900';
 }
 .icon-calendar:before {
-  content: "\e953";
+  content: '\e953';
 }

@@ -18,7 +18,7 @@
   text-align-last: center;
   margin: auto 0px;
   padding: 0;
-  font-family: "Open Sans Condensed";
+  font-family: 'Open Sans Condensed';
   font-size: 20px;
   font-weight: bold;
   font-style: italic;
@@ -72,12 +72,12 @@
   /* color: */
   font-size: 17px;
   font-family: 'Lato';
-  color:rgba(85, 88, 218, .8);
+  color: rgba(85, 88, 218, 0.8);
 }
 
 @keyframes aparitionLogo2 {
   from {
-    transform: scale(.1);
+    transform: scale(0.1);
   }
   to {
     transform: scale(1);

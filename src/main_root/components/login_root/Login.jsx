@@ -1,10 +1,10 @@
-import React, { Component } from "react";
-import "./css/login.css";
-import Register from "./components/Register";
-import Session from "./components/Session";
-import Profile from "./components/profile_root/Profile";
-import Swal from "sweetalert2";
-import admin from "../../../api/admin.json";
+import React, { Component } from 'react';
+import './css/login.css';
+import Register from './components/Register';
+import Session from './components/Session';
+import Profile from './components/profile_root/Profile';
+import Swal from 'sweetalert2';
+import admin from '../../../api/admin.json';
 export default class Login extends Component {
   // state = {
   // };
@@ -13,17 +13,17 @@ export default class Login extends Component {
     event.preventDefault();
     const admin = this.handlerLoginAdmin();
     if (admin) {
-      this.setState({ contentLogin: "Profile" });
+      this.setState({ contentLogin: 'Profile' });
       this.props.handleIsAdmin();
       Swal.fire({
-        icon: "success",
-        text: "Bienvenida Doña Fernández",
+        icon: 'success',
+        text: 'Bienvenida Doña Fernández'
       });
       this.props.headerFunc(true);
     } else {
       Swal.fire({
-        icon: "info",
-        text: "En desarrollo",
+        icon: 'info',
+        text: 'En desarrollo'
       });
     }
     // Swal.fire({
@@ -34,19 +34,19 @@ export default class Login extends Component {
 
   findUser = async (event) => {
     event.preventDefault();
-    const name = document.getElementById("session-usuario").value;
-    const password = document.getElementById("session-password").value;
-    const { data } = await fetch("/login/findUser", {
-      method: "POST",
+    const name = document.getElementById('session-usuario').value;
+    const password = document.getElementById('session-password').value;
+    const { data } = await fetch('/login/findUser', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         login: {
           name,
-          password,
-        },
-      }),
+          password
+        }
+      })
     }).then((result) => result.json());
     console.log(data);
 
@@ -54,11 +54,11 @@ export default class Login extends Component {
       this.props.headerFunc(true);
       this.props.handleTypeOfUser(data.user[0].Tipo_usuario);
       data.user[0].fechaNacimiento = this.gettingAgeUser({ ...data.user[0] });
-      this.props.handleInfoLogin("Profile", data.user[0], data.login[0]);
+      this.props.handleInfoLogin('Profile', data.user[0], data.login[0]);
     } else {
       Swal.fire({
-        icon: "error",
-        text: "Datos erróneos",
+        icon: 'error',
+        text: 'Datos erróneos'
       });
     }
   };
@@ -72,22 +72,22 @@ export default class Login extends Component {
   };
 
   showDataForm = async (user, login) => {
-    const result = await fetch("/login/createUser", {
-      method: "POST",
+    const result = await fetch('/login/createUser', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ user, login }),
+      body: JSON.stringify({ user, login })
     }).then((result) => result.json());
     console.log(result);
     this.props.headerFunc(true);
     user.edad = this.gettingAgeUser({ ...user });
-    this.props.handleInfoLogin("Profile", user, login);
+    this.props.handleInfoLogin('Profile', user, login);
   };
 
   handlerLoginAdmin = () => {
-    const usuario = document.getElementById("session-usuario").value;
-    const password = document.getElementById("session-password").value;
+    const usuario = document.getElementById('session-usuario').value;
+    const password = document.getElementById('session-password').value;
     if (admin.username === usuario && admin.password === password) {
       return true;
     }
@@ -96,9 +96,8 @@ export default class Login extends Component {
 
   showMessageRegister = () => {
     Swal.fire({
-      icon: "info",
-      text:
-        "Luego de registrarte con datos básicos podrás añadir mas información a tu perfil",
+      icon: 'info',
+      text: 'Luego de registrarte con datos básicos podrás añadir mas información a tu perfil'
     });
   };
 
@@ -108,7 +107,7 @@ export default class Login extends Component {
 
   handleContentLogin = (content) => {
     switch (content) {
-      case "Session":
+      case 'Session':
         return (
           <Session
             handleStateLogin={this.props.handleContentLogin}
@@ -116,7 +115,7 @@ export default class Login extends Component {
             findUser={this.findUser}
           />
         );
-      case "Register":
+      case 'Register':
         this.showMessageRegister();
         return (
           <Register
@@ -125,7 +124,7 @@ export default class Login extends Component {
             showDataForm={this.showDataForm}
           />
         );
-      case "Profile":
+      case 'Profile':
         return (
           <Profile
             toggleContent={this.toggleContent}
@@ -145,7 +144,7 @@ export default class Login extends Component {
 
   render() {
     return (
-      <div className="login">
+      <div className='login'>
         {this.handleContentLogin(this.props.Login.content)}
       </div>
     );

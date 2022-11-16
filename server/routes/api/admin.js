@@ -1,57 +1,57 @@
-const express = require("express");
-const multer = require("multer");
-const AdminService = require("../../services/admin");
+const express = require('express');
+const multer = require('multer');
+const AdminService = require('../../services/admin');
 const router = express.Router();
 
 const adminService = new AdminService();
 
-router.get("/getProfesors", async function (req, res, next) {
+router.get('/getProfesors', async function (req, res, next) {
   try {
     const result = await adminService.getProfesors();
     console.log(result);
     res.status(200).json({
       data: result,
-      message: "data success",
+      message: 'data success'
     });
   } catch (error) {
     next(error);
   }
 });
 
-router.get("/imageProfesor/:profesorId", async function (req, res, next) {
+router.get('/imageProfesor/:profesorId', async function (req, res, next) {
   try {
     const { profesorId } = req.params;
     const pathImageProfesor = await adminService.getImageProfesor({
-      profesorId,
+      profesorId
     });
     res.status(200).json({
       data: pathImageProfesor,
-      message: "success",
+      message: 'success'
     });
   } catch (error) {
     next(error);
   }
 });
 
-router.get("/getAllPathsImagesProfesors", async function (req, res, next) {
+router.get('/getAllPathsImagesProfesors', async function (req, res, next) {
   try {
     const pathsImagesProfesors = await adminService.getPathsImagesProfesors();
     res.status(200).json({
       data: pathsImagesProfesors,
-      message: "success",
+      message: 'success'
     });
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/createProfesor", async function (req, res, next) {
+router.post('/createProfesor', async function (req, res, next) {
   try {
     const { profesor } = req.body;
     const profesorCreated = await adminService.createProfesor({ profesor });
     res.status(200).json({
       data: profesorCreated,
-      message: "profesor created",
+      message: 'profesor created'
     });
   } catch (error) {
     next(error);
@@ -60,19 +60,19 @@ router.post("/createProfesor", async function (req, res, next) {
 
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "./server/uploads");
+    cb(null, './server/uploads');
   },
   filename: function (req, file, cb) {
     cb(null, file.originalname);
-  },
+  }
 });
 var upload = multer({ storage: storage });
 
 router.post(
-  "/imageProfesor/:profesorId",
-  upload.single("image"),
+  '/imageProfesor/:profesorId',
+  upload.single('image'),
   async function (req, res, next) {
-    const pathImageProfesor = "/static/" + req.file.originalname;
+    const pathImageProfesor = '/static/' + req.file.originalname;
     const { profesorId } = req.params;
 
     const result = await adminService.saveImageProfesor(
@@ -82,7 +82,7 @@ router.post(
     try {
       res.status(200).json({
         data: result,
-        message: "success",
+        message: 'success'
       });
     } catch (error) {
       next(error);
@@ -90,7 +90,7 @@ router.post(
   }
 );
 
-router.get("/danceGenresProfesor/:profesorId", async function (req, res, next) {
+router.get('/danceGenresProfesor/:profesorId', async function (req, res, next) {
   const { profesorId } = req.params;
   try {
     const danceGenresProfesor = await adminService.getDanceGenresProfesor(
@@ -98,7 +98,7 @@ router.get("/danceGenresProfesor/:profesorId", async function (req, res, next) {
     );
     res.status(200).json({
       data: danceGenresProfesor,
-      message: "success",
+      message: 'success'
     });
   } catch (error) {
     next(error);
@@ -106,7 +106,7 @@ router.get("/danceGenresProfesor/:profesorId", async function (req, res, next) {
 });
 
 router.post(
-  "/danceGenresProfesor/:profesorId",
+  '/danceGenresProfesor/:profesorId',
   async function (req, res, next) {
     const { body } = req;
     const { profesorId } = req.params;
@@ -117,7 +117,7 @@ router.post(
       );
       res.status(200).json({
         data: danceGenresProfesor,
-        message: "success",
+        message: 'success'
       });
     } catch (error) {
       next(error);
@@ -133,13 +133,13 @@ router.post(
 
 //Just for test
 router.post(
-  "/imagesProfesors",
-  multer({ storage: storage }).array("images"),
+  '/imagesProfesors',
+  multer({ storage: storage }).array('images'),
   async function (req, res, next) {
     try {
       res.status(200).json({
-        data: "profesors saved",
-        message: "success",
+        data: 'profesors saved',
+        message: 'success'
       });
     } catch (error) {
       next(error);

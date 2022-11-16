@@ -1,7 +1,5 @@
-import React from 'react'
+import React from 'react';
 
 export default function ProfileFooter(props) {
-  return (
-    <div className="profile-footer">Footer</div>
-  )
+  return <div className='profile-footer'>Footer</div>;
 }

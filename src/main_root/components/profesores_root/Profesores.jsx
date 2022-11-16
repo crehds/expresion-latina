@@ -1,19 +1,19 @@
-import React, { Component } from "react";
-import "./css/profesores.css";
-import ProfileProfesorModal from "./components/ProfileProfesorModal";
-import ProfesoresCarousel from "./components/ProfesoresCarousel";
+import React, { Component } from 'react';
+import './css/profesores.css';
+import ProfileProfesorModal from './components/ProfileProfesorModal';
+import ProfesoresCarousel from './components/ProfesoresCarousel';
 // import profesores from "../../../api/profesores.json";
 
 export default class Profesores extends Component {
   state = {
     profile: false,
-    src: "",
-    profesor: "",
-    genero: "",
+    src: '',
+    profesor: '',
+    genero: '',
     carousel: [],
     carouselImagesStructure: 4,
     idProfesor: null,
-    profesors: null,
+    profesors: null
   };
 
   handleProfile = (event) => {
@@ -24,9 +24,9 @@ export default class Profesores extends Component {
     );
     this.setState({
       src: profesor.ruta_imageProfesor,
-      profesor: profesor.nombre + " " + profesor.apellido,
+      profesor: profesor.nombre + ' ' + profesor.apellido,
       idProfesor: profesor.idProfesor,
-      genero: "No definido",
+      genero: 'No definido'
     });
     this.showProfile();
   };
@@ -35,38 +35,40 @@ export default class Profesores extends Component {
     if (this.state.profile) {
       return this.setState({
         profile: false,
-        src: "",
-        profesor: "",
-        genero: "",
+        src: '',
+        profesor: '',
+        genero: ''
       });
     } else {
       return this.setState({
-        profile: true,
+        profile: true
       });
     }
   };
 
-  GettingAllImageProfesors = async (size = this.state.carouselImagesStructure) => {
-    const imagesProfesors = await fetch("/admin/getAllPathsImagesProfesors", {
-      method: "GET",
+  GettingAllImageProfesors = async (
+    size = this.state.carouselImagesStructure
+  ) => {
+    const imagesProfesors = await fetch('/admin/getAllPathsImagesProfesors', {
+      method: 'GET'
     }).then((result) => result.json());
     console.log(imagesProfesors.data);
     let length = imagesProfesors.data.length;
     let carousel = [];
     for (let i = 0; i < length; i = i + size) {
-      console.log(i+size);
+      console.log(i + size);
       carousel.push(imagesProfesors.data.slice(i, i + size));
       console.log(imagesProfesors.data.slice(i, i + size));
     }
 
     this.setState({
       profesors: imagesProfesors.data,
-      carousel,
+      carousel
     });
   };
   handleCarouselImagesStructure = (structure) => {
     console.log(structure);
-    this.GettingAllImageProfesors(parseInt(structure))
+    this.GettingAllImageProfesors(parseInt(structure));
     this.setState({ carouselImagesStructure: structure });
   };
 
@@ -84,7 +86,7 @@ export default class Profesores extends Component {
     const { src, idProfesor, profesor, genero, carousel } = this.state;
 
     return (
-      <div className="profesores">
+      <div className='profesores'>
         <ProfesoresCarousel
           handleProfile={this.handleProfile}
           carousel={carousel}

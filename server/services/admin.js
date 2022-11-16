@@ -1,5 +1,5 @@
-const MySqlLib = require("../lib/mysql");
-const { localAddress } = require("../utils/localAddress");
+const MySqlLib = require('../lib/mysql');
+const { localAddress } = require('../utils/localAddress');
 class AdminService {
   constructor() {
     this.mysqlDB = new MySqlLib();
@@ -26,7 +26,7 @@ class AdminService {
 
   async getImageProfesor({ profesorId }) {
     const pathImageProfesor = await this.mysqlDB.getImageProfesor({
-      profesorId,
+      profesorId
     });
     return pathImageProfesor || [];
   }

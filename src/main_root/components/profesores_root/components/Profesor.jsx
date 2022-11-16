@@ -1,20 +1,20 @@
-import React, { PureComponent } from "react";
-import "../css/profesor.css";
-import logoDefault from "../../../../assets/imageseymreact/logoEL.png";
+import React, { PureComponent } from 'react';
+import '../css/profesor.css';
+import logoDefault from '../../../../assets/imageseymreact/logoEL.png';
 export default class Profesor extends PureComponent {
   state = {
-    isLoaded: false,
+    isLoaded: false
   };
 
   handleLoad = () => {
     const img = document.getElementById(`prof-image-${this.props.id}`);
-    img.addEventListener("load", this.setSrc, false);
+    img.addEventListener('load', this.setSrc, false);
   };
 
   setSrc = (event) => {
     let elementImg = event.target;
     elementImg.src = this.props.src;
-    elementImg.removeEventListener("load", this.setSrc, false);
+    elementImg.removeEventListener('load', this.setSrc, false);
   };
 
   componentDidMount() {
@@ -32,7 +32,7 @@ export default class Profesor extends PureComponent {
     return (
       <div
         id={`prof-${id}`}
-        className="div-profesor"
+        className='div-profesor'
         onClick={handleProfile}
         key={id}
       >
@@ -42,7 +42,7 @@ export default class Profesor extends PureComponent {
           src={logoDefault}
           style={{
             backgroundImage:
-              "linear-gradient(110.3deg,rgba(72, 85, 99, 1) 8.8%,rgba(127, 146, 166, 1) 95.1%",
+              'linear-gradient(110.3deg,rgba(72, 85, 99, 1) 8.8%,rgba(127, 146, 166, 1) 95.1%'
           }}
         />
       </div>
