@@ -1,6 +1,6 @@
-import React from "react";
-import Template from "./Template";
-import "../css/dayschedule.css";
+import React from 'react';
+import Template from './Template';
+import '../css/dayschedule.css';
 
 export default function DaySchedule(props) {
   const { generos } = props.generos;
@@ -11,9 +11,9 @@ export default function DaySchedule(props) {
       itemsSchedule.push(
         <Template
           content={generos}
-          classContainer="day-schedule grid-active"
-          classChild="day-schedule-item"
-          keyword="name"
+          classContainer='day-schedule grid-active'
+          classChild='day-schedule-item'
+          keyword='name'
           key={index}
         />
       );
@@ -22,9 +22,9 @@ export default function DaySchedule(props) {
         itemsSchedule.push(
           <Template
             content={generos}
-            classContainer="day-schedule grid-active"
-            classChild="day-schedule-item"
-            keyword="name"
+            classContainer='day-schedule grid-active'
+            classChild='day-schedule-item'
+            keyword='name'
             key={index}
           />
         );
@@ -32,16 +32,15 @@ export default function DaySchedule(props) {
         itemsSchedule.push(
           <Template
             content={generos}
-            classContainer="day-schedule"
-            classChild="day-schedule-item"
-            keyword="name"
+            classContainer='day-schedule'
+            classChild='day-schedule-item'
+            keyword='name'
             key={index}
           />
         );
       }
     }
-    
   }
 
-  return <div className="days-schedule">{itemsSchedule}</div>;
+  return <div className='days-schedule'>{itemsSchedule}</div>;
 }

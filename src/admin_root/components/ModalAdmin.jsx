@@ -1,20 +1,20 @@
-import React, { Component } from "react";
-import "../css/modalAdmin.css";
+import React, { Component } from 'react';
+import '../css/modalAdmin.css';
 
-import ConfigStudent from "./ConfigStudent";
-import ConfigAdmin from "./ConfigAdmin";
-import ConfigVisit from "./ConfigVisit";
+import ConfigStudent from './ConfigStudent';
+import ConfigAdmin from './ConfigAdmin';
+import ConfigVisit from './ConfigVisit';
 
 export default class ModalAdmin extends Component {
   state = {
-    display: false,
+    display: false
   };
 
   handleDisplayConfig = () => this.setState({ display: !this.state.display });
 
   handleConfigToShow = (typeOfUser) => {
     switch (typeOfUser) {
-      case "Administrador":
+      case 'Administrador':
         return (
           <ConfigAdmin
             globalProps={this.props.globalProps}
@@ -25,7 +25,7 @@ export default class ModalAdmin extends Component {
             unLogged={this.props.unLogged}
           />
         );
-      case "Estudiante":
+      case 'Estudiante':
         return (
           <ConfigStudent
             handleDisplayConfig={this.handleDisplayConfig}
@@ -35,7 +35,7 @@ export default class ModalAdmin extends Component {
             unLogged={this.props.unLogged}
           />
         );
-      case "Visitante":
+      case 'Visitante':
         return (
           <ConfigVisit
             handleDisplayConfig={this.handleDisplayConfig}
@@ -52,7 +52,7 @@ export default class ModalAdmin extends Component {
 
   render() {
     return (
-      <div className="modal-admin">
+      <div className='modal-admin'>
         {this.handleConfigToShow(this.props.typeOfUser)}
       </div>
     );

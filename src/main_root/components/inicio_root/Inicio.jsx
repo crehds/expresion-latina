@@ -1,19 +1,19 @@
-import React, { Component } from "react";
-import "./css/inicio.css";
-import Carousel from "nuka-carousel";
-import PageLoading from "../../../loading_root/PageLoading";
+import React, { Component } from 'react';
+import './css/inicio.css';
+import Carousel from 'nuka-carousel';
+import PageLoading from '../../../loading_root/PageLoading';
 export default class Inico extends Component {
   state = {
     slideIndex: 0,
     postersReady: false,
-    posters: [],
+    posters: []
   };
   componentWillUnmount() {
     this.props.handleLoading();
   }
 
   getPosters = async () => {
-    const posters = await fetch("/inicio").then((result) => result.json());
+    const posters = await fetch('/inicio').then((result) => result.json());
     console.log(posters);
     this.props.setGlobalProps(posters);
     return this.setState({ posters, postersReady: true });
@@ -31,7 +31,7 @@ export default class Inico extends Component {
     }
     const { data: posters } = this.state.posters;
     return (
-      <div className="inicio">
+      <div className='inicio'>
         <Carousel
           autoplay
           slideIndex={this.state.slideIndex}
@@ -45,41 +45,41 @@ export default class Inico extends Component {
               this.setState({ slideIndex });
             }
           }}
-          framePadding="0px 20px"
+          framePadding='0px 20px'
           defaultControlsConfig={{
             pagingDotsStyle: {
-              fill: "rgba(95, 209, 249, 1)",
-            },
+              fill: 'rgba(95, 209, 249, 1)'
+            }
           }}
           getControlsContainerStyles={(key) => {
             switch (key) {
-              case "CenterLeft":
+              case 'CenterLeft':
                 return {
-                  position: "fixed",
-                  top: "50%",
-                  left: "-19px",
+                  position: 'fixed',
+                  top: '50%',
+                  left: '-19px'
                 };
-              case "CenterRight":
+              case 'CenterRight':
                 return {
-                  position: "fixed",
-                  top: "50%",
-                  right: "-19px",
+                  position: 'fixed',
+                  top: '50%',
+                  right: '-19px'
                 };
               default:
                 return {};
             }
           }}
           renderCenterLeftControls={({ previousSlide }) => (
-            <div className="inicio-arrow">
+            <div className='inicio-arrow'>
               <i
-                className="icon-keyboard_arrow_left"
+                className='icon-keyboard_arrow_left'
                 onClick={previousSlide}
               ></i>
             </div>
           )}
           renderCenterRightControls={({ nextSlide }) => (
-            <div className="inicio-arrow">
-              <i className="icon-keyboard_arrow_right" onClick={nextSlide}></i>
+            <div className='inicio-arrow'>
+              <i className='icon-keyboard_arrow_right' onClick={nextSlide}></i>
             </div>
           )}
         >

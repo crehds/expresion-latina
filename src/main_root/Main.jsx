@@ -1,15 +1,15 @@
-import React, { Component } from "react";
-import "./css/mainContainer.css";
-import Inicio from "./components/inicio_root/Inicio";
-import Profesores from "./components/profesores_root/Profesores";
-import Clases from "./components/clases_root/Clases";
-import Contacto from "./components/contacto_root/Contacto";
-import MainContainer from "./container/MainContainer";
-import Horario from "./components/horario_root/Horario";
-import PageLoading from "../loading_root/PageLoading";
-import Reseñas from "./components/reseñas_root/Reseñas";
-import Login from "./components/login_root/Login";
-import Admin from "../admin_root/Admin";
+import React, { Component } from 'react';
+import './css/mainContainer.css';
+import Inicio from './components/inicio_root/Inicio';
+import Profesores from './components/profesores_root/Profesores';
+import Clases from './components/clases_root/Clases';
+import Contacto from './components/contacto_root/Contacto';
+import MainContainer from './container/MainContainer';
+import Horario from './components/horario_root/Horario';
+import PageLoading from '../loading_root/PageLoading';
+import Reseñas from './components/reseñas_root/Reseñas';
+import Login from './components/login_root/Login';
+import Admin from '../admin_root/Admin';
 
 export default class Main extends Component {
   state = {
@@ -19,10 +19,10 @@ export default class Main extends Component {
     globalProps: undefined,
     func: undefined,
     Login: {
-      content: "Session",
-      user: "",
-      login: "",
-    },
+      content: 'Session',
+      user: '',
+      login: ''
+    }
   };
 
   componentDidMount() {
@@ -51,17 +51,17 @@ export default class Main extends Component {
     this.handleDisplayConfig();
     this.setState({
       Login: {
-        content: "Session",
-        user: "",
-        login: "",
-      },
+        content: 'Session',
+        user: '',
+        login: ''
+      }
     });
     this.props.headerFunc(false);
   };
 
   handleTypeOfUser = async (idtypeOfUser) => {
     const typeOfUser = await fetch(`/login/TypeOfUser/${idtypeOfUser}`, {
-      method: "GET",
+      method: 'GET'
     }).then((result) => result.json());
     console.log(typeOfUser);
     this.setState({ typeOfUser: typeOfUser.data[0].tipo_usuario });
@@ -76,8 +76,8 @@ export default class Main extends Component {
   handleContentLogin = (event) => {
     return this.setState({
       Login: {
-        content: event.target.id,
-      },
+        content: event.target.id
+      }
     });
   };
 
@@ -86,14 +86,14 @@ export default class Main extends Component {
       Login: {
         content,
         user,
-        login,
-      },
+        login
+      }
     });
   };
 
   showContent = (content) => {
     switch (content) {
-      case "Inicio":
+      case 'Inicio':
         return (
           <Inicio
             setGlobalProps={this.setGlobalProps}
@@ -101,17 +101,22 @@ export default class Main extends Component {
             getFunction={this.getFunction}
           />
         );
-      case "Profesores":
-        return <Profesores handleLoading={this.handleLoading} getFunction={this.getFunction} />;
-      case "Clases":
+      case 'Profesores':
+        return (
+          <Profesores
+            handleLoading={this.handleLoading}
+            getFunction={this.getFunction}
+          />
+        );
+      case 'Clases':
         return <Clases handleLoading={this.handleLoading} />;
-      case "Horario":
+      case 'Horario':
         return <Horario handleLoading={this.handleLoading} />;
-      case "Reseñas":
+      case 'Reseñas':
         return <Reseñas handleLoading={this.handleLoading} />;
-      case "Contacto":
+      case 'Contacto':
         return <Contacto handleLoading={this.handleLoading} />;
-      case "Login":
+      case 'Login':
         return (
           <Login
             handleLoading={this.handleLoading}

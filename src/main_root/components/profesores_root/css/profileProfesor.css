@@ -25,8 +25,8 @@
 }
 
 .profesor-image {
-  display:grid;
-  
+  display: grid;
+
   grid-template-columns: 80% 20%;
 }
 
@@ -54,7 +54,7 @@
 .profesor-description {
   display: grid;
   grid-row: repeat(3, 1fr);
-  padding:5px 8px;
+  padding: 5px 8px;
   font-size: 14px;
   font-family: 'Lato';
 }

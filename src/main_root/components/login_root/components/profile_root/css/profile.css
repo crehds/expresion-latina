@@ -5,5 +5,5 @@
   display: grid;
   grid-template-rows: 90px 3fr;
   height: 100%;
-  font-family: "Lato";
+  font-family: 'Lato';
 }

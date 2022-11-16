@@ -1,8 +1,8 @@
-const MongoLib = require("../lib/mongo");
-const createArrayImg = require("./utils");
+const MongoLib = require('../lib/mongo');
+const createArrayImg = require('./utils');
 class PostersService {
   constructor() {
-    this.collection = "posters";
+    this.collection = 'posters';
     this.mongoDB = new MongoLib();
   }
 
@@ -29,7 +29,7 @@ class PostersService {
   }
 
   async createOrUpdate(postersId, posters) {
-    let action = "";
+    let action = '';
     let data = [];
     if (postersId === null) {
       action = (collection, poster) => this.mongoDB.create(collection, poster);
@@ -52,13 +52,13 @@ class PostersService {
   }
 
   async deletePoster({ postersId }) {
-    const ids = postersId.split(",");
-    const promises = ids.map(async posterId => {
-      let deletedPoster = await this.mongoDB.delete(this.collection, posterId)
-      return deletedPoster
-    })
+    const ids = postersId.split(',');
+    const promises = ids.map(async (posterId) => {
+      let deletedPoster = await this.mongoDB.delete(this.collection, posterId);
+      return deletedPoster;
+    });
 
-    const deletedPosterIds = await Promise.all(promises)
+    const deletedPosterIds = await Promise.all(promises);
 
     return deletedPosterIds;
   }

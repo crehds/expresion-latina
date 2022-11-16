@@ -1,8 +1,8 @@
-const MySqlLib = require("../lib/mysql");
+const MySqlLib = require('../lib/mysql');
 
 class LoginService {
   constructor() {
-    this.collection = "login";
+    this.collection = 'login';
     this.mysqlDB = new MySqlLib();
   }
 
@@ -33,12 +33,12 @@ class LoginService {
 
   async getUser(findlogin) {
     const login = await this.getLogin(findlogin);
-    
+
     if (Object.keys(login).length === 0) {
       return null;
     }
-    const user = await this.mysqlDB.getUser(login[0].Usuario)
-    return {login, user} || [];
+    const user = await this.mysqlDB.getUser(login[0].Usuario);
+    return { login, user } || [];
   }
 
   async getUsers() {
@@ -47,10 +47,9 @@ class LoginService {
   }
 
   async createUser({ user, login }) {
-    
     const userCreated = await this.mysqlDB.createUser({ user });
-    if(userCreated.sqlMessage) {
-      return "Email Repetido"
+    if (userCreated.sqlMessage) {
+      return 'Email Repetido';
     }
     const loginCreated = await this.mysqlDB.createLogin(
       { login },
@@ -58,8 +57,8 @@ class LoginService {
     );
     return { userCreated, loginCreated } || [];
   }
-  async updateUser({user}){
-    const updatedUser = await this.mysqlDB.updateUser({user});
+  async updateUser({ user }) {
+    const updatedUser = await this.mysqlDB.updateUser({ user });
     return updatedUser || [];
   }
 }

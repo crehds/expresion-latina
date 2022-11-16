@@ -18,7 +18,7 @@
 
 .map-google iframe {
   height: 100%;
-  left:0;
+  left: 0;
   position: absolute;
   top: 0;
   width: 100%;
@@ -37,7 +37,7 @@
 .map-direction span {
   background-image: radial-gradient(
     circle farthest-corner at 12.3% 19.3%,
-    rgba(85, 88, 218, .7) 0%,
+    rgba(85, 88, 218, 0.7) 0%,
     rgba(85, 88, 218, 1) 100.2%
   );
   background-clip: text;

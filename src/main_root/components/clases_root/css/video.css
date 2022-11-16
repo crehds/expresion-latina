@@ -19,7 +19,7 @@
 
 .prueba4 video {
   height: 100%;
-  left:0;
+  left: 0;
   position: absolute;
   top: 0;
   width: 100%;
@@ -27,8 +27,8 @@
   /* object-fit: none; */
 }
 
-.prueba4 video:focus{
-  outline:none;
+.prueba4 video:focus {
+  outline: none;
 }
 
 .icon-video-container {
@@ -43,5 +43,5 @@
 .icon-video {
   margin: 10px 0;
   font-size: 25px;
-  color:rgba(154, 180, 212, 1);
+  color: rgba(154, 180, 212, 1);
 }

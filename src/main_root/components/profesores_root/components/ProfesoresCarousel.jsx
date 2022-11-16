@@ -1,10 +1,10 @@
-import React, { Component } from "react";
-import Profesor from "./Profesor";
-import Arrow from "./Arrow";
+import React, { Component } from 'react';
+import Profesor from './Profesor';
+import Arrow from './Arrow';
 
 export default class ProfesoresCarousel extends Component {
   state = {
-    carouselId: 0,
+    carouselId: 0
   };
 
   handleArrow = (event) => {
@@ -13,30 +13,30 @@ export default class ProfesoresCarousel extends Component {
     const { carousel } = this.props;
     const { carouselId } = this.state;
     console.log(carousel);
-    if (direction === "left") {
+    if (direction === 'left') {
       if (carouselId === 0) {
         return this.setState({
-          carouselId: carousel.length - 1,
+          carouselId: carousel.length - 1
         });
       }
       return this.setState({
-        carouselId: carouselId - 1,
+        carouselId: carouselId - 1
       });
     } else {
       if (carouselId === carousel.length - 1) {
         return this.setState({
-          carouselId: 0,
+          carouselId: 0
         });
       }
       return this.setState({
-        carouselId: carouselId + 1,
+        carouselId: carouselId + 1
       });
     }
   };
 
   componentDidUpdate(prevProps) {
     if (this.props.carousel !== prevProps.carousel) {
-      console.log("actualizado");
+      console.log('actualizado');
     }
   }
   render() {

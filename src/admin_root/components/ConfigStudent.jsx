@@ -1,12 +1,12 @@
-import React, { Component } from "react";
-import "../css/configstudent.css";
-import ConfigLogin from "./ConfigLogin";
-import AdminContainer from "./AdminContainer";
-import IconConfig from "./IconConfig";
+import React, { Component } from 'react';
+import '../css/configstudent.css';
+import ConfigLogin from './ConfigLogin';
+import AdminContainer from './AdminContainer';
+import IconConfig from './IconConfig';
 export default class ConfigStudent extends Component {
   handleConfigToShow = (mainContent) => {
     switch (mainContent) {
-      case "Login":
+      case 'Login':
         return (
           <AdminContainer>
             <IconConfig handleDisplayConfig={this.props.handleDisplayConfig} />

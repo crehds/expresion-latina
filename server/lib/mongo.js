@@ -1,8 +1,8 @@
-const { config_mongo } = require("../config");
-const { MongoClient, ObjectId } = require("mongodb");
+const { config_mongo } = require('../config');
+const { MongoClient, ObjectId } = require('mongodb');
 
 const USER = encodeURIComponent(config_mongo.dbUserMongo);
-const debug = require("debug")("app:mongo");
+const debug = require('debug')('app:mongo');
 const PASSWORD = encodeURIComponent(config_mongo.dbPasswordMongo);
 const DB_NAME = config_mongo.dbNameDBMongo;
 
@@ -12,7 +12,7 @@ class MongoLib {
   constructor() {
     this.client = new MongoClient(MONGO_URI, {
       useNewUrlParser: true,
-      useUnifiedTopology: true,
+      useUnifiedTopology: true
     });
     this.dbName = DB_NAME;
   }
@@ -26,7 +26,7 @@ class MongoLib {
             reject(err);
           }
 
-          debug("Connected succesfully to mongo");
+          debug('Connected succesfully to mongo');
           resolve(this.client.db(this.dbName));
         });
       });
@@ -52,16 +52,16 @@ class MongoLib {
     console.log(this);
     return this.connect()
       .then((db) => {
-        debug("Creating poster...")
+        debug('Creating poster...');
         return db.collection(collection).insertOne(data);
       })
       .then((result) => result.insertedId);
   }
 
-  update(collection, {id, data}) {
+  update(collection, { id, data }) {
     return this.connect()
       .then((db) => {
-        debug("Updating poster...")
+        debug('Updating poster...');
         console.log(id);
         return db
           .collection(collection)

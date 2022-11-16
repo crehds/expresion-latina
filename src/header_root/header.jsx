@@ -1,11 +1,11 @@
-import React, { Component } from "react";
-import "./css/header.css";
-import Menu from "./components/menu";
-import Logo from "./components/logo";
+import React, { Component } from 'react';
+import './css/header.css';
+import Menu from './components/menu';
+import Logo from './components/logo';
 
 export default class Header extends Component {
   state = {
-    profile: false,
+    profile: false
   };
 
   handleStateProfile = (state) => this.setState({ profile: state });
@@ -15,7 +15,7 @@ export default class Header extends Component {
   }
   render() {
     return (
-      <header className="App-header">
+      <header className='App-header'>
         <Logo />
         {
           <Menu

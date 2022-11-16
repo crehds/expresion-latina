@@ -1,29 +1,29 @@
 {
-  "posters":[
+  "posters": [
     {
       "id": "1",
-      "descripcion":"description-1",
-      "src":"/posters/poster_casting.jpg"
+      "descripcion": "description-1",
+      "src": "/posters/poster_casting.jpg"
     },
     {
       "id": "2",
-      "descripcion":"description-2",
-      "src":"/posters/poster2.png"
+      "descripcion": "description-2",
+      "src": "/posters/poster2.png"
     },
     {
       "id": "3",
-      "descripcion":"description-3",
-      "src":"/posters/precios_zoom.png"
+      "descripcion": "description-3",
+      "src": "/posters/precios_zoom.png"
     },
     {
       "id": "4",
-      "descripcion":"description-4",
-      "src":"/posters/programa_zoom.png"
+      "descripcion": "description-4",
+      "src": "/posters/programa_zoom.png"
     },
     {
       "id": "5",
-      "descripcion":"description-5",
-      "src":"/posters/programa_zoom2.png"
+      "descripcion": "description-5",
+      "src": "/posters/programa_zoom2.png"
     }
   ]
 }
