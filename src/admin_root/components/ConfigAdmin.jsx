@@ -1,4 +1,5 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import AdminContainer from './AdminContainer';
 import Config from './Config';
 import ConfigLogin from './ConfigLogin';
@@ -7,28 +8,41 @@ import IconConfig from './IconConfig';
 
 export default class ConfigAdmin extends Component {
   handleConfigToShow = (mainContent) => {
+    const { func, globalProps, unLogged } = this.props;
     switch (mainContent) {
       case 'Inicio':
         return (
-          <Config globalProps={this.props.globalProps} func={this.props.func} />
+          <Config globalProps={globalProps} func={func} />
         );
       case 'Login':
         return (
-          <ConfigLogin func={this.props.func} unLogged={this.props.unLogged} />
+          <ConfigLogin func={func} unLogged={unLogged} />
         );
       case 'Profesores':
-        return <ConfigProfesores func={this.props.func} />;
+        return <ConfigProfesores func={func} />;
       default:
-        break;
+        return <div />;
     }
   };
 
   render() {
+    const {
+      display, mainContent, handleDisplayConfig,
+    } = this.props;
     return (
       <AdminContainer>
-        <IconConfig handleDisplayConfig={this.props.handleDisplayConfig} />
-        {this.props.display && this.handleConfigToShow(this.props.mainContent)}
+        <IconConfig handleDisplayConfig={handleDisplayConfig} />
+        {display && this.handleConfigToShow(mainContent)}
       </AdminContainer>
     );
   }
 }
+
+ConfigAdmin.propTypes = {
+  globalProps: PropTypes.instanceOf(Array).isRequired,
+  unLogged: PropTypes.func.isRequired,
+  func: PropTypes.func.isRequired,
+  display: PropTypes.bool.isRequired,
+  handleDisplayConfig: PropTypes.func.isRequired,
+  mainContent: PropTypes.string.isRequired,
+};

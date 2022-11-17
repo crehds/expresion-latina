@@ -1,4 +1,5 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import '../css/modalAdmin.css';
 
 import ConfigStudent from './ConfigStudent';
@@ -6,55 +7,75 @@ import ConfigAdmin from './ConfigAdmin';
 import ConfigVisit from './ConfigVisit';
 
 export default class ModalAdmin extends Component {
-  state = {
-    display: false
+  constructor(props) {
+    super(props);
+    this.state = {
+      display: false,
+    };
+  }
+
+  handleDisplayConfig = () => {
+    const { display } = this.state;
+    this.setState({ display: !display });
   };
 
-  handleDisplayConfig = () => this.setState({ display: !this.state.display });
-
   handleConfigToShow = (typeOfUser) => {
+    const { display } = this.state;
+    const {
+      func, globalProps, mainContent, unLogged,
+    } = this.props;
+
     switch (typeOfUser) {
       case 'Administrador':
         return (
           <ConfigAdmin
-            globalProps={this.props.globalProps}
-            func={this.props.func}
+            globalProps={globalProps}
+            func={func}
             handleDisplayConfig={this.handleDisplayConfig}
-            display={this.state.display}
-            mainContent={this.props.mainContent}
-            unLogged={this.props.unLogged}
+            display={display}
+            mainContent={mainContent}
+            unLogged={unLogged}
           />
         );
       case 'Estudiante':
         return (
           <ConfigStudent
             handleDisplayConfig={this.handleDisplayConfig}
-            func={this.props.func}
-            display={this.state.display}
-            mainContent={this.props.mainContent}
-            unLogged={this.props.unLogged}
+            func={func}
+            display={display}
+            mainContent={mainContent}
+            unLogged={unLogged}
           />
         );
       case 'Visitante':
         return (
           <ConfigVisit
             handleDisplayConfig={this.handleDisplayConfig}
-            func={this.props.func}
-            display={this.state.display}
-            mainContent={this.props.mainContent}
-            unLogged={this.props.unLogged}
+            func={func}
+            display={display}
+            mainContent={mainContent}
+            unLogged={unLogged}
           />
         );
       default:
-        break;
+        return <div />;
     }
   };
 
   render() {
+    const { typeOfUser } = this.props;
     return (
-      <div className='modal-admin'>
-        {this.handleConfigToShow(this.props.typeOfUser)}
+      <div className="modal-admin">
+        {this.handleConfigToShow(typeOfUser)}
       </div>
     );
   }
 }
+
+ModalAdmin.propTypes = {
+  globalProps: PropTypes.instanceOf(Array).isRequired,
+  func: PropTypes.func.isRequired,
+  typeOfUser: PropTypes.string.isRequired,
+  unLogged: PropTypes.func.isRequired,
+  mainContent: PropTypes.string.isRequired,
+};
