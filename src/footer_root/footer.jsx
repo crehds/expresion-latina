@@ -1,23 +1,23 @@
-import React, { Component } from 'react';
 import './css/footer.css';
 
-export default class Footer extends Component {
-  render() {
-    return (
-      <footer className='footer-container'>
-        <a
-          className='icon-facebook-square'
-          href='http://www.facebook.com/expresionlatina.peru'
-          target='_blank'
-          rel='noopener noreferrer'
-        ></a>
-        <a
-          className='icon-instagram'
-          href='http://www.instagram.com/expresionlatina.peru/'
-          target='_blank'
-          rel='noopener noreferrer'
-        ></a>
-      </footer>
-    );
-  }
+export default function Footer() {
+  return (
+    <footer className="footer-container">
+      <a
+        href="http://www.facebook.com/expresionlatina.peru"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="expresion-latina-facebook"
+      >
+        <i className="icon-facebook-square" />
+      </a>
+      <a
+        href="http://www.instagram.com/expresionlatina.peru/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <i className="icon-instagram" />
+      </a>
+    </footer>
+  );
 }
