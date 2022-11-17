@@ -20,10 +20,8 @@
     "deploy": "gh-pages -d build",
     "test": "react-scripts test",
     "test:server": "jest server/test/*.js --watch",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": "react-app"
+    "eject": "react-scripts eject",
+    "prepare": "husky install"
   },
   "proxy": "http://localhost:4000",
   "browserslist": {
@@ -39,7 +37,15 @@
     ]
   },
   "devDependencies": {
+    "eslint": "^8.27.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsx-a11y": "^6.6.1",
+    "eslint-plugin-react": "^7.31.10",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "gh-pages": "^4.0.0",
-    "jest": "^27.5.1"
+    "husky": "^8.0.2",
+    "jest": "^27.5.1",
+    "lint-staged": "^13.0.3"
   }
 }
