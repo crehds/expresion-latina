@@ -1,29 +1,41 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import './css/header.css';
 import Menu from './components/menu';
 import Logo from './components/logo';
 
 export default class Header extends Component {
-  state = {
-    profile: false
-  };
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      profile: false,
+    };
+  }
+
+  componentDidMount() {
+    const { handleHeadProfile } = this.props;
+    handleHeadProfile(this.handleStateProfile);
+  }
 
   handleStateProfile = (state) => this.setState({ profile: state });
 
-  componentDidMount() {
-    this.props.handleHeadProfile(this.handleStateProfile);
-  }
   render() {
+    const { handleContent } = this.props;
+    const { profile } = this.state;
     return (
-      <header className='App-header'>
+      <header className="App-header">
         <Logo />
-        {
-          <Menu
-            profile={this.state.profile}
-            handleContent={this.props.handleContent}
-          />
-        }
+        <Menu
+          profile={profile}
+          handleContent={handleContent}
+        />
       </header>
     );
   }
 }
+
+Header.propTypes = {
+  handleContent: PropTypes.func.isRequired,
+  handleHeadProfile: PropTypes.func.isRequired,
+};

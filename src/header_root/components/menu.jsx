@@ -1,49 +1,57 @@
-import React, { Component } from 'react';
+import { PureComponent } from 'react';
+import PropTypes from 'prop-types';
 import '../css/menu.css';
-import HamburguerMenu from './HamburguerMenu';
+import HamburgerMenu from './HamburgerMenu';
 import Options from './Options';
 import UserImage from './UserImage';
 
-class Menu extends Component {
+class Menu extends PureComponent {
   sendContent = (event) => {
-    return this.props.handleContent(event.target.id);
+    const { handleContent } = this.props;
+    handleContent(event.target.id);
   };
 
   handleIsMenuActive = () => {
-    let hamburguer = document.getElementById('hamburguer');
-    let hamburguerClass = hamburguer.classList;
-    let menuClass = document.getElementById('menu').classList;
+    const hamburger = document.getElementById('hamburger');
+    const hamburgerClass = hamburger.classList;
+    const menuClass = document.getElementById('menu').classList;
 
     // TODO: Optimized
-    if (hamburguerClass.contains('is-active')) {
-      hamburguerClass.remove('is-active');
+    if (hamburgerClass.contains('is-active')) {
+      hamburgerClass.remove('is-active');
       menuClass.remove('is-active');
-      hamburguer.style.animationName = 'none';
+      hamburger.style.animationName = 'none';
       document.removeEventListener('click', this.removeListener);
     } else {
-      hamburguerClass.add('is-active');
-      hamburguer.style.animationName = 'gradientefect';
+      hamburgerClass.add('is-active');
+      hamburger.style.animationName = 'gradientefect';
       menuClass.add('is-active');
       document.addEventListener('click', this.removeListener);
     }
   };
 
   removeListener = (event) => {
-    let template = document.getElementById('menu').contains(event.target);
+    const template = document.getElementById('menu').contains(event.target);
     if (!template) {
       this.handleIsMenuActive();
     }
   };
 
   render() {
+    const { profile } = this.props;
     return (
-      <div id='menu' className='menu'>
-        <HamburguerMenu handleIsMenuActive={this.handleIsMenuActive} />
-        {this.props.profile && <UserImage />}
-        <Options sendContent={this.sendContent} profile={this.props.profile} />
+      <div id="menu" className="menu">
+        <HamburgerMenu handleIsMenuActive={this.handleIsMenuActive} />
+        {profile && <UserImage />}
+        <Options sendContent={this.sendContent} profile={profile} />
       </div>
     );
   }
 }
 
 export default Menu;
+
+Menu.propTypes = {
+  handleContent: PropTypes.func.isRequired,
+  profile: PropTypes.bool.isRequired,
+};
