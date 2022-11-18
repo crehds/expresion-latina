@@ -1,91 +1,112 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import './css/inicio.css';
 import Carousel from 'nuka-carousel';
 import PageLoading from '../../../loading_root/PageLoading';
-export default class Inico extends Component {
-  state = {
-    slideIndex: 0,
-    postersReady: false,
-    posters: []
-  };
+
+export default class Inicio extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      slideIndex: 0,
+      postersReady: false,
+      posters: [],
+    };
+  }
+
+  componentDidMount() {
+    const { getFunction } = this.props;
+    this.getPosters();
+    getFunction(this.getPosters);
+  }
+
   componentWillUnmount() {
-    this.props.handleLoading();
+    const { handleLoading } = this.props;
+    handleLoading();
   }
 
   getPosters = async () => {
+    const { setGlobalProps } = this.props;
     const posters = await fetch('/inicio').then((result) => result.json());
-    console.log(posters);
-    this.props.setGlobalProps(posters);
+    setGlobalProps(posters);
     return this.setState({ posters, postersReady: true });
   };
 
-  componentDidMount() {
-    this.getPosters();
-    this.props.getFunction(this.getPosters);
-  }
-
   render() {
+    const { postersReady, posters, slideIndex } = this.state;
     let timer;
-    if (this.state.postersReady === false) {
+    if (postersReady === false) {
       return <PageLoading />;
     }
-    const { data: posters } = this.state.posters;
+    const { data } = posters;
     return (
-      <div className='inicio'>
+      <div className="inicio">
         <Carousel
           autoplay
-          slideIndex={this.state.slideIndex}
+          slideIndex={slideIndex}
           beforeSlide={() => {
             clearTimeout(timer);
           }}
-          afterSlide={(slideIndex) => {
-            if (slideIndex === posters.length - 1) {
+          afterSlide={(sIndex) => {
+            if (sIndex === posters.length - 1) {
               timer = setTimeout(() => this.setState({ slideIndex: 0 }), 5000);
             } else {
-              this.setState({ slideIndex });
+              this.setState({ slideIndex: sIndex });
             }
           }}
-          framePadding='0px 20px'
+          // framePadding="0px 20px"
           defaultControlsConfig={{
             pagingDotsStyle: {
-              fill: 'rgba(95, 209, 249, 1)'
-            }
+              fill: 'rgba(95, 209, 249, 1)',
+              padding: '0px 20px',
+            },
           }}
-          getControlsContainerStyles={(key) => {
-            switch (key) {
-              case 'CenterLeft':
-                return {
-                  position: 'fixed',
-                  top: '50%',
-                  left: '-19px'
-                };
-              case 'CenterRight':
-                return {
-                  position: 'fixed',
-                  top: '50%',
-                  right: '-19px'
-                };
-              default:
-                return {};
-            }
-          }}
+          // getControlsContainerStyles={(key) => {
+          //   switch (key) {
+          //     case 'CenterLeft':
+          //       return {
+          //         position: 'fixed',
+          //         top: '50%',
+          //         left: '-19px',
+          //       };
+          //     case 'CenterRight':
+          //       return {
+          //         position: 'fixed',
+          //         top: '50%',
+          //         right: '-19px',
+          //       };
+          //     default:
+          //       return {};
+          //   }
+          // }}
           renderCenterLeftControls={({ previousSlide }) => (
-            <div className='inicio-arrow'>
+            <div className="inicio-arrow">
               <i
-                className='icon-keyboard_arrow_left'
+                className="icon-keyboard_arrow_left"
                 onClick={previousSlide}
-              ></i>
+                onKeyDown={previousSlide}
+                role="button"
+                tabIndex={0}
+                aria-label="arrow-left-icon"
+              />
             </div>
           )}
           renderCenterRightControls={({ nextSlide }) => (
-            <div className='inicio-arrow'>
-              <i className='icon-keyboard_arrow_right' onClick={nextSlide}></i>
+            <div className="inicio-arrow">
+              <i
+                className="icon-keyboard_arrow_right"
+                onClick={nextSlide}
+                onKeyDown={nextSlide}
+                role="button"
+                tabIndex={0}
+                aria-label="arrow-right-icon"
+              />
             </div>
           )}
         >
-          {posters.map((e, i) => (
+          {data.map((e) => (
             <img
-              key={`img-inicio-${i}`}
+              key={`img-inicio-${e.id}`}
               src={`data:${e.contentType};base64,${e.img}`}
               alt={e.description}
             />
@@ -95,3 +116,9 @@ export default class Inico extends Component {
     );
   }
 }
+
+Inicio.propTypes = {
+  getFunction: PropTypes.func.isRequired,
+  handleLoading: PropTypes.func.isRequired,
+  setGlobalProps: PropTypes.func.isRequired,
+};
