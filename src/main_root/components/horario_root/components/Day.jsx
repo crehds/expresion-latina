@@ -1,9 +1,9 @@
-import React from 'react';
+import PropTypes from 'prop-types';
 import '../css/day.css';
 import Template from './Template';
 
 export default function Day(props) {
-  const { hours } = props.hours;
+  const { hours } = props;
   const classContainer = 'day';
   const classChild = 'day-hour';
   return (
@@ -11,7 +11,11 @@ export default function Day(props) {
       content={hours}
       classContainer={classContainer}
       classChild={classChild}
-      keyword='range'
+      keyword="range"
     />
   );
 }
+
+Day.propTypes = {
+  hours: PropTypes.instanceOf(Object).isRequired,
+};
