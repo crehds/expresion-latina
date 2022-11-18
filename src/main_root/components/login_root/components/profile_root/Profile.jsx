@@ -1,54 +1,59 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import './css/profile.css';
+import Swal from 'sweetalert2';
 import ProfileHead from './components/ProfileHead';
 import ProfileBody from './components/ProfileBody';
-// import ProfileFooter from "./components/ProfileFooter";
-import Swal from 'sweetalert2';
+
+function gettingAgeUser(user) {
+  const temp = new Date(Date.now() - new Date(user.fechaNacimiento).getTime());
+
+  return Math.abs(temp.getUTCFullYear() - 1970);
+}
 
 export default class Profile extends Component {
-  state = {
-    profile: { ...this.props.userRegistered.user },
-    socialMedia: {
-      facebook: '',
-      twitter: '',
-      instagram: ''
-    }
-  };
+  constructor(props) {
+    super(props);
+    const { userRegistered } = props;
+    this.state = {
+      profile: { ...userRegistered.user },
+      socialMedia: {
+        facebook: '',
+        twitter: '',
+        instagram: '',
+      },
+    };
+  }
 
-  handleChange = (e) => {
-    this.setState({
-      profile: {
-        ...this.state.profile,
-        [e.target.name]: e.target.value
-      }
+  componentDidMount() {
+    const { getFunction } = this.props;
+    getFunction(this.updateProfile);
+  }
+
+  updateProfile = async () => {
+    const { profile } = this.state;
+    await fetch('/login/updateUser', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(profile),
     });
   };
 
-  gettingAgeUser = (user) => {
-    let temp = new Date(Date.now() - new Date(user.fechaNacimiento).getTime());
-
-    return Math.abs(temp.getUTCFullYear() - 1970);
-  };
-
-  updateProfile = async () => {
-    console.log(this.state.profile);
-    const result = await fetch('/login/updateUser', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
+  handleChange = (e) => {
+    const { profile } = this.state;
+    this.setState({
+      profile: {
+        ...profile,
+        [e.target.name]: e.target.value,
       },
-      body: JSON.stringify(this.state.profile)
-    }).then((result) => result.json());
-    console.log(result);
+    });
   };
-
-  componentDidMount() {
-    this.props.getFunction(this.updateProfile);
-  }
 
   addOrUpdate = async (event) => {
-    const id = event.target.id;
-    console.log(id);
+    const { socialMedia } = this.state;
+    const { id } = event.target;
     const { value: link } = await Swal.fire({
       title: 'Ingresa el link',
       input: 'text',
@@ -57,29 +62,38 @@ export default class Profile extends Component {
         if (!value) {
           return 'No haz ingresado nada';
         }
-      }
+        return 0;
+      },
     });
     this.setState({
       socialMedia: {
-        ...this.state.socialMedia,
-        [id]: link
-      }
+        ...socialMedia,
+        [id]: link,
+      },
     });
   };
 
   render() {
+    const { profile, socialMedia } = this.state;
+    const { getDataProfile } = this.props;
     return (
-      <div className='profile'>
-        <ProfileHead profile={this.state.profile} />
+      <div className="profile">
+        <ProfileHead profile={profile} />
         <ProfileBody
-          profile={this.state.profile}
+          profile={profile}
           handleChange={this.handleChange}
           addOrUpdate={this.addOrUpdate}
-          getDataProfile={this.props.getDataProfile}
-          gettingAgeUser={this.gettingAgeUser}
-          socialMedia={this.state.socialMedia}
+          getDataProfile={getDataProfile}
+          gettingAgeUser={gettingAgeUser}
+          socialMedia={socialMedia}
         />
       </div>
     );
   }
 }
+
+Profile.propTypes = {
+  getDataProfile: PropTypes.func.isRequired,
+  getFunction: PropTypes.func.isRequired,
+  userRegistered: PropTypes.instanceOf(Object).isRequired,
+};

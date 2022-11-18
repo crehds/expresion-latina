@@ -1,5 +1,3 @@
-import React from 'react';
-
-export default function ProfileFooter(props) {
-  return <div className='profile-footer'>Footer</div>;
+export default function ProfileFooter() {
+  return <div className="profile-footer">Footer</div>;
 }
