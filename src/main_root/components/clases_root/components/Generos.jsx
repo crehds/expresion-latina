@@ -1,22 +1,26 @@
-import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import Genero from './Genero';
 import '../css/generos.css';
 
-export default class Generos extends Component {
-  render() {
-    let { generos, toggleContent, setGeneroRef } = this.props;
-    return (
-      <div className='generos'>
-        {generos.length > 0 &&
-          generos.map((e, i) => (
+export default function Generos(props) {
+  const { generos, toggleContent, setGeneroRef } = props;
+  return (
+    <div className="generos">
+      {generos.length > 0
+          && generos.map((genero) => (
             <Genero
-              key={i}
-              content={e}
-              onclick={toggleContent}
+              key={genero.id}
+              content={genero}
+              onClick={toggleContent}
               setGeneroRef={setGeneroRef}
             />
           ))}
-      </div>
-    );
-  }
+    </div>
+  );
 }
+
+Generos.propTypes = {
+  generos: PropTypes.instanceOf(Array).isRequired,
+  toggleContent: PropTypes.func.isRequired,
+  setGeneroRef: PropTypes.func.isRequired,
+};

@@ -1,75 +1,71 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 
 import Videos from './components/Videos';
 import Generos from './components/Generos';
-import { generos } from '../../../api/clases.json';
-import { videos } from '../../../api/videos.json';
+import { GENEROS } from '../../../api/clases.json';
+import { VIDEOS } from '../../../api/videos.json';
+
+function addAnimation(elements) {
+  elements.forEach((element, i) => setTimeout(
+    (e) => {
+      e.style.animationName = 'opacidad';
+      e.style.animationDuration = '4s';
+      e.style.aniamtionIterationCount = '1';
+      e.style.animationTimingFunction = 'steps(8)';
+      e.style.opacity = '1';
+    },
+    100 * i,
+    element,
+  ));
+}
+
 export default class Clases extends Component {
-  state = {
-    contentClases: 'Generos',
-    generos: [],
-    generoSelected: '',
-    ref: []
-  };
-
-  setGeneros = (generos) => {
-    let aux = this.addAnimation(this.state.ref);
-    return aux;
-  };
-
-  addAnimation = (elements) => {
-    elements.forEach((e, i) =>
-      setTimeout(
-        (e) => {
-          e.style.animationName = 'opacidad';
-          e.style.animationDuration = '4s';
-          e.style.aniamtionIterationCount = '1';
-          e.style.animationTimingFunction = 'steps(8)';
-          e.style.opacity = '1';
-        },
-        100 * i,
-        e
-      )
-    );
-  };
-
-  componentDidMount() {
-    this.setState({ generos });
+  constructor(props) {
+    super(props);
+    this.state = {
+      contentClases: 'Generos',
+      generos: GENEROS,
+      generoSelected: '',
+      ref: [],
+    };
   }
 
-  setGeneroRef = (element) =>
-    this.setState((prevState) => ({ ref: [...prevState.ref, element] }));
+  componentDidUpdate(prevProps, prevState) {
+    const { ref } = this.state;
+    if (prevState !== this.state) {
+      addAnimation(ref);
+    }
+  }
 
-  cleanRef = () => {
-    this.setState({ ref: [] });
+  componentWillUnmount() {
+    const { handleLoading } = this.props;
+    handleLoading();
+  }
+
+  toggleContent = (event) => {
+    const { contentClases } = this.state;
+    if (contentClases === 'Generos') {
+      this.setGeneroSelected(event.target.id);
+      return setTimeout(() => this.setState({ contentClases: 'Videos' }), 1000);
+    }
+    return this.setState({ contentClases: 'Generos' });
   };
 
   setGeneroSelected = (generoSelected) => {
     this.setState({ generoSelected });
   };
-  toggleContent = (event) => {
-    if (this.state.contentClases === 'Generos') {
-      this.setGeneroSelected(event.target.id);
-      return setTimeout(() => this.setState({ contentClases: 'Videos' }), 1000);
-    } else {
-      return this.setState({ contentClases: 'Generos' });
-    }
+
+  setGeneroRef = (element) => this.setState((prevState) => ({ ref: [...prevState.ref, element] }));
+
+  cleanRef = () => {
+    this.setState({ ref: [] });
   };
 
-  componentWillUnmount() {
-    this.props.handleLoading();
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    if (prevState !== this.state) {
-      this.addAnimation(this.state.ref);
-    }
-  }
-
   render() {
-    const { generos } = this.state;
+    const { generos, contentClases, generoSelected } = this.state;
 
-    if (this.state.contentClases === 'Generos') {
+    if (contentClases === 'Generos') {
       return (
         <Generos
           generos={generos}
@@ -77,15 +73,18 @@ export default class Clases extends Component {
           setGeneroRef={this.setGeneroRef}
         />
       );
-    } else {
-      return (
-        <Videos
-          videos={videos}
-          toggleContent={this.toggleContent}
-          contentTitle={this.state.generoSelected}
-          cleanRef={this.cleanRef}
-        />
-      );
     }
+    return (
+      <Videos
+        videos={VIDEOS}
+        toggleContent={this.toggleContent}
+        contentTitle={generoSelected}
+        cleanRef={this.cleanRef}
+      />
+    );
   }
 }
+
+Clases.propTypes = {
+  handleLoading: PropTypes.func.isRequired,
+};
