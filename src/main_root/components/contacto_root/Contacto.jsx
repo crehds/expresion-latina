@@ -1,45 +1,70 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Mapa from './components/Mapa';
 import Online from './components/Online';
 
 import './css/contacto.css';
-export default class Contact extends Component {
-  state = {
-    content: 'mapa'
-  };
 
-  componentWillUnmount() {
-    this.props.handleLoading();
+function showContact(contact) {
+  switch (contact) {
+    case 'online':
+      return <Online />;
+    default:
+      return <Mapa />;
+  }
+}
+
+export default class Contact extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      content: 'mapa',
+    };
   }
 
-  showContact = (contact) => {
-    switch (contact) {
-      case 'mapa':
-        return <Mapa />;
-      case 'online':
-        return <Online />;
-      default:
-        break;
-    }
-  };
+  componentWillUnmount() {
+    const { handleLoading } = this.props;
+    handleLoading();
+  }
 
   setContent = (event) => {
-    let id = event.target.id;
+    const { id } = event.target;
     this.setState({
-      content: id
+      content: id,
     });
   };
+
   render() {
+    const { content } = this.state;
     return (
-      <div className='contacto'>
-        <h3 id='mapa' className='pestaña' onClick={this.setContent}>
-          Mapa
-        </h3>
-        <h3 id='online' className='pestaña' onClick={this.setContent}>
-          Online
-        </h3>
-        {this.showContact(this.state.content)}
+      <div className="contacto">
+        <div
+          id="mapa"
+          className="pestaña"
+          onClick={this.setContent}
+          onKeyDown={this.setContent}
+          role="button"
+          tabIndex={0}
+        >
+          <h3>Mapa</h3>
+        </div>
+        <div
+          id="online"
+          className="pestaña"
+          onClick={this.setContent}
+          onKeyDown={this.setContent}
+          role="button"
+          tabIndex={0}
+        >
+          <h3>Online</h3>
+
+        </div>
+        {showContact(content)}
       </div>
     );
   }
 }
+
+Contact.propTypes = {
+  handleLoading: PropTypes.func.isRequired,
+};
