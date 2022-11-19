@@ -1,4 +1,5 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import './css/mainContainer.css';
 import Inicio from './components/inicio_root/Inicio';
 import Profesores from './components/profesores_root/Profesores';
@@ -7,100 +8,94 @@ import Contacto from './components/contacto_root/Contacto';
 import MainContainer from './container/MainContainer';
 import Horario from './components/horario_root/Horario';
 import PageLoading from '../loading_root/PageLoading';
-import Reseñas from './components/reseñas_root/Reseñas';
+import Reviews from './components/reviews_root/Reviews';
 import Login from './components/login_root/Login';
 import Admin from '../admin_root/Admin';
 
 export default class Main extends Component {
-  state = {
-    isLoading: false,
-    displayConfig: false,
-    typeOfUser: undefined,
-    globalProps: undefined,
-    func: undefined,
-    Login: {
-      content: 'Session',
-      user: '',
-      login: ''
-    }
-  };
+  constructor(props) {
+    super(props);
+    this.state = {
+      isLoading: false,
+      displayConfig: false,
+      typeOfUser: undefined,
+      globalProps: undefined,
+      func: undefined,
+      login: {
+        content: 'Session',
+        user: '',
+        session: '',
+      },
+    };
+  }
 
   componentDidMount() {
     setTimeout(() => this.setState({ isLoading: true }), 1000);
   }
 
-  setGlobalProps = (globalProps) => {
-    return this.setState({ globalProps });
-  };
-  handleLoading = () => {
-    this.setState({ isLoading: false });
-    if (this.state.displayConfig) {
-      setTimeout(() => this.setState({ isLoading: true }), 1000);
-    }
-  };
-
-  getFunction = (func) => {
-    return this.setState({ func });
-  };
-
-  handleDisplayConfig = () => {
-    this.setState({ displayConfig: !this.state.displayConfig });
-  };
-
-  unLogged = () => {
-    this.handleDisplayConfig();
-    this.setState({
-      Login: {
-        content: 'Session',
-        user: '',
-        login: ''
-      }
-    });
-    this.props.headerFunc(false);
-  };
-
-  handleTypeOfUser = async (idtypeOfUser) => {
-    const typeOfUser = await fetch(`/login/TypeOfUser/${idtypeOfUser}`, {
-      method: 'GET'
-    }).then((result) => result.json());
-    console.log(typeOfUser);
-    this.setState({ typeOfUser: typeOfUser.data[0].tipo_usuario });
-    this.handleDisplayConfig();
-  };
   componentDidUpdate(prevProps) {
     if (this.props !== prevProps) {
       setTimeout(() => this.setState({ isLoading: true }), 1000);
     }
   }
 
-  handleContentLogin = (event) => {
-    return this.setState({
-      Login: {
-        content: event.target.id
-      }
-    });
+  handleDisplayConfig = () => {
+    const { displayConfig } = this.state;
+    this.setState({ displayConfig: !displayConfig });
   };
 
-  handleInfoLogin = (content, user, login) => {
-    return this.setState({
-      Login: {
-        content,
-        user,
-        login
-      }
+  unLogged = () => {
+    const { headerFunc } = this.props;
+    this.handleDisplayConfig();
+    this.setState({
+      login: {
+        content: 'Session',
+        user: '',
+        session: '',
+      },
     });
+    headerFunc(false);
   };
+
+  handleTypeOfUser = async (idtypeOfUser) => {
+    const typeOfUser = await fetch(`/login/TypeOfUser/${idtypeOfUser}`, {
+      method: 'GET',
+    }).then((result) => result.json());
+
+    this.setState({ typeOfUser: typeOfUser.data[0].tipo_usuario });
+    this.handleDisplayConfig();
+  };
+
+  getFunction = (func) => this.setState({ func });
+
+  handleLoading = () => {
+    const { displayConfig } = this.state;
+    this.setState({ isLoading: false });
+    if (displayConfig) {
+      setTimeout(() => this.setState({ isLoading: true }), 1000);
+    }
+  };
+
+  setGlobalProps = (globalProps) => this.setState({ globalProps });
+
+  handleContentLogin = (event) => this.setState({
+    login: {
+      content: event.target.id,
+    },
+  });
+
+  handleInfoLogin = (content, user, session) => this.setState({
+    login: {
+      content,
+      user,
+      session,
+    },
+  });
 
   showContent = (content) => {
+    const { login } = this.state;
+    const { headerFunc } = this.props;
     switch (content) {
-      case 'Inicio':
-        return (
-          <Inicio
-            setGlobalProps={this.setGlobalProps}
-            handleLoading={this.handleLoading}
-            getFunction={this.getFunction}
-          />
-        );
       case 'Profesores':
         return (
           <Profesores
@@ -112,8 +107,8 @@ export default class Main extends Component {
         return <Clases handleLoading={this.handleLoading} />;
       case 'Horario':
         return <Horario handleLoading={this.handleLoading} />;
-      case 'Reseñas':
-        return <Reseñas handleLoading={this.handleLoading} />;
+      case 'Reviews':
+        return <Reviews handleLoading={this.handleLoading} />;
       case 'Contacto':
         return <Contacto handleLoading={this.handleLoading} />;
       case 'Login':
@@ -121,32 +116,41 @@ export default class Main extends Component {
           <Login
             handleLoading={this.handleLoading}
             getFunction={this.getFunction}
-            headerFunc={this.props.headerFunc}
-            Login={this.state.Login}
+            headerFunc={headerFunc}
+            login={login}
             handleContentLogin={this.handleContentLogin}
             handleInfoLogin={this.handleInfoLogin}
             handleTypeOfUser={this.handleTypeOfUser}
           />
         );
-
       default:
-        break;
+        return (
+          <Inicio
+            setGlobalProps={this.setGlobalProps}
+            handleLoading={this.handleLoading}
+            getFunction={this.getFunction}
+          />
+        );
     }
   };
 
   render() {
-    if (this.state.isLoading === false) {
+    const {
+      displayConfig, isLoading, typeOfUser, globalProps, func,
+    } = this.state;
+    const { content } = this.props;
+    if (isLoading === false) {
       return <PageLoading />;
     }
     return (
       <MainContainer>
-        {this.showContent(this.props.content)}
-        {this.state.displayConfig && (
+        {this.showContent(content)}
+        {displayConfig && (
           <Admin
-            maincontent={this.props.content}
-            typeOfUser={this.state.typeOfUser}
-            globalProps={this.state.globalProps}
-            func={this.state.func}
+            maincontent={content}
+            typeOfUser={typeOfUser}
+            globalProps={globalProps}
+            func={func}
             unLogged={this.unLogged}
           />
         )}
@@ -154,3 +158,8 @@ export default class Main extends Component {
     );
   }
 }
+
+Main.propTypes = {
+  headerFunc: PropTypes.func.isRequired,
+  content: PropTypes.string.isRequired,
+};
