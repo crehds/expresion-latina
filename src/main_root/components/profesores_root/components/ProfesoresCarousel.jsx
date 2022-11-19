@@ -1,49 +1,47 @@
-import React, { Component } from 'react';
+import { Component } from 'react';
+import PropTypes from 'prop-types';
 import Profesor from './Profesor';
 import Arrow from './Arrow';
 
 export default class ProfesoresCarousel extends Component {
-  state = {
-    carouselId: 0
-  };
+  constructor(props) {
+    super(props);
+    this.state = {
+      carouselId: 0,
+    };
+  }
 
   handleArrow = (event) => {
-    let direction = event.target.id;
+    const direction = event.target.id;
 
     const { carousel } = this.props;
     const { carouselId } = this.state;
-    console.log(carousel);
+
     if (direction === 'left') {
       if (carouselId === 0) {
         return this.setState({
-          carouselId: carousel.length - 1
+          carouselId: carousel.length - 1,
         });
       }
       return this.setState({
-        carouselId: carouselId - 1
-      });
-    } else {
-      if (carouselId === carousel.length - 1) {
-        return this.setState({
-          carouselId: 0
-        });
-      }
-      return this.setState({
-        carouselId: carouselId + 1
+        carouselId: carouselId - 1,
       });
     }
+    if (carouselId === carousel.length - 1) {
+      return this.setState({
+        carouselId: 0,
+      });
+    }
+    return this.setState({
+      carouselId: carouselId + 1,
+    });
   };
 
-  componentDidUpdate(prevProps) {
-    if (this.props.carousel !== prevProps.carousel) {
-      console.log('actualizado');
-    }
-  }
   render() {
     const { carouselId } = this.state;
-    let { carousel, carouselImagesStructure, handleProfile } = this.props;
+    const { carousel, carouselImagesStructure, handleProfile } = this.props;
     return (
-      <React.Fragment>
+      <div>
         {carousel[carouselId] && (
           <div
             className={`div-container-profesor-${
@@ -52,19 +50,26 @@ export default class ProfesoresCarousel extends Component {
                 : carousel[carouselId].length
             }`}
           >
-            {carousel[carouselId].map((e, i) => (
+            {carousel[carouselId].map((e) => (
               <Profesor
                 handleProfile={handleProfile}
                 id={e.idProfesor}
                 src={e.ruta_imageProfesor}
-                key={i}
+                key={`profesor-${e.id}`}
                 profesor={e.nombre + e.apellido}
               />
             ))}
             <Arrow handleArrow={this.handleArrow} />
           </div>
         )}
-      </React.Fragment>
+      </div>
+
     );
   }
 }
+
+ProfesoresCarousel.propTypes = {
+  carousel: PropTypes.instanceOf(Array).isRequired,
+  carouselImagesStructure: PropTypes.number.isRequired,
+  handleProfile: PropTypes.func.isRequired,
+};

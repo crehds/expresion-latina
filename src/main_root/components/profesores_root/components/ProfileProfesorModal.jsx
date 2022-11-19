@@ -1,10 +1,13 @@
-import React, { PureComponent } from 'react';
+import { PureComponent } from 'react';
+import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import ProfileProfesor from './ProfileProfesor';
 
 export default class ProfileProfesorModal extends PureComponent {
   render() {
-    const { showProfile, src, idProfesor, profesor, genero } = this.props;
+    const {
+      showProfile, src, idProfesor, profesor, genero,
+    } = this.props;
     return createPortal(
       <ProfileProfesor
         showProfile={showProfile}
@@ -13,7 +16,15 @@ export default class ProfileProfesorModal extends PureComponent {
         profesor={profesor}
         genero={genero}
       />,
-      document.getElementById('modal')
+      document.getElementById('modal'),
     );
   }
 }
+
+ProfileProfesorModal.propTypes = {
+  genero: PropTypes.string.isRequired,
+  idProfesor: PropTypes.number.isRequired,
+  profesor: PropTypes.string.isRequired,
+  showProfile: PropTypes.func.isRequired,
+  src: PropTypes.string.isRequired,
+};
