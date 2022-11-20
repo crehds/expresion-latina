@@ -3,9 +3,16 @@ import '../css/profilebody.css';
 
 export default function ProfileBody(props) {
   const {
-    profile: user, socialMedia, handleChange, addOrUpdate,
+    profile: user,
+    socialMedia,
+    handleChange,
+    addOrUpdate,
+    handleInputChecked,
+    handleInfoUserSocialMedias,
   } = props;
+
   const { twitter, facebook, instagram } = socialMedia;
+
   return (
     <div className="profile-body">
       <div className="profile-body__datos">
@@ -79,22 +86,29 @@ export default function ProfileBody(props) {
       <div className="profile-body__social-media">
         <h4 className="profile-body__social-media-title">
           Redes Sociales
-          <i className="icon3-info" />
+          <i
+            className="icon3-info"
+            onClick={handleInfoUserSocialMedias}
+            onKeyDown={handleInfoUserSocialMedias}
+            role="button"
+            tabIndex={0}
+            aria-label="info-icon"
+          />
         </h4>
         <div className="profile-social-media__container">
           <label htmlFor="red-social-1">
             {/* eslint-disable-next-line */}
             <a
-              href={facebook}
-              target="_blank"
+              href={facebook.link || '#'}
+              target={facebook.link ? '_blank' : undefined}
               rel="noopener noreferrer"
-              className="icon-facebook2 icon-social-profile"
+              className={`icon-facebook2 icon-social-profile ${facebook.link ? 'with-data' : 'without-data'}`}
             >
             </a>
           </label>
-          <div>
+          <div className="profile-icon-input__container">
             <i
-              id="facebook"
+              id="facebook-1"
               className="icon3-edit-pencil"
               onClick={addOrUpdate}
               onKeyDown={addOrUpdate}
@@ -102,23 +116,26 @@ export default function ProfileBody(props) {
               tabIndex={0}
               aria-label="facebook-icon"
             />
-            <input type="checkbox" name="facebook" id="red-social-1" />
+            <input
+              type="checkbox"
+              name="facebook"
+              id="red-social-1"
+              checked={facebook.estado}
+              onChange={handleInputChecked}
+            />
           </div>
         </div>
         <div className="profile-social-media__container">
-          <label htmlFor="red-social-2">
-            {/* eslint-disable-next-line */}
-            <a
-              href={twitter}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="icon-twitter icon-social-profile"
-            >
-            </a>
-          </label>
-          <div>
+          <a
+            href={twitter.link || '#'}
+            target={twitter.link ? '_blank' : undefined}
+            rel="noopener noreferrer"
+          >
+            <i className={`icon-twitter icon-social-profile ${twitter.link ? 'with-data' : 'without-data'}`} />
+          </a>
+          <div className="profile-icon-input__container">
             <i
-              id="twitter"
+              id="twitter-2"
               className="icon3-edit-pencil"
               onClick={addOrUpdate}
               onKeyDown={addOrUpdate}
@@ -126,23 +143,26 @@ export default function ProfileBody(props) {
               tabIndex={0}
               aria-label="twitter-icon"
             />
-            <input type="checkbox" name="twitter" id="red-social-2" />
+            <input
+              type="checkbox"
+              name="twitter"
+              id="red-social-2"
+              checked={twitter.estado}
+              onChange={handleInputChecked}
+            />
           </div>
         </div>
         <div className="profile-social-media__container">
-          <label htmlFor="red-social-3">
-            {/* eslint-disable-next-line */}
-            <a
-              href={instagram}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="icon-instagram icon-social-profile"
-            >
-            </a>
-          </label>
-          <div>
+          <a
+            href={instagram.link || '#'}
+            target={instagram.link ? '_blank' : undefined}
+            rel="noopener noreferrer"
+          >
+            <i className="icon-instagram icon-social-profile without-data" />
+          </a>
+          <div className="profile-icon-input__container">
             <i
-              id="instagram"
+              id="instagram-3"
               className="icon3-edit-pencil"
               onClick={addOrUpdate}
               onKeyDown={addOrUpdate}
@@ -150,7 +170,13 @@ export default function ProfileBody(props) {
               tabIndex={0}
               aria-label="instagram-icon"
             />
-            <input type="checkbox" name="instagram" id="red-social-3" />
+            <input
+              type="checkbox"
+              name="instagram"
+              id="red-social-3"
+              checked={instagram.estado}
+              onChange={handleInputChecked}
+            />
           </div>
         </div>
       </div>
@@ -166,4 +192,6 @@ ProfileBody.propTypes = {
   socialMedia: PropTypes.instanceOf(Object).isRequired,
   handleChange: PropTypes.func.isRequired,
   addOrUpdate: PropTypes.func.isRequired,
+  handleInputChecked: PropTypes.func.isRequired,
+  handleInfoUserSocialMedias: PropTypes.func.isRequired,
 };

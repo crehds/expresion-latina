@@ -9,12 +9,12 @@ import Profile from './components/profile_root/Profile';
 import ADMIN from '../../../api/admin.json';
 import './css/login.css';
 
-function gettingAgeUser(user) {
-  const edad = user.fechaNacimiento || user.edad;
-  const temp = new Date(Date.now() - new Date(edad).getTime());
+// function gettingAgeUser(user) {
+//   const edad = user.fechaNacimiento || user.edad;
+//   const temp = new Date(Date.now() - new Date(edad).getTime());
 
-  return Math.abs(temp.getUTCFullYear() - 1970);
-}
+//   return Math.abs(temp.getUTCFullYear() - 1970);
+// }
 
 function handlerLoginAdmin() {
   const usuario = document.getElementById('session-usuario').value;
@@ -30,6 +30,18 @@ function showMessageRegister() {
     icon: 'info',
     text: 'Luego de registrarte con datos básicos podrás añadir mas información a tu perfil',
   });
+}
+
+function convertToDate(user) {
+  const edad = user.fechaNacimiento || user.edad;
+  const date = new Date(edad);
+  const yyyy = date.getFullYear();
+  const mm = (date.getMonth() + 1).toString();
+  const dd = date.getDate().toString();
+
+  return `${yyyy}-${mm.length === 1 ? `0${mm}` : mm}-${
+    dd.length === 1 ? `0${dd}` : dd
+  }`;
 }
 
 export default class Login extends PureComponent {
@@ -77,7 +89,7 @@ export default class Login extends PureComponent {
     if (data) {
       headerFunc(true);
       handleTypeOfUser(data.user[0].Tipo_usuario);
-      data.user[0].fechaNacimiento = this.gettingAgeUser({ ...data.user[0] });
+      data.user[0].fechaNacimiento = convertToDate({ ...data.user[0] });
       handleInfoLogin('Profile', data.user[0], data.login[0]);
     } else {
       Swal.fire({
@@ -88,7 +100,7 @@ export default class Login extends PureComponent {
   };
 
   showDataForm = async (user, login) => {
-    const { headerFunc, handleInfoLogin } = this.props;
+    const { headerFunc } = this.props;
     const newUser = await fetch('/login/createUser', {
       method: 'POST',
       headers: {
@@ -96,10 +108,8 @@ export default class Login extends PureComponent {
       },
       body: JSON.stringify({ user, login }),
     }).then((response) => response.json());
-
     headerFunc(true);
-    newUser.edad = gettingAgeUser({ ...newUser });
-    handleInfoLogin('Profile', newUser, login);
+    newUser.edad = this.convertToDate({ ...newUser });
   };
 
   handleContentLogin = (content) => {

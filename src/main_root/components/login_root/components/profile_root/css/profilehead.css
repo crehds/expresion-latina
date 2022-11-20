@@ -18,9 +18,37 @@
   height: 100%;
   padding-left: 15px;
   margin-left: 20px;
+  position: relative;
   /* width: 80%; */
   /* flex-grow: 1; */
 }
+
+.profile-head__container i {
+  position: absolute; 
+  bottom:0;
+  /* border: solid red 2px; */
+}
+
+#test__userimageprofile {
+  display: none;
+  /* visibility: hidden; */
+  width:0;
+  height: 0;
+}
+.profile-head__container .edit-userimageprofile {
+  right:5px;
+}
+
+.profile-head__container .edit-userimageprofile2 {
+  right:30px;
+  display: none;
+}
+
+.profile-head__container .edit-userimageprofile3 {
+  right:55px;
+  display: none;
+}
+
 
 .profile-head__container img {
   width: 100%;

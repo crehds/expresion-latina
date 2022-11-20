@@ -267,8 +267,71 @@ h6 {
 .icon2-calendar:before {
   content: '\e953';
 }
+.icon3-camera2:before {
+  content: '\e924';
+}
+.icon3-camera:before {
+  content: '\e922';
+}
+.icon3-credit-card:before {
+  content: '\e93f';
+}
+.icon3-phone:before {
+  content: '\e942';
+}
+.icon3-calendar:before {
+  content: '\e953';
+}
+.icon3-download:before {
+  content: '\e960';
+}
+.icon3-equalizer:before {
+  content: '\e992';
+}
+.icon3-equalizer2:before {
+  content: '\e993';
+}
+.icon3-cog:before {
+  content: '\e994';
+}
+.icon3-stats-bars2:before {
+  content: '\e99d';
+}
+.icon3-download2:before {
+  content: '\e9c5';
+}
+.icon3-download3:before {
+  content: '\e9c7';
+}
+.icon3-eye:before {
+  content: '\e9ce';
+}
+.icon3-eye-blocked:before {
+  content: '\e9d1';
+}
+.icon3-info:before {
+  content: '\ea0c';
+}
+.icon3-checkmark:before {
+  content: '\ea10';
+}
+.icon3-checkmark2:before {
+  content: '\ea11';
+}
+.icon3-whatsapp:before {
+  content: '\ea93';
+}
+.icon3-spotify:before {
+  content: '\ea94';
+}
 .icon3-refresh:before {
   content: '\e91a';
+}
+.icon3-x:before {
+  content: '\e929';
+}
+.icon3-camera4:before {
+  content: '\e926';
 }
 .icon3-edit-2:before {
   content: '\e91c';
@@ -306,6 +369,12 @@ h6 {
 .icon3-shopping_cart:before {
   content: '\e906';
 }
+.icon3-camera3:before {
+  content: '\e925';
+}
+.icon3-check:before {
+  content: '\e920';
+}
 .icon3-location-pin:before {
   content: '\e90f';
 }
@@ -320,6 +389,15 @@ h6 {
 }
 .icon3-location:before {
   content: '\e911';
+}
+.icon3-video-camera:before {
+  content: '\e927';
+}
+.icon3-camera5:before {
+  content: '\e928';
+}
+.icon3-check1:before {
+  content: '\e921';
 }
 .icon3-cc-visa:before {
   content: '\e902';
@@ -364,6 +442,9 @@ h6 {
 }
 .icon3-calendar2:before {
   content: '\e901';
+}
+.icon3-camera1:before {
+  content: '\e923';
 }
 .icon3-params:before {
   content: '\e91e';
