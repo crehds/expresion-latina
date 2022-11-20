@@ -1,18 +1,23 @@
-import React, { Component } from "react";
-import Profesor from "./Profesor";
-import Arrow from "./Arrow";
+import { Component } from 'react';
+import PropTypes from 'prop-types';
+import Profesor from './Profesor';
+import Arrow from './Arrow';
+
 export default class ProfesoresCarousel extends Component {
-  state = {
-    carouselId: 0,
-  };
+  constructor(props) {
+    super(props);
+    this.state = {
+      carouselId: 0,
+    };
+  }
 
   handleArrow = (event) => {
-    let direction = event.target.id;
+    const direction = event.target.id;
 
     const { carousel } = this.props;
     const { carouselId } = this.state;
 
-    if (direction === "left") {
+    if (direction === 'left') {
       if (carouselId === 0) {
         return this.setState({
           carouselId: carousel.length - 1,
@@ -21,43 +26,50 @@ export default class ProfesoresCarousel extends Component {
       return this.setState({
         carouselId: carouselId - 1,
       });
-    } else {
-      if (carouselId === carousel.length - 1) {
-        return this.setState({
-          carouselId: 0,
-        });
-      }
+    }
+    if (carouselId === carousel.length - 1) {
       return this.setState({
-        carouselId: carouselId + 1,
+        carouselId: 0,
       });
     }
+    return this.setState({
+      carouselId: carouselId + 1,
+    });
   };
 
-  componentDidUpdate(prevProps) {
-    if (this.props.carousel !== prevProps.carousel) {
-      console.log("actualizado");
-    }
-  }
   render() {
-    // condicionales insertadas para evadir el valor inicial de ...............000undefined del carousel
-    // En el componente padre es el subarreglo del carousel
     const { carouselId } = this.state;
-    let aux = this.props.carousel[carouselId]
-      ? this.props.carousel[carouselId].length
-      : 4;
+    const { carousel, carouselImagesStructure, handleProfile } = this.props;
     return (
-      <div className={`div-container-profesor-${aux}`}>
-        {this.props.carousel[carouselId] &&
-          this.props.carousel[carouselId].map((e) => (
-            <Profesor
-              handleProfile={this.props.handleProfile}
-              id={e.id}
-              src={e.src}
-              profesor={e.profesor}
-            />
-          ))}
-        <Arrow handleArrow={this.handleArrow} />
+      <div>
+        {carousel[carouselId] && (
+          <div
+            className={`div-container-profesor-${
+              carouselImagesStructure === carousel[carouselId].length
+                ? carouselImagesStructure
+                : carousel[carouselId].length
+            }`}
+          >
+            {carousel[carouselId].map((e) => (
+              <Profesor
+                handleProfile={handleProfile}
+                id={e.idProfesor}
+                src={e.ruta_imageProfesor}
+                key={`profesor-${e.id}`}
+                profesor={e.nombre + e.apellido}
+              />
+            ))}
+            <Arrow handleArrow={this.handleArrow} />
+          </div>
+        )}
       </div>
+
     );
   }
 }
+
+ProfesoresCarousel.propTypes = {
+  carousel: PropTypes.instanceOf(Array).isRequired,
+  carouselImagesStructure: PropTypes.number.isRequired,
+  handleProfile: PropTypes.func.isRequired,
+};

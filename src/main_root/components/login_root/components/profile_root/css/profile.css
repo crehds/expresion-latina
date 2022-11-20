@@ -1,0 +1,9 @@
+.profile {
+  /* border: 1px solid red; */
+  text-align: center;
+  color: rgba(62, 83, 104, 1);
+  display: grid;
+  grid-template-rows: 90px 3fr;
+  height: 100%;
+  font-family: 'Lato';
+}

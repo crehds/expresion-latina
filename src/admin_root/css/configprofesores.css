@@ -1,0 +1,7 @@
+.config-modal__profesores {
+  border: 1px solid rgba(150, 150, 150, 0.8);
+  display: grid;
+  grid-template-rows: 25px auto;
+  text-align: center;
+  padding: 0px 14px 0px 18px;
+}

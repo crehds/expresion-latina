@@ -1,5 +1,3 @@
-import React from 'react';
-
 import './css/pageloading.css';
 import Loader from './components/Loader';
 

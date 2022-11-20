@@ -1,35 +1,44 @@
-import React, { Component } from "react";
-import "./css/horario.css";
-import Day from "./components/Day";
-import DayTitles from "./components/DayTitles";
-import DaySchedule from "./components/DaySchedule";
-import hours from "../../../api/hours.json";
-import days from "../../../api/days.json";
-import generos from "../../../api/generos.json";
-import IconSchedule from "./components/IconSchedule";
+import { Component } from 'react';
+import PropTypes from 'prop-types';
+import './css/horario.css';
+import Day from './components/Day';
+import DayTitles from './components/DayTitles';
+import DaySchedule from './components/DaySchedule';
+import { HOURS } from '../../../api/hours.json';
+import { DAYS } from '../../../api/days.json';
+import { GENEROS } from '../../../api/generos.json';
+import IconSchedule from './components/IconSchedule';
 
 export default class Horario extends Component {
-  state = {
-    actualDay: new Date().getDay(),
-  };
+  constructor(props) {
+    super(props);
+    this.state = {
+      actualDay: new Date().getDay(),
+    };
+  }
 
   componentWillUnmount() {
-    this.props.handleLoading();
+    const { handleLoading } = this.props;
+    handleLoading();
   }
 
   render() {
+    const { actualDay } = this.state;
     return (
       <div className="horario">
-        <IconSchedule/>
-        <DayTitles days={days} actualDay={this.state.actualDay} />
-        <Day hours={hours} />
+        <IconSchedule />
+        <DayTitles days={DAYS} actualDay={actualDay} />
+        <Day hours={HOURS} />
         <DaySchedule
-          generos={generos}
-          daysLength={days.days.length}
-          hoursLength={hours.hours.length}
-          actualDay={this.state.actualDay}
+          generos={GENEROS}
+          daysLength={DAYS.length}
+          actualDay={actualDay}
         />
       </div>
     );
   }
 }
+
+Horario.propTypes = {
+  handleLoading: PropTypes.func.isRequired,
+};

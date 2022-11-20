@@ -1,11 +1,11 @@
-import React from "react";
-import "../css/day.css";
-import Template from "./Template";
+import PropTypes from 'prop-types';
+import '../css/day.css';
+import Template from './Template';
 
 export default function Day(props) {
-  const { hours } = props.hours;
-  const classContainer = "day";
-  const classChild = "day-hour";
+  const { hours } = props;
+  const classContainer = 'day';
+  const classChild = 'day-hour';
   return (
     <Template
       content={hours}
@@ -15,3 +15,7 @@ export default function Day(props) {
     />
   );
 }
+
+Day.propTypes = {
+  hours: PropTypes.instanceOf(Object).isRequired,
+};

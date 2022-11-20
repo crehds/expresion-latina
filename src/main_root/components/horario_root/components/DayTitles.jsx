@@ -1,18 +1,23 @@
-import React from "react";
-import "../css/daytitles.css";
-import Template from "./Template";
+import PropTypes from 'prop-types';
+import '../css/daytitles.css';
+import Template from './Template';
 
 export default function DayTitles(props) {
-  const { days } = props.days;
-  const classContainer = "day-titles";
-  const classChild = "day-title";
+  const { actualDay, days } = props;
+  const classContainer = 'day-titles';
+  const classChild = 'day-title';
   return (
     <Template
-      content={days}
+      days={days}
       classContainer={classContainer}
       classChild={classChild}
       keyword="abbreviation"
-      gridActive={props.actualDay}
+      gridActive={actualDay}
     />
   );
 }
+
+DayTitles.propTypes = {
+  actualDay: PropTypes.instanceOf(Date).isRequired,
+  days: PropTypes.instanceOf(Array).isRequired,
+};

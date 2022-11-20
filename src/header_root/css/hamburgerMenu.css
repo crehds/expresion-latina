@@ -1,4 +1,4 @@
-.hamburguer-menu {
+.hamburger-menu {
   position: fixed;
   border-radius: 50%;
   padding: 3px;
@@ -21,7 +21,7 @@
   animation-timing-function: steps(8, start);
 }
 
-.hamburguer-menu.is-active {
+.hamburger-menu.is-active {
   right: 19vh;
   transition: 0.6s;
   animation-name: gradientefect;
@@ -91,7 +91,7 @@
 }
 
 @media (orientation: landscape) {
-  .hamburguer-menu.is-active {
+  .hamburger-menu.is-active {
     right: 35vh;
     transition: 0.6s;
   }

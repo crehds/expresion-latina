@@ -29,25 +29,24 @@
 .slider-slide {
   height: 100% !important;
 }
-.slider-slide img{
+.slider-slide img {
   height: 100% !important;
 }
-@keyframes opacidad{
+@keyframes opacidad {
   0% {
     opacity: 0;
   }
   10% {
-    opacity: .45;
+    opacity: 0.45;
   }
   20% {
-    opacity: .65;
+    opacity: 0.65;
   }
   30% {
-    opacity: .85;
+    opacity: 0.85;
   }
   45% {
     opacity: 1;
-
   }
   70% {
     opacity: 1;
@@ -58,7 +57,11 @@
 }
 
 .inicio-arrow {
-  background-image: radial-gradient( circle farthest-corner at 12.3% 19.3%,  rgba(85,88,218,1) 0%, rgba(95,209,249,1) 100.2% );
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(85, 88, 218, 1) 0%,
+    rgba(95, 209, 249, 1) 100.2%
+  );
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }

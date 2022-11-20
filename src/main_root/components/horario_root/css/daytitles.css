@@ -3,7 +3,7 @@
   /* outline: 1px solid blue; */
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  color:#cf7500;
+  color: #cf7500;
   font-family: 'Abel';
   font-size: 20px;
   font-weight: bold;
@@ -11,11 +11,15 @@
 
 .day-title {
   /* border-left: 1px solid #000000; */
-  outline: 1px solid rgba(15, 15, 15, .8);
+  outline: 1px solid rgba(15, 15, 15, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
-  background-image: radial-gradient( circle farthest-corner at 12.3% 19.3%,  rgba(85,88,218,1) 0%, rgba(42,91,200,1) 100.2% );
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(85, 88, 218, 1) 0%,
+    rgba(42, 91, 200, 1) 100.2%
+  );
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }

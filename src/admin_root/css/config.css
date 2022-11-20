@@ -1,0 +1,30 @@
+.config-modal {
+  border: 1px solid rgba(150, 150, 150, 0.8);
+  display: grid;
+  grid-template-rows: 25px auto;
+  text-align: center;
+}
+
+.config-modal__buttons {
+  /* display: flex; */
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  padding: 4px;
+}
+.config-modal__form {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+}
+
+.config-modal__buttons button {
+  border: 2px groove transparent;
+  box-shadow: 0 0 2px 2px gray;
+  border-radius: 5px;
+  margin: 4px 2px;
+}
+
+.config-modal__buttons input {
+  font-size: 10px;
+}

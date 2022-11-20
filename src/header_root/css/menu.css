@@ -10,13 +10,13 @@
   right: -100vw;
   width: 25vh;
   padding-top: 80px;
-  top:0;
-  transition: .5s;
+  top: 0;
+  transition: 0.5s;
 }
 
 .menu.is-active {
   right: 0;
-  transition: .5s;
+  transition: 0.5s;
 }
 
 @media (orientation: landscape) {

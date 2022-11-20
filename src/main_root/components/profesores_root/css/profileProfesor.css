@@ -25,7 +25,8 @@
 }
 
 .profesor-image {
-  display:grid;
+  display: grid;
+
   grid-template-columns: 80% 20%;
 }
 
@@ -39,6 +40,7 @@
 .profesor-socialmedia {
   display: flex;
   flex-direction: column;
+  position: relative;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
@@ -52,11 +54,19 @@
 .profesor-description {
   display: grid;
   grid-row: repeat(3, 1fr);
-  padding:5px 8px;
+  padding: 5px 8px;
   font-size: 14px;
   font-family: 'Lato';
 }
 
 .x {
   font-size: 20px;
+}
+
+.infoGenres {
+  position: absolute;
+  /* right: px; */
+  top: 5px;
+  /* color: black; */
+  font-size: 25px;
 }

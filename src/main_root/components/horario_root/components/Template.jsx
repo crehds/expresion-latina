@@ -1,30 +1,41 @@
-import React from "react";
-import "../css/template.css";
+import '../css/template.css';
+import PropTypes from 'prop-types';
 
 export default function Template(props) {
+  const {
+    classContainer, days, gridActive, classChild, keyword,
+  } = props;
   return (
-    <div className={props.classContainer}>
-      {props.content.map((content, index) => {
-         if (props.gridActive === index - 6) {
+    <div className={classContainer}>
+      {days.map((day, index) => {
+        if (gridActive === index - 6) {
           return (
-            <div className={`${props.classChild} grid-active`} key={content.id}>
-              {content[props.keyword]}
+            <div className={`${classChild} grid-active`} key={day.id}>
+              {day[keyword]}
             </div>
           );
         }
-        if (props.gridActive === index + 1) {
+        if (gridActive === index + 1) {
           return (
-            <div className={`${props.classChild} grid-active`} key={content.id}>
-              {content[props.keyword]}
+            <div className={`${classChild} grid-active`} key={day.id}>
+              {day[keyword]}
             </div>
           );
         }
         return (
-          <div className={props.classChild} key={content.id}>
-            {content[props.keyword]}
+          <div className={classChild} key={day.id}>
+            {day[keyword]}
           </div>
         );
       })}
     </div>
   );
 }
+
+Template.propTypes = {
+  classChild: PropTypes.string.isRequired,
+  classContainer: PropTypes.string.isRequired,
+  gridActive: PropTypes.instanceOf(Date).isRequired,
+  days: PropTypes.instanceOf(Array).isRequired,
+  keyword: PropTypes.string.isRequired,
+};

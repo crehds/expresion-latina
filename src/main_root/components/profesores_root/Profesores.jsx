@@ -1,78 +1,111 @@
-import React, { Component } from "react";
-import "./css/profesores.css";
-import ProfileProfesorModal from "./components/ProfileProfesorModal";
-import ProfesoresCarousel from "./components/ProfesoresCarousel";
-import profesores from "../../../api/profesores.json";
+import { Component } from 'react';
+import PropTypes from 'prop-types';
+import './css/profesores.css';
+import ProfileProfesorModal from './components/ProfileProfesorModal';
+import ProfesoresCarousel from './components/ProfesoresCarousel';
 
 export default class Profesores extends Component {
-  state = {
-    profile: false,
-    src: "",
-    profesor: "",
-    genero: "",
-    carousel: [],
+  constructor(props) {
+    super(props);
+    this.state = {
+      profile: false,
+      src: '',
+      profesor: '',
+      genero: '',
+      carousel: [],
+      carouselImagesStructure: 4,
+      idProfesor: null,
+      profesors: null,
+    };
+  }
+
+  componentDidMount() {
+    const { getFunction } = this.props;
+    this.GettingAllImageProfesors();
+    getFunction(this.handleCarouselImagesStructure);
+  }
+
+  componentWillUnmount() {
+    const { handleLoading } = this.props;
+    handleLoading();
+  }
+
+  handleCarouselImagesStructure = (structure) => {
+    this.GettingAllImageProfesors(parseInt(structure, 10));
+    this.setState({ carouselImagesStructure: structure });
   };
 
-  handleProfesors = (profesores) => {
-    let length = profesores.length;
-    let carousel = [];
-    for (let i = 0; i <= length; i = i + 4) {
-      carousel.push(profesores.slice(i, i + 4));
+  GettingAllImageProfesors = async (
+    { carouselImagesStructure: size } = this.state,
+  ) => {
+    const imagesProfesors = await fetch('/admin/getAllPathsImagesProfesors', {
+      method: 'GET',
+    }).then((result) => result.json());
+    const { length } = imagesProfesors.data;
+    const carousel = [];
+    for (let i = 0; i < length; i += size) {
+      carousel.push(imagesProfesors.data.slice(i, i + size));
     }
 
     this.setState({
+      profesors: imagesProfesors.data,
       carousel,
     });
   };
 
+  showProfile = () => {
+    const { profile } = this.state;
+    if (profile) {
+      return this.setState({
+        profile: false,
+        src: '',
+        profesor: '',
+        genero: '',
+      });
+    }
+    return this.setState({
+      profile: true,
+    });
+  };
+
   handleProfile = (event) => {
-    let element = event.target.id;
-    let profesorId = element.slice(-1);
-    let profesor = profesores.images.find((e) => e.id === profesorId);
+    const { profesors } = this.state;
+    const element = event.target.id;
+    const profesorId = parseInt(element.match(/\d+/)[0], 10);
+    const profesor = profesors.find(
+      (e) => e.idProfesor === profesorId,
+    );
     this.setState({
-      src: profesor.src,
-      profesor: profesor.profesor,
-      genero: profesor.genero,
+      src: profesor.ruta_imageProfesor,
+      profesor: `${profesor.nombre} ${profesor.apellido}`,
+      idProfesor: profesor.idProfesor,
+      genero: 'No definido',
     });
     this.showProfile();
   };
 
-  showProfile = () => {
-    if (this.state.profile) {
-      return this.setState({
-        profile: false,
-        src: "",
-        profesor: "",
-        genero: "",
-      });
-    } else {
-      return this.setState({
-        profile: true,
-      });
-    }
-  };
-
-  componentDidMount() {
-    this.handleProfesors(profesores.images);
-  }
-
-  componentWillUnmount() {
-    this.props.handleLoading();
-  }
-
   render() {
-    const { src, profesor, genero, carousel } = this.state;
+    const {
+      src,
+      idProfesor,
+      profesor,
+      genero,
+      carousel,
+      carouselImagesStructure,
+      profile,
+    } = this.state;
 
     return (
       <div className="profesores">
         <ProfesoresCarousel
           handleProfile={this.handleProfile}
-          handleProfesors={this.handleProfesors}
           carousel={carousel}
+          carouselImagesStructure={carouselImagesStructure}
         />
-        {this.state.profile && (
+        {profile && (
           <ProfileProfesorModal
             showProfile={this.showProfile}
+            idProfesor={idProfesor}
             src={src}
             profesor={profesor}
             genero={genero}
@@ -82,3 +115,8 @@ export default class Profesores extends Component {
     );
   }
 }
+
+Profesores.propTypes = {
+  getFunction: PropTypes.func.isRequired,
+  handleLoading: PropTypes.func.isRequired,
+};
