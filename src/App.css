@@ -1,14 +1,7 @@
 .App {
-  /* text-align: center; */
-  /* border: 1px solid red; */
   background-color: rgba(225, 225, 225, 0.8);
   min-height: 100vh;
-  color: white;
+  color: black;
   display: grid;
   grid-template-rows: auto 1fr minmax(30px, 80px);
 }
-
-/* .App-logo {
-  height: 40vmin;
-  pointer-events: none;
-} */
