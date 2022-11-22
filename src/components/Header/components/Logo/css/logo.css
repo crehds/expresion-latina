@@ -1,0 +1,43 @@
+.logo-container {
+  display: flex;
+  /* border: 1px solid lightblue; */
+}
+.logo-container img {
+  width: 100%;
+  height: 100%;
+  animation-name: aparitionLogo;
+  animation-duration: 1s;
+  animation-iteration-count: 1;
+}
+
+@media (orientation: landscape) {
+  .logo-container {
+    padding: 0 30%;
+  }
+}
+
+@keyframes aparitionLogo {
+  0% {
+    width: 142px;
+    height: 80px;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  90% {
+    width: 142px;
+    height: 80px;
+    position: absolute;
+    top: 0px;
+    left: 30vw;
+  }
+
+  100% {
+    width: 142px;
+    height: 80px;
+    position: absolute;
+    top: 0px;
+    left: 30vw;
+    opacity: 0;
+  }
+}
