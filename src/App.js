@@ -1,6 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import './App.css';
-import Header from './components/Header/Header';
+import { Footer, Header } from './components';
 
 export default function App() {
   return (
@@ -9,6 +9,7 @@ export default function App() {
       <Routes>
         <Route index element={<div>Restarting the app</div>} />
       </Routes>
+      <Footer />
     </div>
   );
 }
