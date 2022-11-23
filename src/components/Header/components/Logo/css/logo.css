@@ -1,11 +1,11 @@
-.logo-container {
+.logo {
   display: flex;
-  /* border: 1px solid lightblue; */
 }
-.logo-container img {
+
+.logo__img {
   width: 100%;
   height: 100%;
-  animation-name: aparitionLogo;
+  animation-name: circularAppearance;
   animation-duration: 1s;
   animation-iteration-count: 1;
 }
@@ -16,7 +16,7 @@
   }
 }
 
-@keyframes aparitionLogo {
+@keyframes circularAppearance {
   0% {
     width: 142px;
     height: 80px;
