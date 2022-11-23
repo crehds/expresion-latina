@@ -1,5 +1,6 @@
 import { PureComponent } from 'react';
 import '../css/options.css';
+import Option from './Option';
 
 const OPTIONS = [{
   id: 1,
@@ -39,9 +40,7 @@ export default class Options extends PureComponent {
       <ul className="options">
         {
           OPTIONS.map((option) => (
-            <li key={option.id} className="options__li">
-              <p>{option.name}</p>
-            </li>
+            <Option key={option.id} name={option.name} />
           ))
         }
       </ul>
