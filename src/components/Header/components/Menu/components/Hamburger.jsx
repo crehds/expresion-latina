@@ -2,13 +2,13 @@ import PropTypes from 'prop-types';
 import '../css/hamburger.css';
 
 export default function Hamburger(props) {
-  const { handleIsMenuActive } = props;
+  const { handleMenu } = props;
   return (
     <i
       id="hamburger"
       className="icon-menu hamburger-menu"
-      onClick={handleIsMenuActive}
-      onKeyDown={handleIsMenuActive}
+      onClick={handleMenu}
+      onKeyDown={handleMenu}
       role="button"
       tabIndex={0}
       aria-label="hamburger-icon"
@@ -17,5 +17,5 @@ export default function Hamburger(props) {
 }
 
 Hamburger.propTypes = {
-  handleIsMenuActive: PropTypes.func.isRequired,
+  handleMenu: PropTypes.func.isRequired,
 };
