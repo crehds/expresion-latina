@@ -6,7 +6,7 @@ export default function Hamburger(props) {
   return (
     <i
       id="hamburger"
-      className="icon-menu hamburger-menu"
+      className="icon-menu hamburger"
       onClick={handleMenu}
       onKeyDown={handleMenu}
       role="button"

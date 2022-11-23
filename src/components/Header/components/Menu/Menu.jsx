@@ -7,8 +7,8 @@ function handleMenu(event) {
   const hamburgerStyles = hamburger.classList;
   const menuStyles = document.querySelector('.menu').classList;
 
-  hamburgerStyles.toggle('is-active');
-  menuStyles.toggle('is-active');
+  hamburgerStyles.toggle('hamburger--is-active');
+  menuStyles.toggle('menu--is-active');
 }
 
 function Menu() {
