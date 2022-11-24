@@ -1,29 +1,4 @@
 colors {
-  /* letras de poster 1*/
-  color: #06192b;
-  color: #39789b;
-  color: #428eb2;
-  color: #6a9db7;
-
-  /* letras de poster 2 */
-  color: #f2ad23;
-  color: #c78600;
-  color: #c98600;
-  color: #be8f4f;
-  color: #755b2a;
-  color: #c88f65;
-
-  /* negros grises y blancos */
-  color: #0b0c0e;
-  color: #ceced0;
-  color: #a3a3a5;
-  color: #05080d;
-  color: #999a9b;
-  color: #3a3a3a;
-  color: #fdfefe;
-  color: #212224;
-  color: #101415;
-
   background-image: radial-gradient(
     circle farthest-corner at 12.3% 19.3%,
     rgba(85, 88, 218, 1) 0%,
