@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import './App.css';
+import './styles/reset.css';
 import { Footer, Header } from './components';
 
 export default function App() {
