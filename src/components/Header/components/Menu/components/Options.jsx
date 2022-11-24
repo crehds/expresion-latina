@@ -28,11 +28,20 @@ const OPTIONS = [{
 },
 ];
 
+function handleOption(event) {
+  event.preventDefault();
+  const optionLink = event.target;
+  if (optionLink.classList.contains('option__link--active')) return;
+  const activeOptionLink = document.querySelector('.option__link--active');
+  activeOptionLink.classList.remove('option__link--active');
+  optionLink.classList.add('option__link--active');
+}
+
 export default class Options extends PureComponent {
   componentDidMount() {
-    const options = document.querySelector('.options');
-    const firstOption = options.firstElementChild;
-    firstOption.classList.add('options__li--active');
+    const optionsLink = document.querySelectorAll('.option__link');
+    const firstOptionLink = optionsLink[0];
+    firstOptionLink.classList.add('option__link--active');
   }
 
   render() {
@@ -40,7 +49,7 @@ export default class Options extends PureComponent {
       <ul className="options">
         {
           OPTIONS.map((option) => (
-            <Option key={option.id} name={option.name} />
+            <Option key={option.id} name={option.name} handleOption={handleOption} />
           ))
         }
       </ul>

@@ -1,15 +1,19 @@
 .option {
   font-size: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 10px 0;
   cursor: pointer;
-
+  padding: 0.5rem;
   font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
 }
 
-.option:hover {
+.option__link {
+  display: flex;
+  height: 100%;
+  color: black;
+  justify-content: center;
+  align-items: center;
+}
+
+.option__link--active {
   background-image: radial-gradient(
     circle farthest-corner at 12.3% 19.3%,
     rgba(85, 88, 218, 1) 0%,
@@ -17,7 +21,7 @@
   );
 }
 
-.option--active {
+.option__link:hover {
   background-image: radial-gradient(
     circle farthest-corner at 12.3% 19.3%,
     rgba(85, 88, 218, 1) 0%,
