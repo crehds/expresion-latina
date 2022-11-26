@@ -5,31 +5,37 @@ import Option from './Option';
 const OPTIONS = [{
   id: 1,
   name: 'Inicio',
+  path: '/',
 },
 {
   id: 2,
   name: 'Profesores',
+  path: '/teachers',
 },
 {
   id: 3,
   name: 'Clases',
+  path: '/dances',
 },
 {
   id: 4,
   name: 'Horario',
+  path: '/schedules',
 },
 {
   id: 5,
   name: 'Reseñas',
+  path: '/reviews',
 },
 {
   id: 6,
   name: 'Encuéntranos',
+  path: '/contact',
 },
 ];
 
 function handleOption(event) {
-  event.preventDefault();
+  // event.preventDefault();
   const optionLink = event.target;
   if (optionLink.classList.contains('option__link--active')) return;
   const activeOptionLink = document.querySelector('.option__link--active');
@@ -49,7 +55,12 @@ export default class Options extends PureComponent {
       <ul className="options">
         {
           OPTIONS.map((option) => (
-            <Option key={option.id} name={option.name} handleOption={handleOption} />
+            <Option
+              key={option.id}
+              name={option.name}
+              handleOption={handleOption}
+              path={option.path}
+            />
           ))
         }
       </ul>

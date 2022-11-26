@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import '../css/option.css';
 
 export default function Option(props) {
-  const { name, handleOption } = props;
+  const { name, handleOption, path } = props;
+
   return (
     <li className="option">
-      <Link to="/" onClick={handleOption} className="option__link">
+      <Link to={path} onClick={handleOption} className="option__link">
         {name}
       </Link>
     </li>
@@ -16,4 +17,5 @@ export default function Option(props) {
 Option.propTypes = {
   name: PropTypes.string.isRequired,
   handleOption: PropTypes.func.isRequired,
+  path: PropTypes.string.isRequired,
 };
