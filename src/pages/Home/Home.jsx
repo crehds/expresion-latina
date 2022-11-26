@@ -11,7 +11,6 @@ export default class Home extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      slideIndex: 0,
       posters: [],
     };
   }
@@ -31,24 +30,12 @@ export default class Home extends Component {
   render() {
     const {
       posters,
-      slideIndex,
     } = this.state;
-    let timer;
     return (
       <Carousel
         autoplay
         style={{ height: '100%' }}
-        slideIndex={slideIndex}
-        beforeSlide={() => {
-          clearTimeout(timer);
-        }}
-        afterSlide={(sIndex) => {
-          if (sIndex === posters.length - 1) {
-            timer = setTimeout(() => this.setState({ slideIndex: 0 }), 5000);
-          } else {
-            this.setState({ slideIndex: sIndex });
-          }
-        }}
+        wrapAround
         defaultControlsConfig={{
           pagingDotsStyle: {
             fill: 'rgba(95, 209, 249, 1)',
