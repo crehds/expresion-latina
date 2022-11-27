@@ -1,4 +1,4 @@
-import '../css/grid.css';
+import './css/grid.css';
 
 export default function Grid() {
   return (
