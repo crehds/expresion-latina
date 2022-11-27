@@ -3,5 +3,5 @@
   min-height: 100vh;
   color: black;
   display: grid;
-  grid-template-rows: auto 1fr minmax(30px, 80px);
+  grid-template-rows: 10vh 80vh 10vh;
 }
