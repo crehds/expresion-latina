@@ -1,0 +1,125 @@
+.grid {
+  display: inline-block;
+  position: relative;
+  width: 6.4rem;
+  height: 6.4rem;
+}
+
+.grid div {
+  position: absolute;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  background: #000;
+  animation: grid 1.2s linear infinite;
+}
+
+.grid div:nth-child(1) {
+  top: 0.6rem;
+  left: 0.6rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(85, 88, 218, 1) 0%,
+    rgba(95, 209, 249, 1) 100.2%
+  );
+  animation-delay: 0s;
+}
+
+.grid div:nth-child(2) {
+  top: 0.6rem;
+  left: 2.6rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(95, 209, 249, 1) 0%,
+    rgba(85, 88, 218, 1) 100.2%
+  );
+  animation-delay: -0.4s;
+}
+
+.grid div:nth-child(3) {
+  top: 0.6rem;
+  left: 4.5rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(85, 88, 218, 1) 0%,
+    rgba(95, 209, 249, 1) 100.2%
+  );
+  animation-delay: -0.8s;
+}
+
+.grid div:nth-child(4) {
+  top: 2.6rem;
+  left: 0.6rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(95, 209, 249, 1) 0%,
+    rgba(85, 88, 218, 1) 100.2%
+  );
+  animation-delay: -0.4s;
+}
+
+.grid div:nth-child(5) {
+  top: 2.6rem;
+  left: 2.6rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(85, 88, 218, 1) 0%,
+    rgba(95, 209, 249, 1) 100.2%
+  );
+  animation-delay: -0.8s;
+}
+
+.grid div:nth-child(6) {
+  top: 2.6rem;
+  left: 4.5rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(95, 209, 249, 1) 0%,
+    rgba(85, 88, 218, 1) 100.2%
+  );
+  animation-delay: -1.2s;
+}
+
+.grid div:nth-child(7) {
+  top: 4.5rem;
+  left: 0.6rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(85, 88, 218, 1) 0%,
+    rgba(95, 209, 249, 1) 100.2%
+  );
+  animation-delay: -0.8s;
+}
+
+.grid div:nth-child(8) {
+  top: 4.5rem;
+  left: 2.6rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(95, 209, 249, 1) 0%,
+    rgba(85, 88, 218, 1) 100.2%
+  );
+  animation-delay: -1.2s;
+}
+
+.grid div:nth-child(9) {
+  top: 4.5rem;
+  left: 4.5rem;
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(85, 88, 218, 1) 0%,
+    rgba(95, 209, 249, 1) 100.2%
+  );
+  animation-delay: -1.6s;
+}
+
+@keyframes grid {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
