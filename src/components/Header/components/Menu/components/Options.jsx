@@ -1,6 +1,10 @@
 import { PureComponent } from 'react';
-import '../css/options.css';
+import PropTypes from 'prop-types';
+
+import withRouter from '../../../../../hocs/withRouter';
 import Option from './Option';
+
+import '../css/options.css';
 
 const OPTIONS = [{
   id: 1,
@@ -34,31 +38,17 @@ const OPTIONS = [{
 },
 ];
 
-function handleOption(event) {
-  // event.preventDefault();
-  const optionLink = event.target;
-  if (optionLink.classList.contains('option__link--active')) return;
-  const activeOptionLink = document.querySelector('.option__link--active');
-  activeOptionLink.classList.remove('option__link--active');
-  optionLink.classList.add('option__link--active');
-}
-
-export default class Options extends PureComponent {
-  componentDidMount() {
-    const optionsLink = document.querySelectorAll('.option__link');
-    const firstOptionLink = optionsLink[0];
-    firstOptionLink.classList.add('option__link--active');
-  }
-
+class Options extends PureComponent {
   render() {
+    const { location } = this.props;
     return (
       <ul className="options">
         {
           OPTIONS.map((option) => (
             <Option
               key={option.id}
+              location={location}
               name={option.name}
-              handleOption={handleOption}
               path={option.path}
             />
           ))
@@ -67,3 +57,9 @@ export default class Options extends PureComponent {
     );
   }
 }
+
+Options.propTypes = {
+  location: PropTypes.instanceOf(Object).isRequired,
+};
+
+export default withRouter(Options);
