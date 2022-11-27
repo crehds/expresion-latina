@@ -1,12 +1,21 @@
+import PropTypes from 'prop-types';
 import { Grid } from './components';
 import './css/loader.css';
 
-function Loader() {
+const LOADERS = {
+  grid: <Grid />,
+};
+
+function Loader({ loaderName }) {
   return (
     <div className="loader">
-      <Grid />
+      {LOADERS[loaderName]}
     </div>
   );
 }
+
+Loader.propTypes = {
+  loaderName: PropTypes.string.isRequired,
+};
 
 export default Loader;
