@@ -16,7 +16,7 @@ export default function App() {
   return (
     <div className="App">
       <Header />
-      <Suspense fallback={<Loader />}>
+      <Suspense fallback={<Loader loaderName="grid" />}>
         <Routes>
           <Route index element={<Home />} />
           <Route path="/teachers" element={<Teachers />} />
