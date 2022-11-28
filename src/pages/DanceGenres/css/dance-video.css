@@ -1,0 +1,27 @@
+.dance-video {
+  padding: 0 0.5rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.dance-video__container {
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  padding-bottom: 56.25%;
+  position: relative;
+}
+
+.dance-video__video {
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+  border-radius: 0.8rem;
+}
+
+.dance-video__video:focus {
+  outline: none;
+}
