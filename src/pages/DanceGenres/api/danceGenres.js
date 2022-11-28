@@ -1,38 +1,38 @@
 const DANCE_GENRES = [
   {
-    id: '1',
+    id: 1,
     name: 'Salsa',
   },
   {
-    id: '2',
+    id: 2,
     name: 'Bachata',
   },
   {
-    id: '3',
+    id: 3,
     name: 'Jazz',
   },
   {
-    id: '4',
+    id: 4,
     name: 'Latin Urban',
   },
   {
-    id: '5',
+    id: 5,
     name: 'Ladies',
   },
   {
-    id: '6',
+    id: 6,
     name: 'Ballet',
   },
   {
-    id: '7',
+    id: 7,
     name: 'Urban Style',
   },
   {
-    id: '8',
+    id: 8,
     name: 'Mambo',
   },
   {
-    id: '9',
+    id: 9,
     name: 'Body Movement',
   },
 ];
