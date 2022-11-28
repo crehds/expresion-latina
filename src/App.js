@@ -11,6 +11,7 @@ import './App.css';
 
 const Home = lazy(() => import('./pages/Home/Home'));
 const Teachers = lazy(() => import('./pages/Teachers/Teachers'));
+const DanceGenres = lazy(() => import('./pages/DanceGenres/DanceGenres'));
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Routes>
           <Route index element={<Home />} />
           <Route path="/teachers" element={<Teachers />} />
+          <Route path="/dances/*" element={<DanceGenres />} />
         </Routes>
       </Suspense>
       <Footer />
