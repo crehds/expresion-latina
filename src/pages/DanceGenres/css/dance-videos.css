@@ -1,0 +1,15 @@
+.dance-videos {
+  display: grid;
+  grid-template-rows: 4rem auto;
+  height: 100%;
+  border-bottom: 1px groove rgba(127, 146, 166, 1);
+}
+
+.dance-videos__container {
+  display: grid;
+  grid-template-rows: repeat(2, 20rem);
+  grid-auto-rows: 20rem;
+  gap: 1rem;
+  overflow: auto;
+  padding: 0.5rem;
+}
