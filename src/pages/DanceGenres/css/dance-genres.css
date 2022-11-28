@@ -1,0 +1,4 @@
+.dance-genres {
+  display: flex;
+  flex-wrap: wrap;
+}
