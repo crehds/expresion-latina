@@ -7,6 +7,7 @@ import Loader from './components/Loader/Loader';
 import './styles/reset.css';
 import './styles/colors.css';
 import './styles/typography.css';
+import './styles/utils.css';
 import './App.css';
 
 const Home = lazy(() => import('./pages/Home/Home'));
