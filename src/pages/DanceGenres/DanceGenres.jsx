@@ -1,6 +1,9 @@
 import { Component } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import DANCE_GENRES from './api/danceGenres';
+import DanceGenre from './components/DanceGenre';
+
+import './css/dance-genres.css';
 
 class DanceGenres extends Component {
   constructor(props) {
@@ -22,11 +25,7 @@ class DanceGenres extends Component {
           <Route
             path="/"
             element={danceGenres.map((danceGenre) => (
-              <div
-                key={danceGenre.id}
-              >
-                {danceGenre.name}
-              </div>
+              <DanceGenre key={danceGenre.id} name={danceGenre.name} />
             ))}
           />
         </Routes>
