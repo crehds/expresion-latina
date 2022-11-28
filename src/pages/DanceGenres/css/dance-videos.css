@@ -13,3 +13,30 @@
   overflow: auto;
   padding: 0.5rem;
 }
+
+.dance-videos__title {
+  border-top: 2px outset var(--sky-blue-300);
+  border-bottom: 2px inset var(--sky-blue-300);
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.dance-videos__back {
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
+  font-size: 1.5rem;
+  display: flex;
+  position: absolute;
+  color: var(--gray-100);
+}
+
+.dance-videos__heading {
+  margin: auto;
+  color: var(--mustard-300);
+}
+
+.dance-videos__back:hover {
+  color: var(--bronze);
+}
