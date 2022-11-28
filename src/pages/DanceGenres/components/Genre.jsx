@@ -1,13 +1,13 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
-import '../css/dance-genre.css';
+import '../css/genre.css';
 
-function DanceGenre(props) {
+function Genre(props) {
   const { name } = props;
   return (
     <Link
-      to="/name"
+      to={`/dances/${name}/videos`}
       className="dance-genre"
     >
       <p>{name}</p>
@@ -15,8 +15,8 @@ function DanceGenre(props) {
   );
 }
 
-DanceGenre.propTypes = {
+Genre.propTypes = {
   name: PropTypes.string.isRequired,
 };
 
-export default DanceGenre;
+export default Genre;
