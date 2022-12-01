@@ -1,0 +1,6 @@
+.schedules {
+  display: grid;
+  grid-template-columns: 1fr 8fr;
+  grid-template-rows: auto 8fr;
+  padding: 0.5rem;
+}
