@@ -2,12 +2,14 @@ import PropTypes from 'prop-types';
 
 import '../css/classes.css';
 import ClassCard from './ClassCard';
+import Days from './Days';
 
 function Classes(props) {
-  const { classes } = props;
+  const { classes, currentDay } = props;
 
   return (
     <div className="classes">
+      <Days currentDay={currentDay} />
       {classes.map((classesPerHour) => (
         classesPerHour.map((classData) => (
           <ClassCard
@@ -22,6 +24,7 @@ function Classes(props) {
 }
 
 Classes.propTypes = {
+  currentDay: PropTypes.instanceOf(Date).isRequired,
   classes: PropTypes.arrayOf(
     PropTypes.arrayOf(
       PropTypes.shape({

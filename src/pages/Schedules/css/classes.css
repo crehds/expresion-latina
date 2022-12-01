@@ -1,5 +1,7 @@
 .classes {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(12, 1fr);
+  grid-template-rows: 3rem repeat(12, 1fr);
+  grid-row: 1 / 3;
+  overflow: auto;
 }
