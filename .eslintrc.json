@@ -16,6 +16,7 @@
   "plugins": ["react"],
   "rules": {
     "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
-    "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }]
+    "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }],
+    "react/jsx-props-no-spreading": ["error", { "exceptions": ["Component"] }]
   }
 }

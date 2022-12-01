@@ -1,0 +1,8 @@
+.class-card {
+  display: flex;
+}
+
+.class-card p {
+  margin: auto;
+  text-align: center;
+}

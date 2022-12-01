@@ -1,37 +1,33 @@
-import { Component } from 'react';
-import Header from './header_root/header';
+import { Suspense, lazy } from 'react';
+import { Routes, Route } from 'react-router-dom';
+
+import { Footer, Header } from './components';
+import Loader from './components/Loader/Loader';
+
+import './styles/reset.css';
+import './styles/colors.css';
+import './styles/typography.css';
+import './styles/utils.css';
 import './App.css';
-import Main from './main_root/Main';
-import Footer from './footer_root/footer';
 
-export default class App extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      content: 'Login',
-      headerFunc: undefined,
-    };
-  }
+const Home = lazy(() => import('./pages/Home/Home'));
+const Teachers = lazy(() => import('./pages/Teachers/Teachers'));
+const DanceGenres = lazy(() => import('./pages/DanceGenres/DanceGenres'));
+const Schedules = lazy(() => import('./pages/Schedules/Schedules'));
 
-  handleContent = (state) => {
-    this.setState({
-      content: state,
-    });
-  };
-
-  handleHeadProfile = (func) => this.setState({ headerFunc: func });
-
-  render() {
-    const { content, headerFunc } = this.state;
-    return (
-      <div className="App">
-        <Header
-          handleContent={this.handleContent}
-          handleHeadProfile={this.handleHeadProfile}
-        />
-        <Main content={content} headerFunc={headerFunc} />
-        <Footer />
-      </div>
-    );
-  }
+export default function App() {
+  return (
+    <div className="App">
+      <Header />
+      <Suspense fallback={<Loader loaderName="grid" />}>
+        <Routes>
+          <Route index element={<Home />} />
+          <Route path="/teachers" element={<Teachers />} />
+          <Route path="/dances/*" element={<DanceGenres />} />
+          <Route path="/schedules" element={<Schedules />} />
+        </Routes>
+      </Suspense>
+      <Footer />
+    </div>
+  );
 }

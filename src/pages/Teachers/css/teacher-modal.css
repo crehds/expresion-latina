@@ -1,0 +1,85 @@
+.teacher-modal {
+  width: 25rem;
+  height: 40rem;
+  display: grid;
+  grid-template-rows: 1fr 8fr minmax(5%, 15%);
+  background-color: var(--gray-200);
+  border-radius: 1rem;
+  color: var(--white);
+  box-shadow: 0 0 0.5rem 1rem rgba(85, 80, 218, 0.5);
+}
+
+.teacher-modal__header {
+  display: flex;
+  position: relative;
+}
+
+.teacher-modal__title {
+  text-align: center;
+  margin: auto;
+}
+
+.teacher-modal__button-close {
+  font-size: 2rem;
+  right: 0;
+  position: absolute;
+  background-color: transparent;
+  border: none;
+  display: flex;
+  height: 100%;
+  align-items: center;
+  cursor: pointer;
+}
+
+.teacher-modal__button-close:hover {
+  background-color: var(--sky-blue-100);
+}
+
+.teacher-modal__button-close:hover > .teacher-modal__icon-close {
+  color: var(--white);
+}
+
+.teacher-modal__icon-close {
+  font-size: 2rem;
+  color: var(--black-100);
+}
+
+.teacher-modal__presentation {
+  display: flex;
+  /* height: 100%; */
+}
+
+.teacher-modal__container-image {
+  height: 100%;
+}
+
+.teacher-modal__image {
+  height: 100%;
+}
+
+.teacher-modal__social-media {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 0 0.5rem;
+}
+
+.teacher-modal__social-media-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.teacher-modal__social-media-icon {
+  font-size: 3rem;
+  color: var(--gray-400);
+}
+
+.teacher-modal__social-media-button:hover > .teacher-modal__social-media-icon {
+  color: var(--sky-blue-300);
+}
+
+.teacher-modal__description {
+  padding: 0.8rem;
+}
