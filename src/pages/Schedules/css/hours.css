@@ -1,0 +1,4 @@
+.hours {
+  display: grid;
+  grid-template-rows: repeat(12, 1fr);
+}
