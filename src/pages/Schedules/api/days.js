@@ -5,27 +5,27 @@ const DAYS = [
   },
   {
     id: 2,
-    name: 'Tuesday',
+    name: 'Martes',
   },
   {
     id: 3,
-    name: 'Wednesday',
+    name: 'Miércoles',
   },
   {
     id: 4,
-    name: 'Thursday',
+    name: 'Jueves',
   },
   {
     id: 5,
-    name: 'Friday',
+    name: 'Viernes',
   },
   {
     id: 6,
-    name: 'Saturday',
+    name: 'Sábado',
   },
   {
     id: 7,
-    name: 'Sunday',
+    name: 'Domingo',
   },
 ];
 
