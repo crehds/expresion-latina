@@ -13,8 +13,15 @@ function ClassCard(props) {
 
 ClassCard.propTypes = {
   danceGenre: PropTypes.shape({
-    id: PropTypes.number.isRequired,
-    name: PropTypes.string.isRequired,
-  }).isRequired,
+    id: PropTypes.number,
+    name: PropTypes.string,
+  }),
 };
+
+ClassCard.defaultProps = {
+  danceGenre: {
+    name: 'Sin asignar',
+  },
+};
+
 export default ClassCard;
