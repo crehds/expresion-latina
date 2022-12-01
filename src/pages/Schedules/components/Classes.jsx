@@ -25,7 +25,7 @@ function Classes(props) {
 }
 
 Classes.propTypes = {
-  currentDay: PropTypes.instanceOf(Date).isRequired,
+  currentDay: PropTypes.number.isRequired,
   classes: PropTypes.arrayOf(
     PropTypes.arrayOf(
       PropTypes.shape({

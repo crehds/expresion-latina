@@ -16,7 +16,7 @@ function Days(props) {
 }
 
 Days.propTypes = {
-  currentDay: PropTypes.instanceOf(Date).isRequired,
+  currentDay: PropTypes.number.isRequired,
 };
 
 export default Days;
