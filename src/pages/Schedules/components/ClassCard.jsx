@@ -6,7 +6,7 @@ function ClassCard(props) {
   const { danceGenre } = props;
   return (
     <div className="class-card">
-      <p>{danceGenre?.name}</p>
+      <p className="text-sm">{danceGenre?.name}</p>
     </div>
   );
 }

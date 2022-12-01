@@ -2,6 +2,15 @@
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  border: 1px solid black;
   text-align: center;
+}
+
+.day {
+  display: flex;
+  padding: 0.4rem;
+  color: var(--mustard-200);
+}
+
+.day__name {
+  margin: auto;
 }

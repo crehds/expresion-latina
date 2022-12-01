@@ -1,12 +1,12 @@
 import PropTypes from 'prop-types';
 
-import '../css/classes.css';
 import ClassCard from './ClassCard';
 import Days from './Days';
 
+import '../css/classes.css';
+
 function Classes(props) {
   const { classes, currentDay } = props;
-
   return (
     <div className="classes">
       <Days currentDay={currentDay} />
@@ -15,6 +15,7 @@ function Classes(props) {
           <ClassCard
             key={`class-card-${classData.id}`}
             danceGenre={classData.danceGenre}
+            currentDay={currentDay}
           />
         ))
       ))}

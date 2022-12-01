@@ -7,7 +7,13 @@ function Hours() {
     <div className="hours">
       {HOURS.map((hour) => (
         <div key={hour.id} style={{ display: 'flex' }}>
-          <p style={{ whiteSpace: 'pre', margin: 'auto' }}>{hour.hour}</p>
+          <p
+            style={{ whiteSpace: 'pre', margin: 'auto' }}
+            className="text-sm"
+          >
+            {hour.hour}
+
+          </p>
         </div>
       ))}
     </div>
