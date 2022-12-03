@@ -15,6 +15,7 @@ function Classes(props) {
           <ClassCard
             key={`class-card-${classData.id}`}
             danceGenre={classData.danceGenre}
+            day={classData.day}
             currentDay={currentDay}
           />
         ))
