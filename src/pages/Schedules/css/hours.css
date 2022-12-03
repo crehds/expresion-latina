@@ -3,7 +3,12 @@
   display: grid;
   grid-template-rows: repeat(12, 1fr);
   color: var(--back-200);
+}
+
+.hour {
+  display: flex;
   padding: 0.4rem;
+  border: 2px solid var(--gray-400);
 }
 
 .hours p {
