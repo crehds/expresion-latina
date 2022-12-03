@@ -14,6 +14,7 @@ const Home = lazy(() => import('./pages/Home/Home'));
 const Teachers = lazy(() => import('./pages/Teachers/Teachers'));
 const DanceGenres = lazy(() => import('./pages/DanceGenres/DanceGenres'));
 const Schedules = lazy(() => import('./pages/Schedules/Schedules'));
+const Reviews = lazy(() => import('./pages/Reviews/Reviews'));
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/teachers" element={<Teachers />} />
           <Route path="/dances/*" element={<DanceGenres />} />
           <Route path="/schedules" element={<Schedules />} />
+          <Route path="/reviews" element={<Reviews />} />
         </Routes>
       </Suspense>
       <Footer />
