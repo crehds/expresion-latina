@@ -14,7 +14,7 @@ function ClassCard(props) {
 }
 
 ClassCard.propTypes = {
-  day: PropTypes.string.isRequired,
+  day: PropTypes.string,
   currentDay: PropTypes.number.isRequired,
   danceGenre: PropTypes.shape({
     id: PropTypes.number,
@@ -23,6 +23,7 @@ ClassCard.propTypes = {
 };
 
 ClassCard.defaultProps = {
+  day: '',
   danceGenre: {
     name: 'Sin asignar',
   },
