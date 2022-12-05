@@ -1,0 +1,13 @@
+.contact {
+  padding: 2rem 0.8rem 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 3rem auto;
+  text-align: center;
+}
+
+.contact__option {
+  color: var(--gray-200);
+  border-top-right-radius: 0.5rem;
+  border-top-left-radius: 0.5rem;
+}
