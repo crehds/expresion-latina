@@ -1,4 +1,4 @@
-.footer-container {
+.footer {
   padding: 2px;
   padding-top: 4px;
   display: flex;
@@ -8,14 +8,15 @@
   align-items: center;
 }
 
-.footer-container a {
+.footer__social-media {
   margin: 0;
   padding: 0;
   text-decoration: none;
   color: rgba(120, 120, 120, 0.9);
+  font-size: 4.5rem;
 }
 
-.footer-container a:hover {
+.footer__social-media:hover {
   margin: 0;
   padding: 0;
   text-decoration: none;
@@ -27,4 +28,8 @@
   );
   background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.footer__social-media-icon {
+  font-size: 4.5rem;
 }
