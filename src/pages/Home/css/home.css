@@ -1,4 +1,9 @@
-.posters_arrow {
+.home {
+  display: flex;
+  padding: 0.8rem 0;
+}
+
+.home__arrow {
   background-image: radial-gradient(
     circle farthest-corner at 12.3% 19.3%,
     rgba(85, 88, 218, 1) 0%,
@@ -6,6 +11,19 @@
   );
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  position: relative;
+}
+
+.home__arrow--left {
+  left: -1rem;
+}
+
+.home__arrow--right {
+  right: -1rem;
+}
+
+.home__arrow-icon {
+  font-size: 4rem;
 }
 
 .slider-list {
