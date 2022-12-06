@@ -1,6 +1,27 @@
 .days {
+  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  border: 1px solid black;
   text-align: center;
+}
+
+.day {
+  display: flex;
+  padding: 0.4rem;
+  color: var(--mustard-200);
+  border: 2px solid var(--gray-400);
+}
+
+.day--active {
+  background-image: linear-gradient(
+    110.3deg,
+    rgba(72, 85, 99, 1) 8.8%,
+    rgba(126, 136, 146, 0.897) 95.1%
+  );
+  font-weight: bold;
+  -webkit-text-fill-color: rgba(12, 170, 255, 1);
+}
+
+.day__name {
+  margin: auto;
 }

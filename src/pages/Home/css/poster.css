@@ -1,6 +1,7 @@
 .poster {
   display: flex;
   height: 100%;
+  padding: 0 2rem;
 }
 
 .poster__img {

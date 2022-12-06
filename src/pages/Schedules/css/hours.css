@@ -1,4 +1,22 @@
 .hours {
+  grid-row: 2 / 3;
   display: grid;
   grid-template-rows: repeat(12, 1fr);
+  color: var(--back-200);
+}
+
+.hour {
+  display: flex;
+  padding: 0.4rem;
+  border: 2px solid var(--gray-400);
+}
+
+.hours p {
+  background-image: radial-gradient(
+    circle farthest-corner at 12.3% 19.3%,
+    rgba(85, 88, 218, 1) 0%,
+    rgba(42, 91, 200, 1) 100.2%
+  );
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

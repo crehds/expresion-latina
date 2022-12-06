@@ -32,49 +32,51 @@ export default class Home extends Component {
       posters,
     } = this.state;
     return (
-      <Carousel
-        autoplay
-        style={{ height: '100%' }}
-        wrapAround
-        defaultControlsConfig={{
-          pagingDotsStyle: {
-            fill: 'rgba(95, 209, 249, 1)',
-            padding: '0px 20px',
-          },
-        }}
-        renderCenterLeftControls={({ previousSlide }) => (
-          <div className="posters_arrow">
-            <i
-              className="icon-keyboard_arrow_left"
-              onClick={previousSlide}
-              onKeyDown={previousSlide}
-              role="button"
-              tabIndex={0}
-              aria-label="arrow-left-icon"
+      <div className="home">
+        <Carousel
+          autoplay
+          style={{ height: '100%' }}
+          wrapAround
+          defaultControlsConfig={{
+            pagingDotsStyle: {
+              fill: 'rgba(95, 209, 249, 1)',
+              padding: '0px 20px',
+            },
+          }}
+          renderCenterLeftControls={({ previousSlide }) => (
+            <div className="home__arrow home__arrow--left">
+              <i
+                className="icon-keyboard_arrow_left home__arrow-icon"
+                onClick={previousSlide}
+                onKeyDown={previousSlide}
+                role="button"
+                tabIndex={0}
+                aria-label="arrow-left-icon"
+              />
+            </div>
+          )}
+          renderCenterRightControls={({ nextSlide }) => (
+            <div className="home__arrow home__arrow--right">
+              <i
+                className="icon-keyboard_arrow_right home__arrow-icon"
+                onClick={nextSlide}
+                onKeyDown={nextSlide}
+                role="button"
+                tabIndex={0}
+                aria-label="arrow-right-icon"
+              />
+            </div>
+          )}
+        >
+          {posters.map((poster) => (
+            <Poster
+              key={poster.id}
+              filename={poster.filename}
+              url={poster.url}
             />
-          </div>
-        )}
-        renderCenterRightControls={({ nextSlide }) => (
-          <div className="posters_arrow">
-            <i
-              className="icon-keyboard_arrow_right"
-              onClick={nextSlide}
-              onKeyDown={nextSlide}
-              role="button"
-              tabIndex={0}
-              aria-label="arrow-right-icon"
-            />
-          </div>
-        )}
-      >
-        {posters.map((poster) => (
-          <Poster
-            key={poster.id}
-            filename={poster.filename}
-            url={poster.url}
-          />
-        ))}
-      </Carousel>
+          ))}
+        </Carousel>
+      </div>
     );
   }
 }

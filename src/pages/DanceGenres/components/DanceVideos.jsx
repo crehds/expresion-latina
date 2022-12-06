@@ -17,7 +17,7 @@ function DanceVideos(props) {
           aria-label="Back"
           onClick={() => navigate(-1)}
         >
-          <i className="icon-arrow-left1" />
+          <i className="icon-arrow-left" />
         </button>
         <h2 className="heading-sm dance-videos__heading">{danceGenreId}</h2>
       </div>

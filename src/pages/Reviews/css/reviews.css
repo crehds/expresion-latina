@@ -1,0 +1,51 @@
+.reviews {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  row-gap: 1rem;
+  color: black;
+  padding: 1.6rem;
+  height: 100%;
+}
+
+.review {
+  border: none;
+  background-color: transparent;
+  white-space: normal;
+  text-align: justify;
+  text-align-last: center;
+  margin: auto 0;
+  font-style: italic;
+  background-image: linear-gradient(
+    to right,
+    rgb(55, 65, 77) 20%,
+    rgba(72, 85, 99, 1) 40%,
+    var(--gray-400) 60%,
+    var(--gray-400) 80%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.review__random-user {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.review__random-user-image-container {
+  object-fit: cover;
+  flex-grow: 1;
+  width: 12rem;
+  height: 6rem;
+}
+
+.review__random-user-image {
+  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+}
+
+.review__random-user-name {
+  flex-grow: 2;
+}

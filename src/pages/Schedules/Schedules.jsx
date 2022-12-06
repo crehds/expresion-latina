@@ -4,8 +4,8 @@ import DAYS from './api/days';
 import HOURS from './api/hours';
 import SCHEDULES from './api/schedules';
 import Classes from './components/Classes';
-import Days from './components/Days';
 import Hours from './components/Hours';
+import ScheduleIcon from './components/ScheduleIcon';
 
 import './css/schedules.css';
 
@@ -52,12 +52,9 @@ class Schedules extends Component {
     const { currentDay, schedules } = this.state;
     return (
       <div className="schedules">
-        <div>
-          <p>Icono</p>
-        </div>
-        <Days currentDay={currentDay} />
+        <ScheduleIcon />
         <Hours />
-        <Classes classes={schedules} />
+        <Classes classes={schedules} currentDay={currentDay} />
       </div>
     );
   }
