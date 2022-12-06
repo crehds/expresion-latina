@@ -26,7 +26,7 @@ function TeacherModal(props) {
           </div>
           <div className="teacher-modal__social-media">
             <button type="button" className="teacher-modal__social-media-button">
-              <i className="icon-facebook2 teacher-modal__social-media-icon" />
+              <i className="icon-facebook-square teacher-modal__social-media-icon" />
             </button>
             <button type="button" className="teacher-modal__social-media-button">
               <i className="icon-instagram teacher-modal__social-media-icon" />
