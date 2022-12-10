@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500&family=Lato:wght@400;700;900&family=Open+Sans:wght@400;600&display=swap');
 
 body {
-  font-family: 'Open sans', system-ui, sans-serif, -apple-system;
+  font-family: 'Open Sans', system-ui, sans-serif, -apple-system;
 }
 
 h1,
@@ -10,7 +10,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Lato';
+  font-family: 'Lato', system-ui, sans-serif, -apple-system;
   font-weight: 700;
 }
 
