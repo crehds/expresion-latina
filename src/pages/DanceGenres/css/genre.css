@@ -10,9 +10,8 @@
     rgba(116, 147, 179, 0.3) 0%,
     rgba(62, 83, 104, 0.3) 100.2%
   );
-  font-size: 21px;
+  font-family: 'Dancing Script', system-ui, -apple-system, sans-serif;
   border-radius: 8px;
-  font-family: 'Source Sans Pro';
   transition: 0.3s;
 }
 

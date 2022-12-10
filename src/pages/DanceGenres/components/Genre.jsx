@@ -10,7 +10,7 @@ function Genre(props) {
       to={`/dances/${name}/videos`}
       className="dance-genre"
     >
-      <p>{name}</p>
+      <p className="text-lg">{name}</p>
     </Link>
   );
 }
