@@ -9,7 +9,7 @@ export default function Option(props) {
 
   const active = location.pathname === path;
   return (
-    <li className="option">
+    <li className="text-md option">
       <Link to={path} className={`option__link ${active && 'option__link--active'}`}>
         {name}
       </Link>
