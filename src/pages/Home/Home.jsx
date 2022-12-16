@@ -37,6 +37,8 @@ export default class Home extends Component {
           autoplay
           style={{ height: '100%' }}
           wrapAround
+          autoplayInterval={8000}
+          pauseOnHover
           defaultControlsConfig={{
             pagingDotsStyle: {
               fill: 'rgba(95, 209, 249, 1)',
