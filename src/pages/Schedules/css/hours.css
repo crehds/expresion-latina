@@ -20,3 +20,9 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+@media (max-width: 669px) {
+  .hours {
+    margin-bottom: 8px;
+  }
+}
