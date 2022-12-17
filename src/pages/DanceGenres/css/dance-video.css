@@ -25,3 +25,15 @@
 .dance-video__video:focus {
   outline: none;
 }
+
+@media (min-width: 1024px) {
+  .dance-video__container {
+    padding-bottom: 42.5%;
+  }
+}
+
+@media (min-width: 1400px) {
+  .dance-video__container {
+    padding-bottom: 32.5%;
+  }
+}

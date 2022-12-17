@@ -4,28 +4,34 @@
 }
 
 .home__arrow {
-  background-image: radial-gradient(
-    circle farthest-corner at 12.3% 19.3%,
-    rgba(85, 88, 218, 1) 0%,
-    rgba(95, 209, 249, 1) 100.2%
-  );
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  position: relative;
+  color: var(--mustard-100);
+  cursor: pointer;
 }
 
 .home__arrow--left {
-  left: -1rem;
+  padding-left: 0.4rem;
 }
 
 .home__arrow--right {
-  right: -1rem;
+  padding-right: 0.4rem;
 }
 
 .home__arrow-icon {
-  font-size: 4rem;
+  font-size: 3rem;
+  border-radius: 50%;
+  background-image: radial-gradient(
+    circle,
+    var(--sky-blue-400) 55%,
+    var(--gray-300) 100%
+  );
 }
 
 .slider-list {
   height: 100%;
+}
+
+@media (min-width: 768px) {
+  .home__arrow-icon {
+    font-size: 5rem;
+  }
 }

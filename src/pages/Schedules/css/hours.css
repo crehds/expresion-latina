@@ -20,3 +20,15 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+@media (min-width: 768px) {
+  .hours p {
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 669px) {
+  .hours {
+    margin-bottom: 8px;
+  }
+}

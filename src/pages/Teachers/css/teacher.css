@@ -4,9 +4,10 @@
   border-top: 2px inset rgba(140, 140, 140, 0.8);
   border-right: 2px outset rgba(140, 140, 140, 0.8);
   border-bottom: 2px outset rgba(140, 140, 140, 0.8);
-  max-width: 16rem;
-  height: 25rem;
-  min-height: 28rem;
+  min-width: 16rem;
+  min-height: 25rem;
+  max-width: 40rem;
+  max-height: 48rem;
   cursor: pointer;
 }
 

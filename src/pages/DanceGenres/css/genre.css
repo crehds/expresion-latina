@@ -1,10 +1,15 @@
 .dance-genre {
-  margin: 1.5rem 1rem;
-  color: var(--sky-blue-200);
-  max-height: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
+  padding: 1.5rem 1rem;
+}
+
+.dance-genre__link {
+  color: var(--sky-blue-200);
+  display: flex;
+  width: 100%;
+  min-width: 9rem;
+  max-width: 32rem;
   background-image: radial-gradient(
     circle farthest-corner at 50.3% 44.5%,
     rgba(116, 147, 179, 0.3) 0%,
@@ -15,7 +20,7 @@
   transition: 0.3s;
 }
 
-.dance-genre:hover {
+.dance-genre__link:hover {
   box-shadow: 0 0 0.5rem 0.5rem rgba(185, 205, 227, 1);
   background-image: radial-gradient(
     circle farthest-corner at 50.3% 44.5%,
@@ -24,4 +29,14 @@
   );
   color: rgba(250, 250, 250, 1);
   transform: translateY(-5px) scale(1.2);
+}
+
+.dance-genre__name {
+  margin: auto;
+}
+
+@media (min-width: 768px) {
+  .dance-genre__name {
+    font-size: 3rem;
+  }
 }

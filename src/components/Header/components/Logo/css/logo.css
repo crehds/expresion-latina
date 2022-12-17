@@ -1,5 +1,6 @@
 .logo {
   display: flex;
+  min-width: 14rem;
 }
 
 .logo__img {

@@ -25,3 +25,9 @@
 .day__name {
   margin: auto;
 }
+
+@media (min-width: 768px) {
+  .day__name {
+    font-size: 2.4rem;
+  }
+}
