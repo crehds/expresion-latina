@@ -45,3 +45,9 @@
     opacity: 1 rotate(180deg);
   }
 }
+
+@media (min-width: 768px) {
+  .hamburger {
+    font-size: 4rem;
+  }
+}
