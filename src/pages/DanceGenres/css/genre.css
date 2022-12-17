@@ -35,3 +35,9 @@
 .dance-genre__name {
   margin: auto;
 }
+
+@media (min-width: 768px) {
+  .dance-genre__name {
+    font-size: 3rem;
+  }
+}
