@@ -20,3 +20,9 @@
   margin: auto;
   text-align: center;
 }
+
+@media (min-width: 768px) {
+  .class-card p {
+    font-size: 1.6rem;
+  }
+}
