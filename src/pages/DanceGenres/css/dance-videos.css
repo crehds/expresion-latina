@@ -39,3 +39,15 @@
 .dance-videos__back:hover {
   color: var(--bronze);
 }
+
+@media (min-width: 768px) {
+  .dance-videos__heading {
+    font-size: 3rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dance-videos__heading {
+    font-size: 3.6rem;
+  }
+}

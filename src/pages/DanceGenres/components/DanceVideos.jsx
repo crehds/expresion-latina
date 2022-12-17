@@ -19,7 +19,9 @@ function DanceVideos(props) {
         >
           <i className="icon-arrow-left" />
         </button>
-        <h2 className="heading-sm dance-videos__heading">{danceGenreId}</h2>
+        <h2 className="heading-sm dance-videos__heading">
+          {danceGenreId}
+        </h2>
       </div>
       <div className="dance-videos__container">
         {VIDEOS.map((video) => (
