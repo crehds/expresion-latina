@@ -1,28 +1,52 @@
 import { Component } from 'react';
 
-import { days } from '../../data';
-import { buildWeekMatrix, getActiveTimeSlots, hasPublishedSchedule } from '../../data/selectors';
+import { getActiveDays, getSessionsForWeekday, hasPublishedSchedule } from '../../data/selectors';
+import DayAgenda from './components/DayAgenda';
+import DayPicker from './components/DayPicker';
 import ScheduleIcon from './components/ScheduleIcon';
+import WeekColumns from './components/WeekColumns';
 
 import './css/schedules.css';
+
+const WIDE_SCREEN = '(min-width: 768px)';
+
+/** Today when the academy teaches today, otherwise the first day it does. */
+function initialWeekday(days) {
+  const today = new Date().getDay();
+  if (days.some((day) => day.weekday === today)) return today;
+  return days[0]?.weekday ?? today;
+}
 
 class Schedules extends Component {
   constructor(props) {
     super(props);
+
+    this.days = getActiveDays();
+    this.mediaQuery = window.matchMedia(WIDE_SCREEN);
+
     this.state = {
-      currentWeekday: new Date().getDay(),
+      selectedWeekday: initialWeekday(this.days),
+      // Read before the first paint, so the right layout renders straight away
+      // instead of flashing the other one.
+      isWide: this.mediaQuery.matches,
     };
   }
 
-  render() {
-    const { currentWeekday } = this.state;
+  componentDidMount() {
+    this.mediaQuery.addEventListener('change', this.handleViewportChange);
+  }
 
-    // No grid is allocated up front. Rows come from the hours that actually
-    // hold a class, columns from the days, and every cell is a list that is
-    // usually empty. The page used to allocate 12x7 cells and fill all of
-    // them, which is why its data source invented a class for each one.
-    const slots = getActiveTimeSlots();
-    const matrix = buildWeekMatrix();
+  componentWillUnmount() {
+    this.mediaQuery.removeEventListener('change', this.handleViewportChange);
+  }
+
+  handleViewportChange = (event) => this.setState({ isWide: event.matches });
+
+  handleSelectDay = (selectedWeekday) => this.setState({ selectedWeekday });
+
+  render() {
+    const { selectedWeekday, isWide } = this.state;
+    const currentWeekday = new Date().getDay();
 
     if (!hasPublishedSchedule()) {
       return (
@@ -35,44 +59,34 @@ class Schedules extends Component {
       );
     }
 
+    // Only one layout is rendered. Shipping both and hiding one with CSS would
+    // put the entire week in the DOM of every phone.
+    if (isWide) {
+      return (
+        <div className="schedules">
+          <ScheduleIcon />
+          <WeekColumns
+            days={this.days}
+            sessionsByWeekday={getSessionsForWeekday}
+            currentWeekday={currentWeekday}
+          />
+        </div>
+      );
+    }
+
+    const selectedDay = this.days.find((day) => day.weekday === selectedWeekday);
+
     return (
       <div className="schedules">
         <ScheduleIcon />
-        <table className="schedules__table">
-          <thead>
-            <tr>
-              <th scope="col" className="schedules__corner"><span className="sr-only">Hora</span></th>
-              {days.map((day) => (
-                <th
-                  key={day.id}
-                  scope="col"
-                  className={`schedules__day${day.weekday === currentWeekday ? ' schedules__day--today' : ''}`}
-                >
-                  {day.shortName}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {slots.map((slot, rowIndex) => (
-              <tr key={slot.id}>
-                <th scope="row" className="schedules__hour">{slot.label}</th>
-                {days.map((day, columnIndex) => {
-                  const classes = matrix[rowIndex][columnIndex];
-                  return (
-                    <td key={`${slot.id}-${day.id}`} className="schedules__cell">
-                      {classes.map((session) => (
-                        <span key={session.id} className="text-sm schedules__class">
-                          {session.genre.name}
-                        </span>
-                      ))}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DayPicker
+          days={this.days}
+          selectedWeekday={selectedWeekday}
+          onSelect={this.handleSelectDay}
+        />
+        {selectedDay && (
+          <DayAgenda day={selectedDay} sessions={getSessionsForWeekday(selectedWeekday)} />
+        )}
       </div>
     );
   }

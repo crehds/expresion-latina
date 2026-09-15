@@ -1,0 +1,32 @@
+/*
+ * Independent columns, not a time grid. Each day lists only its own classes,
+ * so classes of different lengths and a lone morning class cost nothing.
+ */
+.week-columns {
+  display: grid;
+  grid-template-columns: repeat(
+    var(--week-column-count, 5),
+    minmax(11rem, 1fr)
+  );
+  gap: 0.8rem;
+  width: 100%;
+  overflow-x: auto;
+  align-items: start;
+}
+
+.week-columns__day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+}
+
+.week-columns__day--today {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.week-columns__heading {
+  text-align: center;
+  color: var(--black-400);
+}
