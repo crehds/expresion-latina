@@ -11,11 +11,11 @@ import preciosZoom from '../../../assets/images/posters/precios_zoom.jpg';
  * configured or cannot be reached, so the hero is never empty.
  */
 const FALLBACK_POSTERS = [
-  { id: 'casting', filename: 'Casting', url: posterCasting },
-  { id: 'casting-2', filename: 'Casting', url: posterCasting2 },
-  { id: 'programa', filename: 'Programa', url: programaZoom },
-  { id: 'programa-2', filename: 'Programa', url: programaZoom2 },
-  { id: 'precios', filename: 'Precios', url: preciosZoom },
+  { id: 'casting', filename: 'Casting de la academia', url: posterCasting },
+  { id: 'casting-2', filename: 'Casting: convocatoria', url: posterCasting2 },
+  { id: 'programa', filename: 'Programa de clases', url: programaZoom },
+  { id: 'programa-2', filename: 'Programa de clases: detalle', url: programaZoom2 },
+  { id: 'precios', filename: 'Precios de las clases', url: preciosZoom },
 ];
 
 export default FALLBACK_POSTERS;
