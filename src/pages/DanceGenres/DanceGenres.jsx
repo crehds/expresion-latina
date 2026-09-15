@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
-import { genres } from '../../data';
+import { classGenres } from '../../data';
 import { DanceVideos, Genres } from './components';
 
 import './css/dance-genres.css';
@@ -15,7 +15,7 @@ class DanceGenres extends Component {
   render() {
     return (
       <Routes>
-        <Route path="/" element={<Genres danceGenres={genres} />} />
+        <Route path="/" element={<Genres danceGenres={classGenres} />} />
         {/* Addressed by slug: a display name like "Latin Urban" arrives
             percent-encoded and matches no genre. */}
         <Route path="/:genreSlug/videos" element={<DanceVideos />} />

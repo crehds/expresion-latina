@@ -222,6 +222,15 @@
       "description": "",
       "accentColor": null,
       "videoIds": []
+    },
+    {
+      "id": "ensayo-elenco",
+      "name": "Ensayo Elenco",
+      "slug": "ensayo-elenco",
+      "kind": "rehearsal",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
     }
   ],
   "teachers": [
@@ -530,6 +539,26 @@
       "level": "All levels",
       "room": "Sala 1",
       "note": "Pack Noches"
+    },
+    {
+      "id": "mie-2030",
+      "dayId": "miercoles",
+      "slotId": "t2030-2200",
+      "genreId": "ensayo-elenco",
+      "teacherId": null,
+      "level": null,
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "vie-2030",
+      "dayId": "viernes",
+      "slotId": "t2030-2200",
+      "genreId": "ensayo-elenco",
+      "teacherId": null,
+      "level": null,
+      "room": "Sala 1",
+      "note": null
     }
   ]
 }

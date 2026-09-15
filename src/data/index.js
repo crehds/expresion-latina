@@ -29,6 +29,12 @@ export const timeSlots = deepFreeze(
 
 export const genres = deepFreeze(academy.genres.map((genre) => ({ ...genre })));
 
+/**
+ * Genres students can enrol in. Excludes anything that occupies the schedule
+ * without being a dance style, such as a cast rehearsal.
+ */
+export const classGenres = genres.filter((genre) => genre.kind !== 'rehearsal');
+
 /** Up to two initials, for teachers the academy has no photo of yet. */
 function initialsOf(name) {
   return name

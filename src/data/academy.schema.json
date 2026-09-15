@@ -95,6 +95,11 @@
           "id": { "$ref": "#/$defs/slug" },
           "name": { "type": "string", "minLength": 1 },
           "slug": { "$ref": "#/$defs/slug" },
+          "kind": {
+            "description": "A class is offered to students and listed on the classes page. A rehearsal occupies the schedule but is not a dance style.",
+            "enum": ["class", "rehearsal"],
+            "default": "class"
+          },
           "description": { "type": "string" },
           "accentColor": { "type": ["string", "null"] },
           "videoIds": { "type": "array", "items": { "$ref": "#/$defs/slug" } }

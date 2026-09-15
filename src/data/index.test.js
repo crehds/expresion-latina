@@ -1,5 +1,6 @@
 import {
   days,
+  classGenres,
   genres,
   getDayByWeekday,
   getGenreById,
@@ -48,6 +49,11 @@ describe('academy data layer', () => {
         expect(genre.slug).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
         expect(encodeURIComponent(genre.slug)).toBe(genre.slug);
       });
+    });
+
+    it('leaves rehearsals out of the genres students can enrol in', () => {
+      expect(genres.some((genre) => genre.id === 'ensayo-elenco')).toBe(true);
+      expect(classGenres.some((genre) => genre.id === 'ensayo-elenco')).toBe(false);
     });
 
     it('returns undefined for an unknown id or slug', () => {
