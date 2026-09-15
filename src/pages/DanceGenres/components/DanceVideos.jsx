@@ -1,35 +1,47 @@
 import PropTypes from 'prop-types';
+
+import { getGenreBySlug, getVideosByGenreId } from '../../../data';
 import withRouter from '../../../hocs/withRouter';
-import VIDEOS from '../api/danceVideos';
 
 import '../css/dance-videos.css';
 import DanceVideo from './DanceVideo';
 
 function DanceVideos(props) {
   const { params, navigate } = props;
-  const { danceGenreId } = params;
+  const { genreSlug } = params;
+
+  const genre = getGenreBySlug(genreSlug);
+  const videos = genre ? getVideosByGenreId(genre.id) : [];
+
   return (
     <div className="dance-videos">
       <div className="dance-videos__title">
         <button
           className="dance-videos__back"
           type="button"
-          aria-label="Back"
+          aria-label="Volver"
           onClick={() => navigate(-1)}
         >
           <i className="icon-arrow-left" />
         </button>
         <h2 className="heading-sm dance-videos__heading">
-          {danceGenreId}
+          {genre ? genre.name : 'Género no encontrado'}
         </h2>
       </div>
       <div className="dance-videos__container">
-        {VIDEOS.map((video) => (
-          <DanceVideo key={`video-${video.id}`} src={video.src} />
+        {videos.map((video) => (
+          <DanceVideo key={video.id} src={video.src} title={video.title} />
         ))}
+        {genre && videos.length === 0 && (
+          <p className="text-sm dance-videos__empty">
+            Todavía no hay videos de
+            {' '}
+            {genre.name}
+            .
+          </p>
+        )}
       </div>
     </div>
-
   );
 }
 
