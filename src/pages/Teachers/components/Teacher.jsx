@@ -13,8 +13,8 @@ function Teacher(props) {
     >
       <img
         className="teacher__image"
-        src={teacher?.src}
-        alt="teacher"
+        src={teacher.image}
+        alt={teacher.name}
         style={{ backgroundImage: 'linear-gradient(110.3deg,rgba(72, 85, 99, 1) 8.8%,rgba(127, 146, 166, 1) 95.1%' }}
       />
     </div>

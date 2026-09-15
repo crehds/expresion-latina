@@ -1,5 +1,6 @@
 import { Component } from 'react';
-import TEACHERS from './api/teachers';
+
+import { teachers } from '../../data';
 import { TeacherModal, TeachersCarousel } from './components';
 
 import './css/teachers.css';
@@ -7,22 +8,19 @@ import './css/teachers.css';
 class Teachers extends Component {
   constructor(props) {
     super(props);
+    // Teachers come from the bundle, so there is nothing to load: keeping them
+    // in state only forced a second render with an empty first frame.
     this.state = {
-      teacherForModal: {},
+      teacherForModal: null,
       modalIsOpen: false,
-      teachers: [],
     };
-  }
-
-  componentDidMount() {
-    return this.setState({ teachers: TEACHERS });
   }
 
   showProfile = (teacher) => {
     if (teacher) {
       return this.setState({
         modalIsOpen: true,
-        teacherForModal: { ...teacher },
+        teacherForModal: teacher,
       });
     }
     return this.setState({
@@ -31,11 +29,7 @@ class Teachers extends Component {
   };
 
   render() {
-    const {
-      teacherForModal,
-      teachers,
-      modalIsOpen,
-    } = this.state;
+    const { teacherForModal, modalIsOpen } = this.state;
 
     return (
       <div className="teachers">
