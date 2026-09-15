@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": null,
+  "generatedFrom": null,
+  "_note": "Hand-written from the data that existed in the codebase. Once scripts/data/import.mjs lands this file is generated; do not edit it by hand after that.",
+  "studio": {
+    "name": "Expresión Latina",
+    "city": "Lima",
+    "country": "Perú",
+    "address": null,
+    "phone": "578125",
+    "whatsapp": "984578125",
+    "email": "expresionlatina@gmail.com",
+    "mapEmbedUrl": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1951.385443483408!2d-77.0731053239558!3d-11.9903491741745!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9105cf0324c33b47%3A0x19abafda29543543!2sExpresi%C3%B3n%20Latina!5e0!3m2!1ses!2spe!4v1671234284867!5m2!1ses!2spe",
+    "social": {}
+  },
+  "days": [
+    { "id": "lunes", "name": "Lunes", "shortName": "Lun", "weekday": 1 },
+    { "id": "martes", "name": "Martes", "shortName": "Mar", "weekday": 2 },
+    {
+      "id": "miercoles",
+      "name": "Miércoles",
+      "shortName": "Mié",
+      "weekday": 3
+    },
+    { "id": "jueves", "name": "Jueves", "shortName": "Jue", "weekday": 4 },
+    { "id": "viernes", "name": "Viernes", "shortName": "Vie", "weekday": 5 },
+    { "id": "sabado", "name": "Sábado", "shortName": "Sáb", "weekday": 6 },
+    { "id": "domingo", "name": "Domingo", "shortName": "Dom", "weekday": 0 }
+  ],
+  "timeSlots": [],
+  "genres": [
+    {
+      "id": "salsa",
+      "name": "Salsa",
+      "slug": "salsa",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "bachata",
+      "name": "Bachata",
+      "slug": "bachata",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "jazz",
+      "name": "Jazz",
+      "slug": "jazz",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "latin-urban",
+      "name": "Latin Urban",
+      "slug": "latin-urban",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "ladies",
+      "name": "Ladies",
+      "slug": "ladies",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "ballet",
+      "name": "Ballet",
+      "slug": "ballet",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "urban-style",
+      "name": "Urban Style",
+      "slug": "urban-style",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "mambo",
+      "name": "Mambo",
+      "slug": "mambo",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "body-movement",
+      "name": "Body Movement",
+      "slug": "body-movement",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    }
+  ],
+  "teachers": [
+    {
+      "id": "izquierdo",
+      "name": "Izquierdo",
+      "shortName": "Izquierdo",
+      "imageKey": "bachata_izquierdo.jpg",
+      "genreIds": ["bachata"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "joan",
+      "name": "Joan",
+      "shortName": "Joan",
+      "imageKey": "mambo_joan.jpg",
+      "genreIds": ["mambo"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "martinez",
+      "name": "Martinez",
+      "shortName": "Martinez",
+      "imageKey": "ballet_martinez.jpg",
+      "genreIds": ["ballet"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "kike",
+      "name": "Kike",
+      "shortName": "Kike",
+      "imageKey": "body_kike.jpg",
+      "genreIds": ["body-movement"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "pedro",
+      "name": "Pedro",
+      "shortName": "Pedro",
+      "imageKey": "hells_pedro.jpg",
+      "genreIds": [],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "stefanie",
+      "name": "Stefanie",
+      "shortName": "Stefanie",
+      "imageKey": "jazz_stephany.jpg",
+      "genreIds": ["jazz"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "mary",
+      "name": "Mary",
+      "shortName": "Mary",
+      "imageKey": "ladies_mary.jpg",
+      "genreIds": ["ladies"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "estrella",
+      "name": "Estrella",
+      "shortName": "Estrella",
+      "imageKey": "latin_estrella.jpg",
+      "genreIds": ["latin-urban"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "mishel",
+      "name": "Mishel",
+      "shortName": "Mishel",
+      "imageKey": "mishel_fernandez.jpg",
+      "genreIds": ["salsa"],
+      "bio": "",
+      "social": {}
+    }
+  ],
+  "videos": [
+    {
+      "id": "como-llegar",
+      "title": "Cómo llegar",
+      "genreId": null,
+      "assetKey": "como_llegar.mp4",
+      "externalUrl": null
+    },
+    {
+      "id": "ladies-latinas",
+      "title": "Ladies latinas",
+      "genreId": null,
+      "assetKey": "ladies_latinas.mp4",
+      "externalUrl": null
+    },
+    {
+      "id": "presentacion-corta",
+      "title": "Presentación corta",
+      "genreId": null,
+      "assetKey": "video_corto.mp4",
+      "externalUrl": null
+    },
+    {
+      "id": "presentacion-larga",
+      "title": "Presentación larga",
+      "genreId": null,
+      "assetKey": "video_largo.mp4",
+      "externalUrl": null
+    }
+  ],
+  "sessions": []
+}
