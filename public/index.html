@@ -28,6 +28,20 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Expresión Latina</title>
+    <script>
+      // Restores the real path after public/404.html encoded it into a query
+      // string, so React Router sees the URL the visitor actually requested.
+      (function restorePath(l) {
+        if (l.search[1] === '/') {
+          var decoded = l.search
+            .slice(1)
+            .split('&')
+            .map(function (s) { return s.replace(/~and~/g, '&'); })
+            .join('?');
+          window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      }(window.location));
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
