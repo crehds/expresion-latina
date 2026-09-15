@@ -3,7 +3,13 @@ import addFormats from 'ajv-formats';
 
 import fixture from './__fixtures__/academy.fixture.json';
 import schema from './academy.schema.json';
-import { createSelectors, hasPublishedSchedule } from './selectors';
+import {
+  buildWeekMatrix,
+  createSelectors,
+  getActiveTimeSlots,
+  getSessionsForWeekday,
+  hasPublishedSchedule,
+} from './selectors';
 
 function byId(collection) {
   const map = new Map(collection.map((entry) => [entry.id, entry]));
@@ -31,9 +37,7 @@ describe('schedule selectors', () => {
 
   describe('getSessionsForWeekday', () => {
     it('returns the classes of a day, earliest first', () => {
-      const { getSessionsForWeekday } = selectorsForFixture();
-
-      const monday = getSessionsForWeekday(1);
+      const monday = selectorsForFixture().getSessionsForWeekday(1);
 
       expect(monday).toHaveLength(3);
       expect(monday.map((s) => s.slot.start)).toEqual(['19:00', '19:00', '20:00']);
@@ -113,9 +117,51 @@ describe('schedule selectors', () => {
       expect(selectorsForFixture(empty).getActiveTimeSlots()).toEqual([]);
       expect(selectorsForFixture(empty).getSessionsForWeekday(1)).toEqual([]);
     });
+  });
 
-    it('is the current state of the real dataset', () => {
-      expect(hasPublishedSchedule()).toBe(false);
+  // The published schedule, exercised through the real dataset rather than the
+  // fixture. These assert the shape the page depends on, not the content: they
+  // are expected to change when the academy publishes a different month.
+  describe('the published schedule', () => {
+    it('is published', () => {
+      expect(hasPublishedSchedule()).toBe(true);
+    });
+
+    it('lists a weekday in start order', () => {
+      const tuesday = getSessionsForWeekday(2);
+
+      expect(tuesday.map((s) => `${s.slot.start} ${s.genre.name}`)).toEqual([
+        '19:00 Sexy Style',
+        '20:00 Bachata',
+        '21:00 Bachata',
+      ]);
+    });
+
+    it('has no classes at the weekend', () => {
+      expect(getSessionsForWeekday(6)).toEqual([]);
+      expect(getSessionsForWeekday(0)).toEqual([]);
+    });
+
+    // The flyer runs a one-hour and a ninety-minute class from the same start
+    // time on different days, so slots overlap rather than tile a grid.
+    it('keeps slots that share a start time but not an end time apart', () => {
+      const starts = getActiveTimeSlots().filter((slot) => slot.start === '19:00');
+
+      expect(starts.map((slot) => slot.end).sort()).toEqual(['20:00', '20:30']);
+    });
+
+    it('keeps the lone morning class in its own slot', () => {
+      const [friday] = getSessionsForWeekday(5);
+
+      expect(friday.slot.label).toBe('10:00 - 11:30');
+      expect(friday.genre.name).toBe('Heels');
+    });
+
+    it('builds a matrix with one row per used slot and one column per day', () => {
+      const matrix = buildWeekMatrix();
+
+      expect(matrix).toHaveLength(getActiveTimeSlots().length);
+      matrix.forEach((row) => expect(row).toHaveLength(7));
     });
   });
 

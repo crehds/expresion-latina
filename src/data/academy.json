@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "generatedAt": null,
-  "generatedFrom": null,
-  "_note": "Hand-written from the data that existed in the codebase. Once scripts/data/import.mjs lands this file is generated; do not edit it by hand after that.",
+  "generatedFrom": "src/assets/images/schedule_example.jpg (Horarios Octubre 2025)",
+  "_note": "Schedule transcribed from the academy October 2025 flyer. Teachers are listed on that flyer but deliberately left unassigned here pending a decision on the roster.",
   "studio": {
     "name": "Expresión Latina",
     "city": "Lima",
@@ -58,7 +58,50 @@
       "weekday": 0
     }
   ],
-  "timeSlots": [],
+  "timeSlots": [
+    {
+      "id": "t1000-1130",
+      "start": "10:00",
+      "end": "11:30",
+      "label": "10:00 - 11:30"
+    },
+    {
+      "id": "t1800-1900",
+      "start": "18:00",
+      "end": "19:00",
+      "label": "18:00 - 19:00"
+    },
+    {
+      "id": "t1900-2000",
+      "start": "19:00",
+      "end": "20:00",
+      "label": "19:00 - 20:00"
+    },
+    {
+      "id": "t1900-2030",
+      "start": "19:00",
+      "end": "20:30",
+      "label": "19:00 - 20:30"
+    },
+    {
+      "id": "t2000-2100",
+      "start": "20:00",
+      "end": "21:00",
+      "label": "20:00 - 21:00"
+    },
+    {
+      "id": "t2030-2200",
+      "start": "20:30",
+      "end": "22:00",
+      "label": "20:30 - 22:00"
+    },
+    {
+      "id": "t2100-2200",
+      "start": "21:00",
+      "end": "22:00",
+      "label": "21:00 - 22:00"
+    }
+  ],
   "genres": [
     {
       "id": "salsa",
@@ -128,6 +171,54 @@
       "id": "body-movement",
       "name": "Body Movement",
       "slug": "body-movement",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "urban-dance",
+      "name": "Urban Dance",
+      "slug": "urban-dance",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "sexy-style",
+      "name": "Sexy Style",
+      "slug": "sexy-style",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "sexy-power",
+      "name": "Sexy Power",
+      "slug": "sexy-power",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "comercial-dance",
+      "name": "Comercial Dance",
+      "slug": "comercial-dance",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "heels",
+      "name": "Heels",
+      "slug": "heels",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "reggaeton",
+      "name": "Reggaeton",
+      "slug": "reggaeton",
       "description": "",
       "accentColor": null,
       "videoIds": []
@@ -246,5 +337,136 @@
       "externalUrl": null
     }
   ],
-  "sessions": []
+  "sessions": [
+    {
+      "id": "lun-1800",
+      "dayId": "lunes",
+      "slotId": "t1800-1900",
+      "genreId": "urban-dance",
+      "teacherId": null,
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "lun-1900",
+      "dayId": "lunes",
+      "slotId": "t1900-2030",
+      "genreId": "sexy-power",
+      "teacherId": null,
+      "level": "All levels",
+      "room": "Sala 1",
+      "note": "Pack Noches"
+    },
+    {
+      "id": "lun-2030",
+      "dayId": "lunes",
+      "slotId": "t2030-2200",
+      "genreId": "heels",
+      "teacherId": null,
+      "level": "Básico",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mar-1900",
+      "dayId": "martes",
+      "slotId": "t1900-2000",
+      "genreId": "sexy-style",
+      "teacherId": null,
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mar-2000",
+      "dayId": "martes",
+      "slotId": "t2000-2100",
+      "genreId": "bachata",
+      "teacherId": null,
+      "level": "Básico",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mar-2100",
+      "dayId": "martes",
+      "slotId": "t2100-2200",
+      "genreId": "bachata",
+      "teacherId": null,
+      "level": "Intermedio",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mie-1800",
+      "dayId": "miercoles",
+      "slotId": "t1800-1900",
+      "genreId": "urban-dance",
+      "teacherId": null,
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mie-1900",
+      "dayId": "miercoles",
+      "slotId": "t1900-2030",
+      "genreId": "comercial-dance",
+      "teacherId": null,
+      "level": "All levels",
+      "room": "Sala 1",
+      "note": "Pack Noches"
+    },
+    {
+      "id": "jue-1900",
+      "dayId": "jueves",
+      "slotId": "t1900-2000",
+      "genreId": "sexy-style",
+      "teacherId": null,
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "jue-2000",
+      "dayId": "jueves",
+      "slotId": "t2000-2100",
+      "genreId": "salsa",
+      "teacherId": null,
+      "level": "Básico",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "jue-2100",
+      "dayId": "jueves",
+      "slotId": "t2100-2200",
+      "genreId": "salsa",
+      "teacherId": null,
+      "level": "Intermedio",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "vie-1000",
+      "dayId": "viernes",
+      "slotId": "t1000-1130",
+      "genreId": "heels",
+      "teacherId": null,
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": "Nuevo curso"
+    },
+    {
+      "id": "vie-1900",
+      "dayId": "viernes",
+      "slotId": "t1900-2030",
+      "genreId": "reggaeton",
+      "teacherId": null,
+      "level": "All levels",
+      "room": "Sala 1",
+      "note": "Pack Noches"
+    }
+  ]
 }
