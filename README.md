@@ -10,7 +10,7 @@ schedule, browse dance genres and teachers, and find the studio.
 - Create React App (`react-scripts` 5.0.1)
 - Plain CSS, one file per component under a local `css/` folder; shared
   tokens in `src/styles/`
-- Deployed to GitHub Pages via `gh-pages`
+- Deployed on Vercel, which builds and publishes on every push
 
 ## Setup
 
@@ -25,12 +25,11 @@ Vite rather than to patch around it.
 
 ## Scripts
 
-| Script           | What it does                                             |
-| ---------------- | -------------------------------------------------------- |
-| `npm run dev`    | Dev server on http://localhost:3000                      |
-| `npm run build`  | Production bundle into `build/`                          |
-| `npm test`       | Test runner in watch mode                                |
-| `npm run deploy` | Builds, then publishes `build/` to the `gh-pages` branch |
+| Script          | What it does                        |
+| --------------- | ----------------------------------- |
+| `npm run dev`   | Dev server on http://localhost:3000 |
+| `npm run build` | Production bundle into `build/`     |
+| `npm test`      | Test runner in watch mode           |
 
 ## Home page posters
 
@@ -66,37 +65,41 @@ To change the bundled posters, replace the files in
 
 ## Deploying
 
-Deploy from `main`, after merging the work you want released:
+Vercel builds and publishes on every push. There is no deploy script to run.
 
-```bash
-git checkout main
-npm run deploy
+The site is served from the **root** of its domain, so the build must emit
+root-relative asset paths. That happens by default: `package.json` deliberately
+carries no `homepage` field, and nothing sets `PUBLIC_URL`.
+
+Do not add either without changing the host to match. A base path the host does
+not serve from produces a blank page with no useful error: the browser requests
+`/some-prefix/static/js/main.js`, the host has no such file, its SPA fallback
+answers with `index.html`, and the browser reports
+
+```
+Uncaught SyntaxError: Unexpected token '<'
 ```
 
-Live at <https://crehds.github.io/expresion-latina>.
+because it is parsing HTML as JavaScript. `manifest.json` fails the same way.
+That is the signature of a base-path mismatch, not of a broken bundle.
 
-Three pieces have to agree for a GitHub Pages project site to work. Changing
-one without the others produces a blank page, so they are listed together:
+Client-side routes work because Vercel rewrites unmatched paths to
+`index.html`. Deep links need no shim of their own.
 
-1. **`homepage` in `package.json`** — makes the build emit
-   `/expresion-latina/static/...` instead of `/static/...`. Without it every
-   asset 404s.
-2. **`basename` on `BrowserRouter`** (`src/index.js`) — reads `PUBLIC_URL` so
-   in-app navigation resolves against the same prefix.
-3. **`public/404.html`** — GitHub Pages does no server-side rewriting, so a
-   direct request to `/schedules` would hit its 404 page. The shim encodes the
-   path into a query string and `public/index.html` restores it before React
-   Router mounts.
+### Node version
 
-If the repository is ever renamed, update `homepage` to match.
+The build needs Node 24, set in the Vercel project settings; older defaults
+fail. `react-scripts` 5.0.1 is from December 2021, so if a future Node release
+breaks the build, that is the signal to migrate to Vite rather than patch
+around it.
 
 ### Post-deploy checklist
 
-Unit tests cannot catch path-prefix bugs, so check by hand after a deploy:
+Unit tests cannot catch a base-path mismatch, so check by hand after a deploy:
 
-- [ ] <https://crehds.github.io/expresion-latina> loads with styles and images
-- [ ] Open `/expresion-latina/schedules` **directly** in the address bar, not
-      via in-app navigation — this is what the 404 shim exists for
+- [ ] The site loads with styles and images, and the console is clean
+- [ ] Open `/schedules` **directly** in the address bar, not via in-app
+      navigation
 - [ ] Reload while on a sub-route
 - [ ] Repeat on a real phone, not just device emulation
 

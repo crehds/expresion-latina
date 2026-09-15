@@ -1,10 +1,68 @@
 .schedules {
-  display: grid;
-  grid-template-columns: 1fr 8fr;
-  grid-template-rows: 4rem 8fr;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
   background: radial-gradient(
     circle farthest-corner at 2.3% 19.3%,
     rgba(180, 180, 180, 0.9) 0%,
     rgba(220, 220, 220, 0.9) 100.2%
   );
+}
+
+.schedules__empty {
+  max-width: 28rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--black-300);
+}
+
+/*
+ * A seven-day table cannot fit a phone. It scrolls inside its own container so
+ * the page body never scrolls sideways. Phase 2 replaces this with a
+ * day-at-a-time agenda on small screens.
+ */
+.schedules__table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  background: var(--white);
+}
+
+.schedules__table th,
+.schedules__table td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--gray-200);
+  text-align: center;
+  vertical-align: top;
+}
+
+.schedules__day {
+  white-space: nowrap;
+  color: var(--black-200);
+}
+
+.schedules__day--today {
+  background: var(--sky-blue-100);
+  color: var(--black-400);
+}
+
+.schedules__hour {
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--black-300);
+}
+
+.schedules__cell {
+  min-width: 6rem;
+}
+
+.schedules__class {
+  display: block;
+}
+
+.schedules__class + .schedules__class {
+  margin-top: 0.25rem;
 }

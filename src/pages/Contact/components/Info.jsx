@@ -1,35 +1,62 @@
+import { studio } from '../../../data';
+
 import '../css/info.css';
 
+/** wa.me wants digits only, so the displayed formatting is stripped. */
+function whatsappUrl(number) {
+  return `https://wa.me/${number.replace(/\D/g, '')}`;
+}
+
 function Info() {
+  const {
+    address, email, social, whatsapp,
+  } = studio;
+
   return (
     <div className="info">
       <div className="info__content">
         <ul className="info__menu">
-          <li className="info__detail">
-            <i className="icon-whatsapp" />
-            <p className="text-sm">984578125</p>
-            <i
-              className="icon-content_copy info__copy"
-            />
-          </li>
-          <li className="info__detail">
-            <i className="icon-phone" />
-            <p className="text-sm">578125</p>
-            <i
-              className="icon-content_copy info__copy"
-            />
-          </li>
-          <li className="info__detail">
-            <i className="icon-envelope" />
-            <p className="text-sm">expresionlatina@gmail.com</p>
-            <i
-              className="icon-content_copy info__copy"
-            />
-          </li>
+          {whatsapp && (
+            <li className="info__detail">
+              <i className="icon-whatsapp" />
+              {/* A tappable link beats a number to copy out by hand. */}
+              <a className="text-sm info__link" href={whatsappUrl(whatsapp)} target="_blank" rel="noreferrer">
+                {whatsapp}
+              </a>
+            </li>
+          )}
+          {email && (
+            <li className="info__detail">
+              <i className="icon-envelope" />
+              <a className="text-sm info__link" href={`mailto:${email}`}>{email}</a>
+            </li>
+          )}
+          {address && (
+            // No location glyph exists in this icon set, so the line carries none.
+            <li className="info__detail info__detail--address">
+              <p className="text-sm">{address}</p>
+            </li>
+          )}
+          {social?.instagram && (
+            <li className="info__detail">
+              <i className="icon-instagram" />
+              <a className="text-sm info__link" href={social.instagram} target="_blank" rel="noreferrer">
+                expresionlatina.peru
+              </a>
+            </li>
+          )}
+          {social?.facebook && (
+            <li className="info__detail">
+              <i className="icon-facebook-square" />
+              <a className="text-sm info__link" href={social.facebook} target="_blank" rel="noreferrer">
+                expresionlatina.peru
+              </a>
+            </li>
+          )}
         </ul>
       </div>
-
     </div>
   );
 }
+
 export default Info;

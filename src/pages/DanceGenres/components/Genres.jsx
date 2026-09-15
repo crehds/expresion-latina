@@ -8,7 +8,7 @@ function Genres(props) {
   return (
     <div className="dance-genres">
       {danceGenres.map((genre) => (
-        <Genre key={genre.id} name={genre.name} />
+        <Genre key={genre.id} name={genre.name} slug={genre.slug} />
       ))}
     </div>
   );
@@ -16,8 +16,9 @@ function Genres(props) {
 
 Genres.propTypes = {
   danceGenres: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number.isRequired,
+    id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
+    slug: PropTypes.string.isRequired,
   })).isRequired,
 };
 

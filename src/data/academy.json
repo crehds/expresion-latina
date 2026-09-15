@@ -1,0 +1,567 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": null,
+  "generatedFrom": "src/assets/images/schedule_example.jpg (Horarios Octubre 2025)",
+  "_note": "Schedule transcribed from the academy October 2025 flyer. Teachers are listed on that flyer but deliberately left unassigned here pending a decision on the roster.",
+  "studio": {
+    "name": "Expresión Latina",
+    "city": "Lima",
+    "country": "Perú",
+    "address": "Av. Palmeras 3839, 3er piso, Los Olivos",
+    "phone": null,
+    "whatsapp": "+51 960 507 583",
+    "email": "expresionlatina@gmail.com",
+    "mapEmbedUrl": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1951.385443483408!2d-77.0731053239558!3d-11.9903491741745!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9105cf0324c33b47%3A0x19abafda29543543!2sExpresi%C3%B3n%20Latina!5e0!3m2!1ses!2spe!4v1671234284867!5m2!1ses!2spe",
+    "social": {
+      "facebook": "https://www.facebook.com/expresionlatina.peru",
+      "instagram": "https://www.instagram.com/expresionlatina.peru"
+    }
+  },
+  "days": [
+    {
+      "id": "lunes",
+      "name": "Lunes",
+      "shortName": "Lun",
+      "weekday": 1
+    },
+    {
+      "id": "martes",
+      "name": "Martes",
+      "shortName": "Mar",
+      "weekday": 2
+    },
+    {
+      "id": "miercoles",
+      "name": "Miércoles",
+      "shortName": "Mié",
+      "weekday": 3
+    },
+    {
+      "id": "jueves",
+      "name": "Jueves",
+      "shortName": "Jue",
+      "weekday": 4
+    },
+    {
+      "id": "viernes",
+      "name": "Viernes",
+      "shortName": "Vie",
+      "weekday": 5
+    },
+    {
+      "id": "sabado",
+      "name": "Sábado",
+      "shortName": "Sáb",
+      "weekday": 6
+    },
+    {
+      "id": "domingo",
+      "name": "Domingo",
+      "shortName": "Dom",
+      "weekday": 0
+    }
+  ],
+  "timeSlots": [
+    {
+      "id": "t1000-1130",
+      "start": "10:00",
+      "end": "11:30",
+      "label": "10:00 - 11:30"
+    },
+    {
+      "id": "t1800-1900",
+      "start": "18:00",
+      "end": "19:00",
+      "label": "18:00 - 19:00"
+    },
+    {
+      "id": "t1900-2000",
+      "start": "19:00",
+      "end": "20:00",
+      "label": "19:00 - 20:00"
+    },
+    {
+      "id": "t1900-2030",
+      "start": "19:00",
+      "end": "20:30",
+      "label": "19:00 - 20:30"
+    },
+    {
+      "id": "t2000-2100",
+      "start": "20:00",
+      "end": "21:00",
+      "label": "20:00 - 21:00"
+    },
+    {
+      "id": "t2030-2200",
+      "start": "20:30",
+      "end": "22:00",
+      "label": "20:30 - 22:00"
+    },
+    {
+      "id": "t2100-2200",
+      "start": "21:00",
+      "end": "22:00",
+      "label": "21:00 - 22:00"
+    }
+  ],
+  "genres": [
+    {
+      "id": "salsa",
+      "name": "Salsa",
+      "slug": "salsa",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "bachata",
+      "name": "Bachata",
+      "slug": "bachata",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "jazz",
+      "name": "Jazz",
+      "slug": "jazz",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "latin-urban",
+      "name": "Latin Urban",
+      "slug": "latin-urban",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "ladies",
+      "name": "Ladies",
+      "slug": "ladies",
+      "description": "",
+      "accentColor": null,
+      "videoIds": ["ladies-latinas"]
+    },
+    {
+      "id": "ballet",
+      "name": "Ballet",
+      "slug": "ballet",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "urban-style",
+      "name": "Urban Style",
+      "slug": "urban-style",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "mambo",
+      "name": "Mambo",
+      "slug": "mambo",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "body-movement",
+      "name": "Body Movement",
+      "slug": "body-movement",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "urban-dance",
+      "name": "Urban Dance",
+      "slug": "urban-dance",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "sexy-style",
+      "name": "Sexy Style",
+      "slug": "sexy-style",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "sexy-power",
+      "name": "Sexy Power",
+      "slug": "sexy-power",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "comercial-dance",
+      "name": "Comercial Dance",
+      "slug": "comercial-dance",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "heels",
+      "name": "Heels",
+      "slug": "heels",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "reggaeton",
+      "name": "Reggaeton",
+      "slug": "reggaeton",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    },
+    {
+      "id": "ensayo-elenco",
+      "name": "Ensayo Elenco",
+      "slug": "ensayo-elenco",
+      "kind": "rehearsal",
+      "description": "",
+      "accentColor": null,
+      "videoIds": []
+    }
+  ],
+  "teachers": [
+    {
+      "id": "izquierdo",
+      "name": "Izquierdo",
+      "shortName": "Izquierdo",
+      "imageKey": "bachata_izquierdo.jpg",
+      "genreIds": ["bachata"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "joan",
+      "name": "Joan",
+      "shortName": "Joan",
+      "imageKey": "mambo_joan.jpg",
+      "genreIds": ["mambo"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "martinez",
+      "name": "Martinez",
+      "shortName": "Martinez",
+      "imageKey": "ballet_martinez.jpg",
+      "genreIds": ["ballet"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "kike",
+      "name": "Kike",
+      "shortName": "Kike",
+      "imageKey": "body_kike.jpg",
+      "genreIds": ["body-movement"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "pedro",
+      "name": "Pedro",
+      "shortName": "Pedro",
+      "imageKey": "hells_pedro.jpg",
+      "genreIds": [],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "stefanie",
+      "name": "Stefanie",
+      "shortName": "Stefanie",
+      "imageKey": "jazz_stephany.jpg",
+      "genreIds": ["jazz"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "mary",
+      "name": "Mary",
+      "shortName": "Mary",
+      "imageKey": "ladies_mary.jpg",
+      "genreIds": ["ladies"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "estrella",
+      "name": "Estrella",
+      "shortName": "Estrella",
+      "imageKey": "latin_estrella.jpg",
+      "genreIds": ["latin-urban"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "mishel-fernandez",
+      "name": "Mishel Fernández",
+      "shortName": "Mishel",
+      "imageKey": "mishel_fernandez.jpg",
+      "genreIds": ["salsa", "bachata"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "giusmary-sosa",
+      "name": "Giusmary Sosa",
+      "shortName": "Giusmary",
+      "imageKey": null,
+      "genreIds": ["urban-dance"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "vannia-valdivia",
+      "name": "Vannia Valdivia",
+      "shortName": "Vannia",
+      "imageKey": null,
+      "genreIds": ["sexy-power"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "edson-cabanillas",
+      "name": "Edson Cabanillas",
+      "shortName": "Edson",
+      "imageKey": null,
+      "genreIds": ["heels"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "kenneth-ocana",
+      "name": "Kenneth Ocaña",
+      "shortName": "Kenneth",
+      "imageKey": null,
+      "genreIds": ["bachata"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "omar-lopez",
+      "name": "Omar López",
+      "shortName": "Omar",
+      "imageKey": null,
+      "genreIds": ["salsa"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "anthony-sevillano",
+      "name": "Anthony Sevillano",
+      "shortName": "Anthony",
+      "imageKey": null,
+      "genreIds": ["reggaeton"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "gonzalo-povis",
+      "name": "Gonzalo Povis",
+      "shortName": "Gonzalo",
+      "imageKey": "urban_povis.jpg",
+      "genreIds": ["comercial-dance"],
+      "bio": "",
+      "social": {}
+    }
+  ],
+  "videos": [
+    {
+      "id": "como-llegar",
+      "title": "Cómo llegar",
+      "genreId": null,
+      "assetKey": "como_llegar.mp4",
+      "externalUrl": null
+    },
+    {
+      "id": "ladies-latinas",
+      "title": "Ladies latinas",
+      "genreId": "ladies",
+      "assetKey": "ladies_latinas.mp4",
+      "externalUrl": null
+    },
+    {
+      "id": "presentacion-corta",
+      "title": "Presentación corta",
+      "genreId": null,
+      "assetKey": "video_corto.mp4",
+      "externalUrl": null
+    },
+    {
+      "id": "presentacion-larga",
+      "title": "Presentación larga",
+      "genreId": null,
+      "assetKey": "video_largo.mp4",
+      "externalUrl": null
+    }
+  ],
+  "sessions": [
+    {
+      "id": "lun-1800",
+      "dayId": "lunes",
+      "slotId": "t1800-1900",
+      "genreId": "urban-dance",
+      "teacherId": "giusmary-sosa",
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "lun-1900",
+      "dayId": "lunes",
+      "slotId": "t1900-2030",
+      "genreId": "sexy-power",
+      "teacherId": "vannia-valdivia",
+      "level": "All levels",
+      "room": "Sala 1",
+      "note": "Pack Noches"
+    },
+    {
+      "id": "lun-2030",
+      "dayId": "lunes",
+      "slotId": "t2030-2200",
+      "genreId": "heels",
+      "teacherId": "edson-cabanillas",
+      "level": "Básico",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mar-1900",
+      "dayId": "martes",
+      "slotId": "t1900-2000",
+      "genreId": "sexy-style",
+      "teacherId": null,
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mar-2000",
+      "dayId": "martes",
+      "slotId": "t2000-2100",
+      "genreId": "bachata",
+      "teacherId": "mishel-fernandez",
+      "level": "Básico",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mar-2100",
+      "dayId": "martes",
+      "slotId": "t2100-2200",
+      "genreId": "bachata",
+      "teacherId": "kenneth-ocana",
+      "level": "Intermedio",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mie-1800",
+      "dayId": "miercoles",
+      "slotId": "t1800-1900",
+      "genreId": "urban-dance",
+      "teacherId": "giusmary-sosa",
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "mie-1900",
+      "dayId": "miercoles",
+      "slotId": "t1900-2030",
+      "genreId": "comercial-dance",
+      "teacherId": "gonzalo-povis",
+      "level": "All levels",
+      "room": "Sala 1",
+      "note": "Pack Noches"
+    },
+    {
+      "id": "jue-1900",
+      "dayId": "jueves",
+      "slotId": "t1900-2000",
+      "genreId": "sexy-style",
+      "teacherId": null,
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "jue-2000",
+      "dayId": "jueves",
+      "slotId": "t2000-2100",
+      "genreId": "salsa",
+      "teacherId": "omar-lopez",
+      "level": "Básico",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "jue-2100",
+      "dayId": "jueves",
+      "slotId": "t2100-2200",
+      "genreId": "salsa",
+      "teacherId": "omar-lopez",
+      "level": "Intermedio",
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "vie-1000",
+      "dayId": "viernes",
+      "slotId": "t1000-1130",
+      "genreId": "heels",
+      "teacherId": "edson-cabanillas",
+      "level": "Principiantes",
+      "room": "Sala 1",
+      "note": "Nuevo curso"
+    },
+    {
+      "id": "vie-1900",
+      "dayId": "viernes",
+      "slotId": "t1900-2030",
+      "genreId": "reggaeton",
+      "teacherId": "anthony-sevillano",
+      "level": "All levels",
+      "room": "Sala 1",
+      "note": "Pack Noches"
+    },
+    {
+      "id": "mie-2030",
+      "dayId": "miercoles",
+      "slotId": "t2030-2200",
+      "genreId": "ensayo-elenco",
+      "teacherId": null,
+      "level": null,
+      "room": "Sala 1",
+      "note": null
+    },
+    {
+      "id": "vie-2030",
+      "dayId": "viernes",
+      "slotId": "t2030-2200",
+      "genreId": "ensayo-elenco",
+      "teacherId": null,
+      "level": null,
+      "room": "Sala 1",
+      "note": null
+    }
+  ]
+}
