@@ -1,60 +1,78 @@
 import { Component } from 'react';
-import createAdaptedSchedules from './adapters/schedules';
-import DAYS from './api/days';
-import HOURS from './api/hours';
-import SCHEDULES from './api/schedules';
-import Classes from './components/Classes';
-import Hours from './components/Hours';
+
+import { days } from '../../data';
+import { buildWeekMatrix, getActiveTimeSlots, hasPublishedSchedule } from '../../data/selectors';
 import ScheduleIcon from './components/ScheduleIcon';
 
 import './css/schedules.css';
-
-function buildEmptySchedule() {
-  const initialSchedule = Array.from({ length: 12 }, (_, i) => {
-    const days = Array.from({ length: 7 }, (foo, j) => ({ id: `${i}-${j}` }));
-    return days;
-  });
-
-  return initialSchedule;
-}
-
-function handleSchedules(formattedSchedule) {
-  const scheduleToSet = buildEmptySchedule();
-  formattedSchedule.forEach((schedule) => {
-    const hourIndex = HOURS.findIndex((hour) => hour.hour === schedule.hour);
-    const dayIndex = DAYS.findIndex((day) => day.name === schedule.day);
-    const { id } = schedule;
-
-    scheduleToSet[hourIndex][dayIndex] = {
-      id,
-      ...schedule,
-    };
-  });
-  return scheduleToSet;
-}
 
 class Schedules extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      currentDay: new Date().getDay(),
-      schedules: buildEmptySchedule(),
+      currentWeekday: new Date().getDay(),
     };
   }
 
-  componentDidMount() {
-    const schedules = createAdaptedSchedules(SCHEDULES);
-    const formattedSchedules = handleSchedules(schedules);
-    this.setState({ schedules: formattedSchedules });
-  }
-
   render() {
-    const { currentDay, schedules } = this.state;
+    const { currentWeekday } = this.state;
+
+    // No grid is allocated up front. Rows come from the hours that actually
+    // hold a class, columns from the days, and every cell is a list that is
+    // usually empty. The page used to allocate 12x7 cells and fill all of
+    // them, which is why its data source invented a class for each one.
+    const slots = getActiveTimeSlots();
+    const matrix = buildWeekMatrix();
+
+    if (!hasPublishedSchedule()) {
+      return (
+        <div className="schedules">
+          <ScheduleIcon />
+          <p className="text-md schedules__empty">
+            Todavía no publicamos el horario de esta semana.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="schedules">
         <ScheduleIcon />
-        <Hours />
-        <Classes classes={schedules} currentDay={currentDay} />
+        <table className="schedules__table">
+          <thead>
+            <tr>
+              <th scope="col" className="schedules__corner"><span className="sr-only">Hora</span></th>
+              {days.map((day) => (
+                <th
+                  key={day.id}
+                  scope="col"
+                  className={`schedules__day${day.weekday === currentWeekday ? ' schedules__day--today' : ''}`}
+                >
+                  {day.shortName}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {slots.map((slot, rowIndex) => (
+              <tr key={slot.id}>
+                <th scope="row" className="schedules__hour">{slot.label}</th>
+                {days.map((day, columnIndex) => {
+                  const classes = matrix[rowIndex][columnIndex];
+                  return (
+                    <td key={`${slot.id}-${day.id}`} className="schedules__cell">
+                      {classes.map((session) => (
+                        <span key={session.id} className="text-sm schedules__class">
+                          {session.genre.name}
+                        </span>
+                      ))}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
