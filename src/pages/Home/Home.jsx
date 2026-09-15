@@ -17,12 +17,19 @@ export default class Home extends Component {
   }
 
   componentDidMount() {
+    this.abortController = new AbortController();
     this.handlePosters();
+  }
+
+  componentWillUnmount() {
+    // handlePosters resolves after an await, so leaving the page mid-request
+    // would otherwise set state on an unmounted component.
+    this.abortController.abort();
   }
 
   handlePosters = async () => {
     try {
-      const posters = await getPosters();
+      const posters = await getPosters({ signal: this.abortController.signal });
       const adaptedPosters = posters.map(createAdaptedPoster).filter(Boolean);
 
       // A successful but empty response is not a legitimate state for this
@@ -79,11 +86,12 @@ export default class Home extends Component {
             </div>
           )}
         >
-          {posters.map((poster) => (
+          {posters.map((poster, index) => (
             <Poster
               key={poster.id}
               filename={poster.filename}
               url={poster.url}
+              priority={index === 0}
             />
           ))}
         </Carousel>
