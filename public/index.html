@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/logoELico.ico" />
@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="Web site created using create-react-app"
+      content="Academia de baile en Lima: salsa, bachata, mambo, ballet, jazz y estilos urbanos. Consulta los horarios de clases de la semana y conoce a los profesores."
     />
     <link
       rel="apple-touch-icon-precomposed"
@@ -28,22 +28,25 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Expresión Latina</title>
+    <script>
+      // Restores the real path after public/404.html encoded it into a query
+      // string, so React Router sees the URL the visitor actually requested.
+      (function restorePath(l) {
+        if (l.search[1] === '/') {
+          var decoded = l.search
+            .slice(1)
+            .split('&')
+            .map(function (s) { return s.replace(/~and~/g, '&'); })
+            .join('?');
+          window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      }(window.location));
+    </script>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>Necesitas activar JavaScript para usar esta página.</noscript>
     <div id="root"></div>
     <div id="modal"></div>
-    <div id="administrador"></div>
 
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
   </body>
 </html>

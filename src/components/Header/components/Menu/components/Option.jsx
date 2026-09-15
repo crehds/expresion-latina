@@ -10,7 +10,11 @@ export default function Option(props) {
   const active = location.pathname === path;
   return (
     <li className="text-md option">
-      <Link to={path} className={`option__link ${active && 'option__link--active'}`}>
+      <Link
+        to={path}
+        className={`option__link${active ? ' option__link--active' : ''}`}
+        aria-current={active ? 'page' : undefined}
+      >
         {name}
       </Link>
     </li>
