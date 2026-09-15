@@ -29,11 +29,22 @@ export const timeSlots = deepFreeze(
 
 export const genres = deepFreeze(academy.genres.map((genre) => ({ ...genre })));
 
+/** Up to two initials, for teachers the academy has no photo of yet. */
+function initialsOf(name) {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase();
+}
+
 /** Each teacher carries its bundled image URL, resolved once at module load. */
 export const teachers = deepFreeze(
   academy.teachers.map((teacher) => ({
     ...teacher,
-    image: resolveTeacherImage(teacher.imageKey),
+    image: teacher.imageKey ? resolveTeacherImage(teacher.imageKey) : undefined,
+    initials: initialsOf(teacher.name),
   })),
 );
 

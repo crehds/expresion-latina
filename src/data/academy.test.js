@@ -83,9 +83,9 @@ describe('academy.json', () => {
   // These two catch the failure that would otherwise ship as a broken <img>
   // or a silently missing video in production.
   describe('assets', () => {
-    it('has a bundled image for every teacher', () => {
+    it('has a bundled image for every teacher that declares one', () => {
       academy.teachers.forEach((teacher) => {
-        expect(Object.keys(TEACHER_IMAGES)).toContain(teacher.imageKey);
+        if (teacher.imageKey) expect(Object.keys(TEACHER_IMAGES)).toContain(teacher.imageKey);
       });
     });
 

@@ -40,7 +40,11 @@ function TeacherModal(props) {
         </div>
         <div className="teacher-modal__presentation">
           <div className="teacher-modal__container-image">
-            <img className="teacher-modal__image" src={teacher.image} alt={teacher.name} />
+            {teacher.image ? (
+              <img className="teacher-modal__image" src={teacher.image} alt={teacher.name} />
+            ) : (
+              <div className="teacher-modal__placeholder" aria-hidden="true">{teacher.initials}</div>
+            )}
           </div>
           {socialLinks.length > 0 && (
             <div className="teacher-modal__social-media">
@@ -75,6 +79,7 @@ TeacherModal.propTypes = {
   teacher: PropTypes.shape({
     name: PropTypes.string.isRequired,
     image: PropTypes.string,
+    initials: PropTypes.string,
     bio: PropTypes.string,
     genreIds: PropTypes.arrayOf(PropTypes.string),
     social: PropTypes.instanceOf(Object),
