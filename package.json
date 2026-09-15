@@ -12,8 +12,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.4.3",
-    "react-scripts": "^5.0.1",
-    "sweetalert2": "^11.6.8"
+    "react-scripts": "^5.0.1"
   },
   "scripts": {
     "dev": "react-scripts start",
@@ -21,7 +20,6 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
     "test": "react-scripts test",
-    "test:server": "jest server/test/*.js --watch",
     "eject": "react-scripts eject",
     "prepare": "husky install"
   },
@@ -47,7 +45,6 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "gh-pages": "^4.0.0",
     "husky": "^8.0.2",
-    "jest": "^27.5.1",
     "lint-staged": "^13.0.3",
     "prettier": "^3.9.6"
   }
