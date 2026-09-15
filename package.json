@@ -23,7 +23,6 @@
     "eject": "react-scripts eject",
     "prepare": "husky install"
   },
-  "proxy": "http://localhost:4000",
   "browserslist": {
     "production": [
       ">0.2%",
