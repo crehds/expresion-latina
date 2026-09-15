@@ -32,6 +32,38 @@ Vite rather than to patch around it.
 | `npm test`       | Test runner in watch mode                                |
 | `npm run deploy` | Builds, then publishes `build/` to the `gh-pages` branch |
 
+## Home page posters
+
+The carousel on the home page renders the images bundled in
+`src/assets/images/posters/`. That is the default and needs no backend.
+
+It previously fetched them from an upload API backed by MongoDB Atlas. That
+service no longer exists — its host returns `Application not found` — so the
+carousel rendered nothing, silently, because the fetch had no error handling.
+
+To point the carousel at a replacement API, create `.env.local` (gitignored)
+with:
+
+```
+REACT_APP_POSTERS_API_URL=https://your-api.example.com
+```
+
+The app then requests `GET {REACT_APP_POSTERS_API_URL}/posters` and expects
+`{ "data": [ { "_id": ..., "originalname": ..., "publicUrl": ... } ] }`, where
+`publicUrl` is either a URL string or a `{ "value": "<url>" }` wrapper. If the
+request fails, times out, or returns no usable records, the bundled posters
+stay on screen.
+
+Leave the variable empty and no request is made at all.
+
+> Create React App only exposes variables prefixed with `REACT_APP_`, and it
+> inlines them into the bundle at build time. They are public once deployed,
+> so never put a secret there.
+
+To change the bundled posters, replace the files in
+`src/assets/images/posters/` and update the list in
+`src/pages/Home/api/fallbackPosters.js`.
+
 ## Deploying
 
 Deploy from `main`, after merging the work you want released:
