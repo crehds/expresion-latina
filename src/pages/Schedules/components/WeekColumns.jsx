@@ -26,7 +26,9 @@ function WeekColumns(props) {
           >
             <h2 className="heading-xs week-columns__heading">
               {day.name}
-              {isToday && <span className="sr-only"> (hoy)</span>}
+              {/* Visible, not just announced: sighted visitors were the only
+                  ones who could not tell which column was today. */}
+              {isToday && <span className="text-sm week-columns__today">hoy</span>}
             </h2>
             <DayAgenda day={day} sessions={sessionsByWeekday(day.weekday)} />
           </div>
