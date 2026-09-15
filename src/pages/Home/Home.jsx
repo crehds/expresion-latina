@@ -1,7 +1,7 @@
 import Carousel from 'nuka-carousel';
 import { Component } from 'react';
 
-import createAdaptedPosters from './adapters/posters';
+import createAdaptedPoster from './adapters/posters';
 import Poster from './components/Poster';
 import getPosters from './services/posters';
 
@@ -21,7 +21,7 @@ export default class Home extends Component {
 
   handlePosters = async () => {
     const posters = await getPosters();
-    const adaptedPosters = posters.map(createAdaptedPosters);
+    const adaptedPosters = posters.map(createAdaptedPoster).filter(Boolean);
     return this.setState({
       posters: adaptedPosters,
     });
