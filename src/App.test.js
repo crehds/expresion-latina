@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 
 import App from './App';
 
@@ -19,6 +19,24 @@ async function renderAt(path) {
 
   return result;
 }
+
+// Everything else here uses MemoryRouter, which cannot catch a wrong base
+// path. This renders the production configuration: a real BrowserRouter
+// reading PUBLIC_URL, which is what a blank deployed page comes down to.
+describe('App mounted the way it is deployed', () => {
+  it('matches a route at the site root', async () => {
+    render(
+      <BrowserRouter basename={process.env.PUBLIC_URL}>
+        <App />
+      </BrowserRouter>,
+    );
+
+    // findAll, not find: the carousel wraps around, so it clones its slides.
+    const posters = await screen.findAllByRole('img', { name: 'Casting de la academia' });
+
+    expect(posters.length).toBeGreaterThan(0);
+  });
+});
 
 describe('App', () => {
   it('renders every navigation entry', async () => {
