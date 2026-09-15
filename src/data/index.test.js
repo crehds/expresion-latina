@@ -57,15 +57,26 @@ describe('academy data layer', () => {
   });
 
   describe('teachers', () => {
-    it('resolves a bundled image for every teacher', () => {
-      teachers.forEach((teacher) => {
+    it('resolves a bundled image for every teacher that has one on file', () => {
+      teachers.filter((teacher) => teacher.imageKey).forEach((teacher) => {
         expect(typeof teacher.image).toBe('string');
         expect(teacher.image.length).toBeGreaterThan(0);
       });
     });
 
+    // Teaching here does not depend on the academy having a photo.
+    it('gives a teacher with no photo initials to be drawn with', () => {
+      const withoutPhoto = teachers.filter((teacher) => !teacher.imageKey);
+
+      expect(withoutPhoto.length).toBeGreaterThan(0);
+      withoutPhoto.forEach((teacher) => {
+        expect(teacher.image).toBeUndefined();
+        expect(teacher.initials).toMatch(/^[A-ZÁÉÍÓÚÑ]{1,2}$/);
+      });
+    });
+
     it('finds the teachers of a genre', () => {
-      expect(getTeachersByGenreId('salsa').map((t) => t.name)).toEqual(['Mishel']);
+      expect(getTeachersByGenreId('salsa').map((t) => t.name)).toEqual(['Mishel Fernández', 'Omar López']);
     });
 
     it('returns an empty list for a genre nobody teaches', () => {

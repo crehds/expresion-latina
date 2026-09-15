@@ -298,11 +298,74 @@
       "social": {}
     },
     {
-      "id": "mishel",
-      "name": "Mishel",
+      "id": "mishel-fernandez",
+      "name": "Mishel Fernández",
       "shortName": "Mishel",
       "imageKey": "mishel_fernandez.jpg",
+      "genreIds": ["salsa", "bachata"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "giusmary-sosa",
+      "name": "Giusmary Sosa",
+      "shortName": "Giusmary",
+      "imageKey": null,
+      "genreIds": ["urban-dance"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "vannia-valdivia",
+      "name": "Vannia Valdivia",
+      "shortName": "Vannia",
+      "imageKey": null,
+      "genreIds": ["sexy-power"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "edson-cabanillas",
+      "name": "Edson Cabanillas",
+      "shortName": "Edson",
+      "imageKey": null,
+      "genreIds": ["heels"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "kenneth-ocana",
+      "name": "Kenneth Ocaña",
+      "shortName": "Kenneth",
+      "imageKey": null,
+      "genreIds": ["bachata"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "omar-lopez",
+      "name": "Omar López",
+      "shortName": "Omar",
+      "imageKey": null,
       "genreIds": ["salsa"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "anthony-sevillano",
+      "name": "Anthony Sevillano",
+      "shortName": "Anthony",
+      "imageKey": null,
+      "genreIds": ["reggaeton"],
+      "bio": "",
+      "social": {}
+    },
+    {
+      "id": "gonzalo-povis",
+      "name": "Gonzalo Povis",
+      "shortName": "Gonzalo",
+      "imageKey": "urban_povis.jpg",
+      "genreIds": ["comercial-dance"],
       "bio": "",
       "social": {}
     }
@@ -343,7 +406,7 @@
       "dayId": "lunes",
       "slotId": "t1800-1900",
       "genreId": "urban-dance",
-      "teacherId": null,
+      "teacherId": "giusmary-sosa",
       "level": "Principiantes",
       "room": "Sala 1",
       "note": null
@@ -353,7 +416,7 @@
       "dayId": "lunes",
       "slotId": "t1900-2030",
       "genreId": "sexy-power",
-      "teacherId": null,
+      "teacherId": "vannia-valdivia",
       "level": "All levels",
       "room": "Sala 1",
       "note": "Pack Noches"
@@ -363,7 +426,7 @@
       "dayId": "lunes",
       "slotId": "t2030-2200",
       "genreId": "heels",
-      "teacherId": null,
+      "teacherId": "edson-cabanillas",
       "level": "Básico",
       "room": "Sala 1",
       "note": null
@@ -383,7 +446,7 @@
       "dayId": "martes",
       "slotId": "t2000-2100",
       "genreId": "bachata",
-      "teacherId": null,
+      "teacherId": "mishel-fernandez",
       "level": "Básico",
       "room": "Sala 1",
       "note": null
@@ -393,7 +456,7 @@
       "dayId": "martes",
       "slotId": "t2100-2200",
       "genreId": "bachata",
-      "teacherId": null,
+      "teacherId": "kenneth-ocana",
       "level": "Intermedio",
       "room": "Sala 1",
       "note": null
@@ -403,7 +466,7 @@
       "dayId": "miercoles",
       "slotId": "t1800-1900",
       "genreId": "urban-dance",
-      "teacherId": null,
+      "teacherId": "giusmary-sosa",
       "level": "Principiantes",
       "room": "Sala 1",
       "note": null
@@ -413,7 +476,7 @@
       "dayId": "miercoles",
       "slotId": "t1900-2030",
       "genreId": "comercial-dance",
-      "teacherId": null,
+      "teacherId": "gonzalo-povis",
       "level": "All levels",
       "room": "Sala 1",
       "note": "Pack Noches"
@@ -433,7 +496,7 @@
       "dayId": "jueves",
       "slotId": "t2000-2100",
       "genreId": "salsa",
-      "teacherId": null,
+      "teacherId": "omar-lopez",
       "level": "Básico",
       "room": "Sala 1",
       "note": null
@@ -443,7 +506,7 @@
       "dayId": "jueves",
       "slotId": "t2100-2200",
       "genreId": "salsa",
-      "teacherId": null,
+      "teacherId": "omar-lopez",
       "level": "Intermedio",
       "room": "Sala 1",
       "note": null
@@ -453,7 +516,7 @@
       "dayId": "viernes",
       "slotId": "t1000-1130",
       "genreId": "heels",
-      "teacherId": null,
+      "teacherId": "edson-cabanillas",
       "level": "Principiantes",
       "room": "Sala 1",
       "note": "Nuevo curso"
@@ -463,7 +526,7 @@
       "dayId": "viernes",
       "slotId": "t1900-2030",
       "genreId": "reggaeton",
-      "teacherId": null,
+      "teacherId": "anthony-sevillano",
       "level": "All levels",
       "room": "Sala 1",
       "note": "Pack Noches"
