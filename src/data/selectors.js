@@ -63,6 +63,20 @@ export function createSelectors(data) {
   }
 
   /**
+   * Days that hold at least one class, in display order.
+   *
+   * The academy currently teaches Monday to Friday, so the week view shows
+   * five columns. Adding a Saturday class adds its column; this is derived,
+   * never configured.
+   *
+   * @returns {object[]}
+   */
+  function getActiveDays() {
+    const used = new Set(allEnriched().map((session) => session.day.id));
+    return days.filter((day) => used.has(day.id));
+  }
+
+  /**
    * Time slots that hold at least one class, so the grid never renders a row
    * that is empty across every day.
    */
@@ -96,6 +110,7 @@ export function createSelectors(data) {
 
   return {
     getSessionsForWeekday,
+    getActiveDays,
     getActiveTimeSlots,
     buildWeekMatrix,
     hasPublishedSchedule,
@@ -106,6 +121,7 @@ const selectors = createSelectors(academy);
 
 export const {
   getSessionsForWeekday,
+  getActiveDays,
   getActiveTimeSlots,
   buildWeekMatrix,
   hasPublishedSchedule,
