@@ -15,18 +15,48 @@
     "social": {}
   },
   "days": [
-    { "id": "lunes", "name": "Lunes", "shortName": "Lun", "weekday": 1 },
-    { "id": "martes", "name": "Martes", "shortName": "Mar", "weekday": 2 },
+    {
+      "id": "lunes",
+      "name": "Lunes",
+      "shortName": "Lun",
+      "weekday": 1
+    },
+    {
+      "id": "martes",
+      "name": "Martes",
+      "shortName": "Mar",
+      "weekday": 2
+    },
     {
       "id": "miercoles",
       "name": "Miércoles",
       "shortName": "Mié",
       "weekday": 3
     },
-    { "id": "jueves", "name": "Jueves", "shortName": "Jue", "weekday": 4 },
-    { "id": "viernes", "name": "Viernes", "shortName": "Vie", "weekday": 5 },
-    { "id": "sabado", "name": "Sábado", "shortName": "Sáb", "weekday": 6 },
-    { "id": "domingo", "name": "Domingo", "shortName": "Dom", "weekday": 0 }
+    {
+      "id": "jueves",
+      "name": "Jueves",
+      "shortName": "Jue",
+      "weekday": 4
+    },
+    {
+      "id": "viernes",
+      "name": "Viernes",
+      "shortName": "Vie",
+      "weekday": 5
+    },
+    {
+      "id": "sabado",
+      "name": "Sábado",
+      "shortName": "Sáb",
+      "weekday": 6
+    },
+    {
+      "id": "domingo",
+      "name": "Domingo",
+      "shortName": "Dom",
+      "weekday": 0
+    }
   ],
   "timeSlots": [],
   "genres": [
@@ -68,7 +98,7 @@
       "slug": "ladies",
       "description": "",
       "accentColor": null,
-      "videoIds": []
+      "videoIds": ["ladies-latinas"]
     },
     {
       "id": "ballet",
@@ -197,7 +227,7 @@
     {
       "id": "ladies-latinas",
       "title": "Ladies latinas",
-      "genreId": null,
+      "genreId": "ladies",
       "assetKey": "ladies_latinas.mp4",
       "externalUrl": null
     },
