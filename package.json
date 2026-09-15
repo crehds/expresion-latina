@@ -2,6 +2,7 @@
   "name": "eylreact",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://crehds.github.io/expresion-latina",
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
@@ -47,6 +48,7 @@
     "gh-pages": "^4.0.0",
     "husky": "^8.0.2",
     "jest": "^27.5.1",
-    "lint-staged": "^13.0.3"
+    "lint-staged": "^13.0.3",
+    "prettier": "^3.9.6"
   }
 }
