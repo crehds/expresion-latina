@@ -26,6 +26,17 @@
   align-items: center;
 }
 
-.info__copy {
-  font-size: 1.6rem;
+.info__link {
+  color: var(--black-300);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.info__link:hover,
+.info__link:focus-visible {
+  color: var(--sky-blue-400);
+}
+
+.info__detail--address {
+  max-width: 22rem;
 }

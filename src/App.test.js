@@ -13,7 +13,9 @@ async function renderAt(path) {
     </MemoryRouter>,
   );
 
-  await screen.findByRole('button', { name: /Mapa/ });
+  // Well above the 1s default: jest transforms every image and video the data
+  // layer registers before this chunk resolves, which takes about 1.2s here.
+  await screen.findByRole('button', { name: /Mapa/ }, { timeout: 5000 });
 
   return result;
 }
