@@ -1,0 +1,2 @@
+.poster{display:flex;height:100%;justify-content:center;padding:0 2rem}.home{display:flex;padding:.8rem 0}.home__arrow{color:var(--mustard-100);cursor:pointer}.home__arrow--left{padding-left:.4rem}.home__arrow--right{padding-right:.4rem}.home__arrow-icon{background-image:radial-gradient(circle,var(--sky-blue-400) 55%,var(--gray-300) 100%);border-radius:50%;font-size:3rem}.slider-list{height:100%}@media (min-width:768px){.home__arrow-icon{font-size:5rem}}
+/*# sourceMappingURL=853.c21d816e.chunk.css.map*/
