@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "_note": "Deliberately uneven: a day with no classes, a slot only one day uses, and one hour holding two classes in different rooms. The real dataset cannot cover these without inventing classes.",
+  "studio": { "name": "Academia de prueba" },
+  "days": [
+    { "id": "lunes", "name": "Lunes", "shortName": "Lun", "weekday": 1 },
+    { "id": "martes", "name": "Martes", "shortName": "Mar", "weekday": 2 },
+    { "id": "sabado", "name": "Sábado", "shortName": "Sáb", "weekday": 6 },
+    { "id": "domingo", "name": "Domingo", "shortName": "Dom", "weekday": 0 }
+  ],
+  "timeSlots": [
+    {
+      "id": "t1000",
+      "start": "10:00",
+      "end": "11:00",
+      "label": "10:00 - 11:00"
+    },
+    {
+      "id": "t1900",
+      "start": "19:00",
+      "end": "20:00",
+      "label": "19:00 - 20:00"
+    },
+    {
+      "id": "t2000",
+      "start": "20:00",
+      "end": "21:00",
+      "label": "20:00 - 21:00"
+    },
+    {
+      "id": "t2100",
+      "start": "21:00",
+      "end": "22:00",
+      "label": "21:00 - 22:00"
+    }
+  ],
+  "genres": [
+    { "id": "salsa", "name": "Salsa", "slug": "salsa" },
+    { "id": "bachata", "name": "Bachata", "slug": "bachata" }
+  ],
+  "teachers": [
+    {
+      "id": "mishel",
+      "name": "Mishel",
+      "imageKey": "mishel_fernandez.jpg",
+      "genreIds": ["salsa"]
+    },
+    {
+      "id": "izquierdo",
+      "name": "Izquierdo",
+      "imageKey": "bachata_izquierdo.jpg",
+      "genreIds": ["bachata"]
+    }
+  ],
+  "videos": [],
+  "sessions": [
+    {
+      "id": "s1",
+      "dayId": "lunes",
+      "slotId": "t1900",
+      "genreId": "salsa",
+      "teacherId": "mishel",
+      "level": "Principiante",
+      "room": "Sala 1"
+    },
+    {
+      "id": "s2",
+      "dayId": "lunes",
+      "slotId": "t1900",
+      "genreId": "bachata",
+      "teacherId": "izquierdo",
+      "level": "Intermedio",
+      "room": "Sala 2"
+    },
+    {
+      "id": "s3",
+      "dayId": "lunes",
+      "slotId": "t2000",
+      "genreId": "bachata",
+      "teacherId": "izquierdo",
+      "level": "Abierta",
+      "room": "Sala 1"
+    },
+    {
+      "id": "s4",
+      "dayId": "sabado",
+      "slotId": "t1000",
+      "genreId": "salsa",
+      "teacherId": null,
+      "level": "Todos los niveles",
+      "room": "Sala 1"
+    }
+  ]
+}
