@@ -1,0 +1,31 @@
+.session-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.8rem 1rem;
+  border-left: 3px solid var(--sky-blue-300);
+  border-radius: 0.4rem;
+  background: var(--white);
+}
+
+.session-card__time {
+  color: var(--black-200);
+  font-variant-numeric: tabular-nums;
+}
+
+.session-card__genre {
+  color: var(--black-400);
+}
+
+.session-card__detail {
+  color: var(--black-200);
+}
+
+.session-card__note {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 1rem;
+  background: var(--mustard-100);
+  color: var(--black-400);
+}
