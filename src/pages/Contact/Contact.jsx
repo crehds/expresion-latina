@@ -28,20 +28,21 @@ class Contact extends Component {
   };
 
   render() {
+    const { content } = this.state;
     return (
       <div className="contact">
         <button
-          id="mapa"
           className="contact__option"
           type="button"
+          aria-pressed={content === 'map'}
           onClick={() => this.handleContent('map')}
         >
           <h3 className="heading-xs">Mapa</h3>
         </button>
         <button
-          id="mapa"
           className="contact__option"
           type="button"
+          aria-pressed={content === 'info'}
           onClick={() => this.handleContent('info')}
         >
           <h3 className="heading-xs">Info</h3>
