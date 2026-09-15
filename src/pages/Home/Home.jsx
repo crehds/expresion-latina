@@ -2,6 +2,7 @@ import Carousel from 'nuka-carousel';
 import { Component } from 'react';
 
 import createAdaptedPoster from './adapters/posters';
+import FALLBACK_POSTERS from './api/fallbackPosters';
 import Poster from './components/Poster';
 import getPosters from './services/posters';
 
@@ -11,7 +12,7 @@ export default class Home extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      posters: [],
+      posters: FALLBACK_POSTERS,
     };
   }
 
@@ -20,11 +21,19 @@ export default class Home extends Component {
   }
 
   handlePosters = async () => {
-    const posters = await getPosters();
-    const adaptedPosters = posters.map(createAdaptedPoster).filter(Boolean);
-    return this.setState({
-      posters: adaptedPosters,
-    });
+    try {
+      const posters = await getPosters();
+      const adaptedPosters = posters.map(createAdaptedPoster).filter(Boolean);
+
+      // A successful but empty response is not a legitimate state for this
+      // site, so keep the bundled posters rather than emptying the carousel.
+      if (!adaptedPosters.length) return;
+
+      this.setState({ posters: adaptedPosters });
+    } catch (error) {
+      // The bundled posters are already on screen, so there is nothing to undo.
+      if (process.env.NODE_ENV === 'development') console.warn(error.message);
+    }
   };
 
   render() {
