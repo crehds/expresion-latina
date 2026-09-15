@@ -31,6 +31,30 @@ Vite rather than to patch around it.
 | `npm run build` | Production bundle into `build/`     |
 | `npm test`      | Test runner in watch mode           |
 
+## Seeing the layout
+
+Tests render through jsdom, which has no layout engine, so nothing in the test
+suite can tell you whether the schedule columns or the day chips actually look
+right. `npm run screenshot` drives the running dev server in a real browser,
+captures 360px and 1280px, and fails on a console error or a page that scrolls
+sideways.
+
+It needs Chromium once, installed under `node_modules` rather than the shared
+user-level cache so it uninstalls with the folder:
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium
+```
+
+Then, with `npm run dev` already running in another terminal:
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=0 npm run screenshot -- http://localhost:3000/schedules
+```
+
+The same variable is required when running, not only when installing — without
+it Playwright looks in the user cache and reports the browser as missing.
+
 ## Home page posters
 
 The carousel on the home page renders the images bundled in
