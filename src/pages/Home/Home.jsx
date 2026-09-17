@@ -39,7 +39,7 @@ export default class Home extends Component {
       this.setState({ posters: adaptedPosters });
     } catch (error) {
       // The bundled posters are already on screen, so there is nothing to undo.
-      if (process.env.NODE_ENV === 'development') console.warn(error.message);
+      if (import.meta.env.DEV) console.warn(error.message);
     }
   };
 

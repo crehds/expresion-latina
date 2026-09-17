@@ -2,24 +2,60 @@
   "root": true,
   "env": {
     "browser": true,
-    "es2021": true,
-    "jest": true
+    "es2021": true
   },
   "extends": ["airbnb", "plugin:react/jsx-runtime"],
   "overrides": [
     {
+      "files": ["src/**/*.test.{js,jsx}", "src/setupTests.js"],
+      "globals": {
+        "describe": "readonly",
+        "it": "readonly",
+        "test": "readonly",
+        "expect": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly",
+        "vi": "readonly"
+      }
+    },
+    {
       "files": ["scripts/**/*.mjs"],
-      "env": { "node": true, "browser": false },
-      "parserOptions": { "sourceType": "module" },
+      "env": {
+        "node": true,
+        "browser": false
+      },
+      "parserOptions": {
+        "sourceType": "module"
+      },
       "rules": {
         "import/no-extraneous-dependencies": [
           "error",
-          { "devDependencies": true }
+          {
+            "devDependencies": true
+          }
         ],
         "no-console": "off",
         "no-await-in-loop": "off",
         "no-loop-func": "off",
         "no-restricted-syntax": "off"
+      }
+    },
+    {
+      "files": ["vite.config.js"],
+      "env": {
+        "node": true,
+        "browser": false
+      },
+      "rules": {
+        "import/no-extraneous-dependencies": [
+          "error",
+          {
+            "devDependencies": true
+          }
+        ],
+        "import/no-unresolved": "off"
       }
     }
   ],
@@ -32,8 +68,23 @@
   },
   "plugins": ["react"],
   "rules": {
-    "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
-    "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }],
-    "react/jsx-props-no-spreading": ["error", { "exceptions": ["Component"] }]
+    "no-console": [
+      "warn",
+      {
+        "allow": ["warn", "error", "info"]
+      }
+    ],
+    "react/jsx-filename-extension": [
+      1,
+      {
+        "extensions": [".js", ".jsx"]
+      }
+    ],
+    "react/jsx-props-no-spreading": [
+      "error",
+      {
+        "exceptions": ["Component"]
+      }
+    ]
   }
 }
