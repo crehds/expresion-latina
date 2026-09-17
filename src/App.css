@@ -3,5 +3,15 @@
   min-height: 100vh;
   color: black;
   display: grid;
-  grid-template-rows: 10vh 80vh 10vh;
+  /*
+   * Header and footer take the height they need; the page takes what is left
+   * and grows past it when the content is taller.
+   *
+   * These rows were 10vh 80vh 10vh, which ties every band to the height of the
+   * window rather than to what is in it. On a phone held sideways the page was
+   * given 288px for content that needed 343px, and it was drawn straight over
+   * the footer; on a desktop the same rule left 312px of empty page below the
+   * last class.
+   */
+  grid-template-rows: auto 1fr auto;
 }
