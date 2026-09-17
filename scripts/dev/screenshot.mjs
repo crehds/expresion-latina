@@ -1,3 +1,8 @@
+/*
+ * Callbacks passed to page.evaluate are serialised and run inside the
+ * browser, not in Node, so document is defined where they execute.
+ */
+/* global document */
 // Drives the running dev server in a real browser and captures the viewports
 // that matter. Jest renders through jsdom, which has no layout engine at all,
 // so nothing there can tell us whether a grid or a chip row actually looks right.
@@ -33,9 +38,8 @@ for (const { name, width, height } of VIEWPORTS) {
   await page.screenshot({ path: file, fullPage: true });
 
   const cards = await page.locator('.session-card').count();
-  const scrollsSideways = await page.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-  );
+  const scrollsSideways = await page.evaluate(() => document.documentElement.scrollWidth
+    > document.documentElement.clientWidth);
 
   console.log(`${name.padEnd(14)} cards=${String(cards).padEnd(3)} body scrolls sideways=${scrollsSideways}  -> ${file}`);
   if (scrollsSideways) problems.push(`${name}: the page body scrolls horizontally`);
@@ -47,7 +51,7 @@ await browser.close();
 
 if (problems.length) {
   console.log('\nPROBLEMS:');
-  problems.forEach((p) => console.log('  ' + p));
+  problems.forEach((problem) => console.log(`  ${problem}`));
   process.exit(1);
 }
 console.log('\nno console errors, no horizontal page scroll');

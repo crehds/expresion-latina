@@ -17,6 +17,9 @@
     "dev": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:data": "node --test scripts/data/__tests__/*.test.mjs",
+    "data:import": "node scripts/data/import.mjs",
+    "data:template": "node scripts/data/make-template.mjs",
     "screenshot": "node scripts/dev/screenshot.mjs",
     "eject": "react-scripts eject",
     "prepare": "husky install"
@@ -42,6 +45,7 @@
     "eslint-plugin-jsx-a11y": "^6.6.1",
     "eslint-plugin-react": "^7.31.10",
     "eslint-plugin-react-hooks": "^4.6.0",
+    "exceljs": "^4.4.0",
     "husky": "^8.0.2",
     "lint-staged": "^13.0.3",
     "playwright": "^1.63.0",
