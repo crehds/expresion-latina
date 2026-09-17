@@ -327,7 +327,7 @@
       "id": "mishel-fernandez",
       "name": "Mishel Fernández",
       "shortName": "Mishel",
-      "imageKey": "mishel_fernandez.jpg",
+      "imageKey": null,
       "genreIds": ["salsa", "bachata"],
       "bio": "",
       "social": {}

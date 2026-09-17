@@ -53,8 +53,11 @@ usar en la hoja `Horario`.
 Un profesor por fila. `Generos` acepta varios separados por coma.
 
 `Imagen` es el nombre del archivo de la foto y **puede quedar vacío**: si no
-hay foto, el sitio muestra las iniciales. Para agregar una foto hay que pasarle
-el archivo a quien mantiene el sitio.
+hay foto, el sitio muestra las iniciales del profesor.
+
+Para agregar una foto: se copia el archivo en
+`src/assets/images/teachers/` y se escribe ese mismo nombre en la columna
+`Imagen`. No hay que registrarlo en ningún otro lado.
 
 ### Hoja `Estudio`
 

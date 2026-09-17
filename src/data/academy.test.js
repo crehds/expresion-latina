@@ -83,6 +83,14 @@ describe('academy.json', () => {
   // These two catch the failure that would otherwise ship as a broken <img>
   // or a silently missing video in production.
   describe('assets', () => {
+    // The maps are built by scanning a folder, and a glob that matches nothing
+    // yields an empty object rather than an error. Without this, every
+    // assertion below would pass by finding nothing to check.
+    it('actually found the asset folders', () => {
+      expect(Object.keys(TEACHER_IMAGES).length).toBeGreaterThan(0);
+      expect(Object.keys(VIDEO_ASSETS).length).toBeGreaterThan(0);
+    });
+
     it('has a bundled image for every teacher that declares one', () => {
       academy.teachers.forEach((teacher) => {
         if (teacher.imageKey) expect(Object.keys(TEACHER_IMAGES)).toContain(teacher.imageKey);
