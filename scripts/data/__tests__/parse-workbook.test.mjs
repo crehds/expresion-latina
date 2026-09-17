@@ -174,14 +174,27 @@ describe('parseWorkbook', () => {
     assert.equal(generos.length, 1);
   });
 
-  it('returns an empty list for a sheet that is not there', async () => {
+  // The distinction an import needs in order to honour a deletion: a sheet
+  // that is not in the workbook said nothing, a sheet with no rows said none.
+  it('returns null for a sheet that is not there', async () => {
     const file = await writeWorkbook((workbook) => {
       workbook.addWorksheet('Horario').addRow(['Dia']);
     });
 
     const sheets = await parseWorkbook(file);
 
-    assert.deepEqual(sheets.profesores, []);
-    assert.deepEqual(sheets.estudio, []);
+    assert.equal(sheets.profesores, null);
+    assert.equal(sheets.estudio, null);
+  });
+
+  it('returns an empty list for a sheet that is there and empty', async () => {
+    const file = await writeWorkbook((workbook) => {
+      workbook.addWorksheet('Horario').addRow(['Dia']);
+      workbook.addWorksheet('Resenas').addRow(['Autor', 'Resena']);
+    });
+
+    const sheets = await parseWorkbook(file);
+
+    assert.deepEqual(sheets.resenas, []);
   });
 });

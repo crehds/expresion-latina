@@ -459,7 +459,16 @@ export default function buildAcademy(sheets, {
     errors,
   );
   const studio = buildStudio(sheets.estudio ?? [], errors);
-  const reviews = buildReviews(sheets.resenas ?? [], errors);
+  /*
+   * A workbook with no Resenas sheet says nothing about reviews, so the ones
+   * already published survive — every template generated before that sheet
+   * existed is such a workbook, and importing one used to wipe the lot. A
+   * sheet that is present but empty is the academy deleting them, and that is
+   * honoured.
+   */
+  const reviews = sheets.resenas
+    ? buildReviews(sheets.resenas, errors)
+    : (previous?.reviews ?? []);
   const { timeSlots, sessions } = buildSchedule(
     sheets.horario ?? [],
     genresById,

@@ -555,14 +555,42 @@ describe('the Resenas sheet', () => {
     assert.equal(errors[0].row, 2);
   });
 
-  it('gives an empty list when the sheet is absent', () => {
-    const { academy } = build({
-      horario: sheet([
-        {
-          dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
-        },
-      ]),
-    });
+  const HORARIO_ONLY = {
+    horario: sheet([
+      {
+        dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+      },
+    ]),
+  };
+
+  const PUBLISHED = [{
+    id: 'evelyn', author: 'Evelyn', text: 'Muy buena academia.', source: null, sourceUrl: null,
+  }];
+
+  /*
+   * Every template generated before the Resenas sheet existed is a workbook
+   * without one. Rebuilding from the sheet alone meant importing any of them
+   * silently deleted every opinion the academy had.
+   */
+  it('keeps the published opinions when the workbook has no sheet', () => {
+    const { academy } = build(HORARIO_ONLY, { previous: { reviews: PUBLISHED } });
+
+    assert.deepEqual(academy.reviews, PUBLISHED);
+  });
+
+  // A sheet that is present and empty is the academy deleting them, which is
+  // a different statement and is honoured.
+  it('empties them when the sheet is there with no rows', () => {
+    const { academy } = build(
+      { ...HORARIO_ONLY, resenas: [] },
+      { previous: { reviews: PUBLISHED } },
+    );
+
+    assert.deepEqual(academy.reviews, []);
+  });
+
+  it('gives an empty list when there is nothing published either', () => {
+    const { academy } = build(HORARIO_ONLY);
 
     assert.deepEqual(academy.reviews, []);
   });

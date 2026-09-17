@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
 
+import ExcelJS from 'exceljs';
+
 import buildAcademy from '../build-academy.mjs';
 import makeTemplate from '../make-template.mjs';
 import parseWorkbook from '../parse-workbook.mjs';
@@ -83,6 +85,46 @@ function academyWith(videos, teacher = MISHEL) {
     }],
   };
 }
+
+/*
+ * A workbook generated before the Resenas sheet existed. Every template the
+ * academy already holds is one of these, so importing one must not be the
+ * thing that deletes their opinions.
+ */
+async function withoutReviewsSheet(previous) {
+  const source = join(workDir, `old-${Date.now()}-${Math.random()}.json`);
+  writeFileSync(source, JSON.stringify(previous));
+
+  const target = join(workDir, `old-${Date.now()}-${Math.random()}.xlsx`);
+  await makeTemplate(target, { source });
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(target);
+  workbook.removeWorksheet(workbook.getWorksheet('Resenas').id);
+  await workbook.xlsx.writeFile(target);
+
+  const sheets = await parseWorkbook(target);
+
+  return buildAcademy(sheets, { previous, now: new Date('2026-01-15T10:00:00.000Z') });
+}
+
+describe('importing a workbook from before the Resenas sheet existed', () => {
+  it('keeps the opinions rather than deleting them', async () => {
+    const before = academyWith([]);
+    const { academy, errors } = await withoutReviewsSheet(before);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(academy.reviews, before.reviews);
+  });
+
+  it('still imports the rest of the workbook', async () => {
+    const before = academyWith([]);
+    const { academy } = await withoutReviewsSheet(before);
+
+    assert.deepEqual(academy.sessions, before.sessions);
+    assert.equal(academy.teachers.length, 1);
+  });
+});
 
 describe('template then import, with nothing edited', () => {
   it('keeps a hand-added teacher video as one record, not two', async () => {
