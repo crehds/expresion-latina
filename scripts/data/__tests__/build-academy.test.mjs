@@ -403,6 +403,17 @@ describe('a teacher with a video', () => {
     assert.deepEqual(academy.videos.map((video) => video.id), ['como-llegar', 'video-mishel-fernandez']);
   });
 
+  // Clearing the cell has to delete the record, not just unlink it: the
+  // surviving record still names the teacher, and that is one of the two
+  // routes the site resolves a teacher's videos by.
+  it('deletes the video when the cell is cleared', () => {
+    const first = buildWithVideo('old.mp4').academy;
+    const second = buildWithVideo(undefined, first).academy;
+
+    assert.deepEqual(second.videos, []);
+    assert.deepEqual(second.teachers[0].videoIds, []);
+  });
+
   it('leaves a teacher with no video alone', () => {
     const { academy } = buildWithVideo(undefined);
 

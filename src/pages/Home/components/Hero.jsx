@@ -12,16 +12,18 @@ import '../css/hero.css';
  * so a month without Heels stops advertising Heels.
  */
 function Hero() {
-  const whatsappNumber = studio.whatsapp.replace(/\D/g, '');
+  // The schema allows a studio with no WhatsApp number, and the address is
+  // optional in the same way. Dereferencing either unconditionally would turn
+  // a missing field into a TypeError during render, and because this is the
+  // first thing on the landing page it would take the whole route down rather
+  // than dropping one button.
+  const whatsappNumber = studio.whatsapp ? studio.whatsapp.replace(/\D/g, '') : null;
+  const location = [studio.address, studio.city].filter(Boolean).join(' · ');
 
   return (
     <section className="hero">
       <div className="hero__content">
-        <p className="text-sm hero__eyebrow">
-          {studio.address}
-          {' · '}
-          {studio.city}
-        </p>
+        {location && <p className="text-sm hero__eyebrow">{location}</p>}
 
         <h1 className="heading-l hero__title">{studio.name}</h1>
 
@@ -34,14 +36,16 @@ function Hero() {
           <Link className="hero__cta hero__cta--primary" to="/schedules">
             Ver horarios
           </Link>
-          <a
-            className="hero__cta hero__cta--secondary"
-            href={`https://wa.me/${whatsappNumber}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Escríbenos por WhatsApp
-          </a>
+          {whatsappNumber && (
+            <a
+              className="hero__cta hero__cta--secondary"
+              href={`https://wa.me/${whatsappNumber}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Escríbenos por WhatsApp
+            </a>
+          )}
         </div>
 
         <ul className="hero__genres">

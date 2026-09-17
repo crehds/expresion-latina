@@ -315,7 +315,19 @@ function buildSchedule(rows, genresById, teachersById, errors) {
 function mergeVideos(previousVideos, rebuilt) {
   const rebuiltIds = new Set(rebuilt.map((video) => video.id));
 
-  return [...previousVideos.filter((video) => !rebuiltIds.has(video.id)), ...rebuilt];
+  const kept = previousVideos.filter((video) => {
+    if (rebuiltIds.has(video.id)) return false;
+
+    // A video that names a teacher is owned by the Profesores sheet, so
+    // clearing that teacher's Video cell has to delete it. Keeping it on the
+    // grounds that no row rebuilt it is what "carry the rest across" would
+    // otherwise mean, and the orphan kept showing on the profile: the record
+    // still carries teacherId, which is one of the two routes the site
+    // resolves a teacher's videos by, so emptying videoIds hid nothing.
+    return !video.teacherId;
+  });
+
+  return [...kept, ...rebuilt];
 }
 
 export default function buildAcademy(sheets, {
