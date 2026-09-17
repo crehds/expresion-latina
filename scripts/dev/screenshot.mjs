@@ -13,6 +13,10 @@ import path from 'node:path';
 const url = process.argv[2] ?? 'http://localhost:3000/schedules';
 const outDir = process.argv[3] ?? 'screenshots';
 
+// The root element each page renders. Waiting on one of these proves a
+// lazy route actually mounted.
+const PAGE_ROOTS = '.home, .teachers, .dance-genres, .schedules, .reviews, .contact';
+
 const VIEWPORTS = [
   { name: 'mobile-360', width: 360, height: 780 },
   { name: 'desktop-1280', width: 1280, height: 900 },
@@ -36,15 +40,18 @@ for (const { name, width, height } of VIEWPORTS) {
 
   await page.goto(url, { waitUntil: 'networkidle' });
 
-  // The page is lazy-loaded, so wait for real content rather than a fixed delay.
-  await page.waitForSelector('.App > *', { timeout: 10000 });
+  // Every page is behind React.lazy, so wait for a page to have mounted. The
+  // app shell is not enough: its header renders immediately, so waiting on it
+  // lets the screenshot and every measurement below run against a page that
+  // has not arrived yet.
+  await page.waitForSelector(PAGE_ROOTS, { timeout: 10000 });
 
   const file = path.join(outDir, `${name}.png`);
   await page.screenshot({ path: file, fullPage: true });
 
   const cards = await page.locator('.session-card').count();
 
-  const layout = await page.evaluate(() => {
+  const layout = await page.evaluate((roots) => {
     const bottomOf = (selector) => {
       const element = document.querySelector(selector);
       return element ? Math.round(element.getBoundingClientRect().bottom) : null;
@@ -58,13 +65,12 @@ for (const { name, width, height } of VIEWPORTS) {
       scrollsSideways: document.documentElement.scrollWidth
         > document.documentElement.clientWidth,
       contentBottom: bottomOf('.week-columns') ?? bottomOf('.day-agenda')
-        ?? bottomOf('.teachers') ?? bottomOf('.dance-genres') ?? bottomOf('.contact')
-        ?? bottomOf('.home') ?? bottomOf('.reviews'),
+        ?? bottomOf(roots),
       surfaceBottom: bottomOf('.App > *:nth-child(2)'),
       footerTop: topOf('footer'),
       viewportHeight: document.documentElement.clientHeight,
     };
-  });
+  }, PAGE_ROOTS);
 
   const { scrollsSideways, contentBottom, surfaceBottom } = layout;
   // Empty page the visitor has to scroll to reach. Page surface that merely
@@ -85,8 +91,17 @@ for (const { name, width, height } of VIEWPORTS) {
   );
 
   if (scrollsSideways) problems.push(`${name}: the page body scrolls horizontally`);
-  if (overlap > 0) problems.push(`${name}: content overlaps the footer by ${overlap}px`);
-  if (deadSpace > 24) problems.push(`${name}: ${deadSpace}px of empty page you have to scroll to reach`);
+
+  // A measurement that could not be taken is a failure, not a pass. Comparing
+  // null with `>` is false, so without this branch an unmeasurable page —
+  // content that never mounted, a missing footer — reports clean and the
+  // checks below prove nothing.
+  if (deadSpace === null || overlap === null) {
+    problems.push(`${name}: could not measure the layout; the page content or footer was not found`);
+  } else {
+    if (overlap > 0) problems.push(`${name}: content overlaps the footer by ${overlap}px`);
+    if (deadSpace > 24) problems.push(`${name}: ${deadSpace}px of empty page you have to scroll to reach`);
+  }
 
   await page.close();
 }
