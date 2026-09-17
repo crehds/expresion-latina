@@ -19,7 +19,8 @@
     "data:import": "node scripts/data/import.mjs",
     "data:template": "node scripts/data/make-template.mjs",
     "screenshot": "node scripts/dev/screenshot.mjs",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "lint": "eslint src scripts vite.config.js"
   },
   "browserslist": {
     "production": [
