@@ -1,7 +1,6 @@
+/* The band owns the gutter and the width; this is just the column. */
 .today-strip {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 3.2rem 1.6rem;
+  min-width: 0;
 }
 
 .today-strip__header {
@@ -46,12 +45,12 @@
   color: var(--text-secondary);
 }
 
-@media (min-width: 768px) {
-  .today-strip {
-    max-width: 96rem;
-    padding: 4.8rem 3.2rem;
-  }
-
+/*
+ * Two across only in the stacked layout, where the column is the full page
+ * width. Beside the posters the column is too narrow for two cards, so it
+ * stays single-file there.
+ */
+@media (min-width: 768px) and (max-width: 1023px) {
   .today-strip__list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

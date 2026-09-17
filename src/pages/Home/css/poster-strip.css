@@ -1,0 +1,79 @@
+.poster-strip {
+  position: relative;
+}
+
+/*
+ * The whole mechanism: the browser's own horizontal scroll, snapped to each
+ * card. No library, no JS on the swipe path, and the overflow stays inside
+ * this element instead of becoming the width of the document.
+ */
+.poster-strip__track {
+  display: flex;
+  gap: 1.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.poster-strip__track::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * 84% rather than 100%: the next poster peeks past the right edge, which is
+ * what tells a thumb there is more without an arrow or a row of dots.
+ */
+.poster-strip__item {
+  flex: 0 0 84%;
+  scroll-snap-align: center;
+}
+
+/* The pointer has no swipe, so it keeps the arrows. */
+.poster-strip__arrow {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .poster-strip__item {
+    flex-basis: 100%;
+  }
+
+  .poster-strip__arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.4rem;
+    height: 4.4rem;
+    transform: translateY(-50%);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-pill);
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--text-primary);
+    font-size: 2.2rem;
+    cursor: pointer;
+  }
+
+  .poster-strip__arrow:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .poster-strip__arrow:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .poster-strip__arrow--prev {
+    left: 0.8rem;
+  }
+
+  .poster-strip__arrow--next {
+    right: 0.8rem;
+  }
+}
