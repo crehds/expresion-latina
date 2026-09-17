@@ -8,7 +8,7 @@ export default function Footer() {
         href="http://www.facebook.com/expresionlatina.peru"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="expresion-latina-facebook"
+        aria-label="Expresión Latina en Facebook"
       >
         <i className="icon-facebook-square footer__social-media-icon" />
       </a>
@@ -17,6 +17,7 @@ export default function Footer() {
         href="http://www.instagram.com/expresionlatina.peru/"
         target="_blank"
         rel="noopener noreferrer"
+        aria-label="Expresión Latina en Instagram"
       >
         <i className="icon-instagram footer__social-media-icon" />
       </a>
