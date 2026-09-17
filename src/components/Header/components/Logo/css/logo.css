@@ -1,11 +1,16 @@
 .logo {
   display: flex;
-  min-width: 14rem;
+  align-items: center;
 }
 
+/*
+ * The file is square. It was being drawn 14rem wide by whatever height the
+ * row happened to give it, which squashed the wordmark flat; sizing by height
+ * and letting the width follow keeps its proportions.
+ */
 .logo__img {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: 4.5rem;
   animation-name: circularAppearance;
   animation-duration: 1s;
   animation-iteration-count: 1;

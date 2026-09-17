@@ -1,7 +1,14 @@
 .header {
   display: flex;
   justify-content: center;
+  align-items: center;
+  /*
+   * The header carries its own height instead of borrowing a share of the
+   * window. It used to sit in a 10vh row, which made it 37px tall on a phone
+   * held sideways and 100px on a tall monitor.
+   */
+  min-height: 5.5rem;
+  padding: 0.5rem;
   font-size: calc(10px + 2vmin);
-  padding-top: 2px;
   position: relative;
 }
