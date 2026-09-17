@@ -1,15 +1,18 @@
 .hero {
-  padding: 4rem 1.6rem 3.2rem;
+  padding: 5.6rem var(--page-gutter) 4rem;
   /*
-   * The only gradient kept anywhere: a single wash that lifts the top of the
-   * page off the flat page colour, so the hero reads as a band without a
-   * border. Two stops, both from the brand ramp — not decoration.
+   * A trace of the brand at the very top and nothing more. The hero used to be
+   * a violet wash, which spent the brand colour on the largest surface on the
+   * site and left the buttons inside it with nothing to stand out against.
    */
-  background: linear-gradient(
-    160deg,
-    var(--violet-700) 0%,
-    var(--surface-page) 70%
-  );
+  background:
+    radial-gradient(
+      70rem 40rem at 15% -10%,
+      rgba(149, 83, 214, 0.16) 0%,
+      transparent 70%
+    ),
+    var(--surface-page);
+  border-bottom: 1px solid var(--surface-border);
 }
 
 .hero__content {
@@ -67,8 +70,12 @@
 }
 
 .hero__cta--secondary {
-  border: 1px solid var(--surface-border);
+  border: 1px solid var(--surface-border-strong);
   color: var(--text-primary);
+}
+
+.hero__cta--secondary:hover {
+  background: var(--surface-overlay);
 }
 
 .hero__cta--secondary:hover,
@@ -94,7 +101,7 @@
 
 @media (min-width: 768px) {
   .hero {
-    padding: 8rem 3.2rem 6rem;
+    padding: 9.6rem var(--page-gutter) 7.2rem;
   }
 
   .hero__title {

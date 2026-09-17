@@ -1,22 +1,33 @@
-.menu {
-  /*
-   * --violet-950 at 96%: the page shows through just enough to read as a panel
-   * over it, while the nav labels still clear their contrast ratio.
-   */
-  background-color: rgba(13, 3, 34, 0.96);
-  border-left: 1px solid var(--surface-border);
-  position: fixed;
-  z-index: 3;
-  padding: 0;
-  height: 100vh;
-  margin: 0px;
-  right: -100vw;
-  width: 50vw;
-  padding-top: 80px;
-  top: 0;
-  transition: 0.5s;
+/* Desktop: the links live in the bar. */
+.menu--inline {
+  display: flex;
+  align-items: center;
 }
 
-.menu--is-active {
-  right: 0;
+/*
+ * Tablet and phone: a drawer over the page, not the full-height 50vw panel it
+ * used to be. It is translated rather than moved with `right`, so the browser
+ * animates it on the compositor instead of laying the page out every frame.
+ */
+.menu--drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 30;
+  width: min(32rem, 82vw);
+  padding: 9.6rem var(--page-gutter) var(--page-gutter);
+  background: var(--surface-raised);
+  border-left: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-overlay);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+.menu--is-open {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu--drawer {
+    transition: none;
+  }
 }

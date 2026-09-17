@@ -1,16 +1,43 @@
 .header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   /*
    * The header carries its own height instead of borrowing a share of the
    * window. It used to sit in a 10vh row, which made it 37px tall on a phone
    * held sideways and 100px on a tall monitor.
    */
-  min-height: 5.5rem;
-  padding: 0.5rem;
-  font-size: calc(10px + 2vmin);
-  position: relative;
   background: var(--surface-sunken);
+  border-bottom: 1px solid var(--surface-border);
   color: var(--text-primary);
+}
+
+/*
+ * The bar is full-bleed so its rule reaches both edges; its contents are not,
+ * so the logo lines up with the page below it.
+ */
+.header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.6rem;
+  min-height: 6.4rem;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 var(--page-gutter);
+}
+
+.header__home {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+}
+
+.header__home:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+@media (min-width: 768px) {
+  .header__inner {
+    min-height: 8rem;
+  }
 }

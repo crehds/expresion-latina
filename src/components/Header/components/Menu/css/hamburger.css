@@ -1,47 +1,32 @@
+/*
+ * In the flow of the bar, not fixed to the viewport. The old one was
+ * position: fixed and slid sideways with the panel, which meant any ancestor
+ * growing a transform would have taken it off-screen entirely.
+ */
 .hamburger {
-  position: fixed;
-  border-radius: 50%;
-  padding: 3px;
-  font-size: 25px;
-  right: 13px;
-  top: 25px;
-  z-index: 20;
-  transition: right 0.5s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  width: 4.4rem;
+  height: 4.4rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
   color: var(--text-primary);
-  animation-name: appearance;
-  animation-duration: 1s;
-  animation-iteration-count: 1;
-  animation-timing-function: steps(8, start);
+  cursor: pointer;
 }
 
-.hamburger--is-active {
-  right: 40vw;
+.hamburger:hover {
+  background: var(--surface-overlay);
 }
 
-@keyframes appearance {
-  0% {
-    opacity: 0;
-    transform: scale(0.2) rotate(360deg);
-  }
-  30% {
-    opacity: 1;
-    transform: scale(0.2) rotate(180deg);
-  }
-  70% {
-    opacity: 0.5;
-    transform: scale(0.8) rotate(360deg);
-  }
-  90% {
-    opacity: 0;
-    transform: scale(1.5) rotate(180deg);
-  }
-  100% {
-    opacity: 1 rotate(180deg);
-  }
+.hamburger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-@media (min-width: 768px) {
-  .hamburger {
-    font-size: 4rem;
-  }
+.hamburger i {
+  font-size: 2.6rem;
 }
