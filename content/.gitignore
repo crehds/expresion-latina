@@ -1,0 +1,5 @@
+# Working spreadsheets stay on the machine that edits them; the canonical
+# content lives in src/data/academy.json, which is generated from them.
+*.xlsx
+*.xls
+*.csv

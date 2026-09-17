@@ -252,7 +252,12 @@ function buildSchedule(rows, genresById, teachersById, errors) {
     });
   });
 
-  const timeSlots = [...slots.values()].sort((a, b) => a.start.localeCompare(b.start));
+  // Sorted on start and then end: this academy runs sixty and ninety minute
+  // classes from the same hour, so comparing start alone leaves those two in
+  // whatever order the spreadsheet rows happened to be in.
+  const timeSlots = [...slots.values()].sort(
+    (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end),
+  );
 
   return { timeSlots, sessions };
 }

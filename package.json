@@ -18,6 +18,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "test:data": "node --test scripts/data/__tests__/*.test.mjs",
+    "data:import": "node scripts/data/import.mjs",
+    "data:template": "node scripts/data/make-template.mjs",
     "screenshot": "node scripts/dev/screenshot.mjs",
     "eject": "react-scripts eject",
     "prepare": "husky install"

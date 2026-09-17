@@ -86,6 +86,24 @@ describe('buildAcademy', () => {
       assert.equal(academy.days.find((d) => d.name === 'Domingo').weekday, 0);
     });
 
+    // Two classes may start at the same hour and run different lengths, so
+    // the order must not depend on which row came first in the spreadsheet.
+    it('orders slots that share a start time by when they end', () => {
+      const rows = [
+        {
+          dia: 'Lunes', inicio: '19:00', fin: '20:30', genero: 'Salsa',
+        },
+        {
+          dia: 'Martes', inicio: '19:00', fin: '20:00', genero: 'Bachata',
+        },
+      ];
+      const ids = (order) => build({ horario: sheet(order) })
+        .academy.timeSlots.map((slot) => slot.id);
+
+      assert.deepEqual(ids(rows), ['t1900-2000', 't1900-2030']);
+      assert.deepEqual(ids([...rows].reverse()), ['t1900-2000', 't1900-2030']);
+    });
+
     it('derives time slots from the classes, sorted by start', () => {
       assert.deepEqual(academy.timeSlots.map((slot) => slot.id), ['t1900-2030', 't2000-2100']);
       assert.equal(academy.timeSlots[0].label, '19:00 - 20:30');
