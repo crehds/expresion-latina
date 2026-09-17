@@ -161,10 +161,11 @@ function readAchievements(cell) {
  * It is derived from the teacher rather than from the cell's value, so
  * importing the same workbook twice produces the same record and changing the
  * link replaces it instead of accumulating a second one. mergeVideos reads the
- * same function to decide what an import is entitled to delete, so the two
- * cannot drift apart.
+ * same function to decide what an import is entitled to delete, and so does
+ * the template generator when it pre-fills the cell, so the three cannot
+ * drift apart.
  */
-function teacherVideoId(teacherId) {
+export function teacherVideoId(teacherId) {
   return `video-${teacherId}`;
 }
 

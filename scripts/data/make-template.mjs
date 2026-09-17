@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 
 import ExcelJS from 'exceljs';
 
+import { teacherVideoId } from './build-academy.mjs';
+
 const SOURCE = resolve(new URL('../../src/data/academy.json', import.meta.url).pathname
   .replace(/^\/([A-Za-z]:)/, '$1'));
 
@@ -56,18 +58,28 @@ function restrict(sheet, column, values, lastRow) {
 /**
  * What the teacher's Video cell should already say.
  *
- * The template is pre-filled from the current academy.json so the academy
- * edits what is running rather than retyping it, and a teacher's video is no
- * different: it comes back as the link or filename it was imported from.
+ * Only the record the importer owns, looked up by the id it derives — never
+ * merely a video that names this teacher. A video added to academy.json by
+ * hand also names its teacher, and pre-filling the cell from it made the next
+ * import build a second, owned record carrying the same clip while the
+ * hand-added one survived, because it is not an id the import may delete. The
+ * profile then showed the same video twice, and one round trip through the
+ * template was all it took.
  */
-function videoOf(teacher, videosByTeacher) {
-  const video = videosByTeacher.get(teacher.id);
+function videoOf(teacher, ownedVideoById) {
+  const video = ownedVideoById.get(teacherVideoId(teacher.id));
 
   return video?.externalUrl ?? video?.assetKey ?? '';
 }
 
-export default async function makeTemplate(target) {
-  const academy = existsSync(SOURCE) ? JSON.parse(readFileSync(SOURCE, 'utf8')) : null;
+/**
+ * @param {string} target where to write the workbook
+ * @param {{source?: string}} options `source` is injected by the round-trip
+ *   test so it can generate a template from a fixture rather than from the
+ *   committed academy.json.
+ */
+export default async function makeTemplate(target, { source = SOURCE } = {}) {
+  const academy = existsSync(source) ? JSON.parse(readFileSync(source, 'utf8')) : null;
 
   const genres = academy?.genres ?? [];
   const teachers = academy?.teachers ?? [];
@@ -75,11 +87,8 @@ export default async function makeTemplate(target) {
   const dayById = new Map((academy?.days ?? []).map((day) => [day.id, day]));
   const genreById = new Map(genres.map((genre) => [genre.id, genre]));
   const teacherById = new Map(teachers.map((teacher) => [teacher.id, teacher]));
-  const videosByTeacher = new Map(
-    (academy?.videos ?? [])
-      .filter((video) => video.teacherId)
-      .map((video) => [video.teacherId, video]),
-  );
+  // Keyed by id, because the id is what ownership is defined by.
+  const ownedVideoById = new Map((academy?.videos ?? []).map((video) => [video.id, video]));
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Expresión Latina';
@@ -140,7 +149,7 @@ export default async function makeTemplate(target) {
       teacher.social?.facebook ?? '',
       teacher.social?.instagram ?? '',
       // A link, or the name of a file in src/assets/videos.
-      videoOf(teacher, videosByTeacher),
+      videoOf(teacher, ownedVideoById),
       // One per line, the year in brackets: Campeón Nacional (2023)
       (teacher.achievements ?? [])
         .map(({ title, year }) => (year ? `${title} (${year})` : title))
