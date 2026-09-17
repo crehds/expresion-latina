@@ -2,8 +2,7 @@ import PropTypes from 'prop-types';
 
 import '../css/dance-video.css';
 
-function DanceVideo(props) {
-  const { src, title } = props;
+function DanceVideo({ src, title = '' }) {
   return (
     <div className="dance-video">
       <div className="dance-video__container">
@@ -24,10 +23,6 @@ function DanceVideo(props) {
 DanceVideo.propTypes = {
   src: PropTypes.string.isRequired,
   title: PropTypes.string,
-};
-
-DanceVideo.defaultProps = {
-  title: '',
 };
 
 export default DanceVideo;

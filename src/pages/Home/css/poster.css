@@ -3,4 +3,23 @@
   height: 100%;
   padding: 0 2rem;
   justify-content: center;
+  align-items: center;
+}
+
+/*
+ * The posters are portrait, made for a phone. Left to fill the width of a
+ * desktop they became taller than the window, so the hero had to be scrolled
+ * to be seen. Bounding the height and containing the image keeps a whole
+ * poster on screen at any width.
+ */
+.poster__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+@media (min-width: 768px) {
+  .poster__img {
+    max-height: 70vh;
+  }
 }

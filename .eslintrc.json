@@ -93,6 +93,12 @@
       {
         "exceptions": ["Component"]
       }
+    ],
+    "react/require-default-props": [
+      "error",
+      {
+        "functions": "defaultArguments"
+      }
     ]
   }
 }
