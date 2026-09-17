@@ -1,0 +1,12 @@
+.day-agenda__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  list-style: none;
+}
+
+.day-agenda__empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--black-200);
+}

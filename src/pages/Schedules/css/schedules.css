@@ -18,51 +18,18 @@
   color: var(--black-300);
 }
 
-/*
- * A seven-day table cannot fit a phone. It scrolls inside its own container so
- * the page body never scrolls sideways. Phase 2 replaces this with a
- * day-at-a-time agenda on small screens.
- */
-.schedules__table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  border-collapse: collapse;
-  background: var(--white);
+/* The day agenda is a single column on a phone and must not stretch on a tablet. */
+.schedules .day-agenda {
+  width: 100%;
+  max-width: 32rem;
 }
 
-.schedules__table th,
-.schedules__table td {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--gray-200);
-  text-align: center;
-  vertical-align: top;
-}
+@media (min-width: 768px) {
+  .schedules {
+    padding: 1.5rem;
+  }
 
-.schedules__day {
-  white-space: nowrap;
-  color: var(--black-200);
-}
-
-.schedules__day--today {
-  background: var(--sky-blue-100);
-  color: var(--black-400);
-}
-
-.schedules__hour {
-  white-space: nowrap;
-  font-weight: 400;
-  color: var(--black-300);
-}
-
-.schedules__cell {
-  min-width: 6rem;
-}
-
-.schedules__class {
-  display: block;
-}
-
-.schedules__class + .schedules__class {
-  margin-top: 0.25rem;
+  .schedules .day-agenda {
+    max-width: none;
+  }
 }

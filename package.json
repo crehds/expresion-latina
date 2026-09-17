@@ -17,6 +17,7 @@
     "dev": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "screenshot": "node scripts/dev/screenshot.mjs",
     "eject": "react-scripts eject",
     "prepare": "husky install"
   },
@@ -43,6 +44,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "husky": "^8.0.2",
     "lint-staged": "^13.0.3",
+    "playwright": "^1.63.0",
     "prettier": "^3.9.6"
   }
 }

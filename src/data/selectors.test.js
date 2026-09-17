@@ -6,6 +6,7 @@ import schema from './academy.schema.json';
 import {
   buildWeekMatrix,
   createSelectors,
+  getActiveDays,
   getActiveTimeSlots,
   getSessionsForWeekday,
   hasPublishedSchedule,
@@ -67,6 +68,24 @@ describe('schedule selectors', () => {
 
     it('returns an empty list for a weekday the academy does not list at all', () => {
       expect(selectorsForFixture().getSessionsForWeekday(4)).toEqual([]);
+    });
+  });
+
+  describe('getActiveDays', () => {
+    it('omits days with no classes, so the week view has no empty columns', () => {
+      const names = selectorsForFixture().getActiveDays().map((day) => day.name);
+
+      expect(names).toEqual(['Lunes', 'Sábado']);
+    });
+
+    it('keeps display order', () => {
+      const weekdays = selectorsForFixture().getActiveDays().map((day) => day.weekday);
+
+      expect(weekdays).toEqual([1, 6]);
+    });
+
+    it('is empty when nothing is published', () => {
+      expect(selectorsForFixture({ ...fixture, sessions: [] }).getActiveDays()).toEqual([]);
     });
   });
 
@@ -140,6 +159,13 @@ describe('schedule selectors', () => {
     it('has no classes at the weekend', () => {
       expect(getSessionsForWeekday(6)).toEqual([]);
       expect(getSessionsForWeekday(0)).toEqual([]);
+    });
+
+    // The week view renders a column per active day, so adding a Saturday
+    // class later widens it without anyone configuring anything.
+    it('runs Monday to Friday', () => {
+      expect(getActiveDays().map((day) => day.name))
+        .toEqual(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']);
     });
 
     // The flyer runs a one-hour and a ninety-minute class from the same start
