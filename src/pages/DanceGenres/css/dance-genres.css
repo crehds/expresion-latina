@@ -1,8 +1,17 @@
 .dance-genres {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
+  /*
+   * Columns follow the width of the screen and rows are however many the
+   * genres need. This was a fixed 3x3, which fitted the nine genres that
+   * existed when it was written; the six added since dropped into implicit
+   * rows with no height and rendered as slivers.
+   */
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-auto-rows: minmax(9rem, auto);
   gap: 0.5rem;
+  width: 100%;
+  max-width: 120rem;
+  margin: 0 auto;
   text-align: center;
   padding: 1rem;
 }

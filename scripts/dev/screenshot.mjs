@@ -17,6 +17,10 @@ const outDir = process.argv[3] ?? 'screenshots';
 // lazy route actually mounted.
 const PAGE_ROOTS = '.home, .teachers, .dance-genres, .schedules, .reviews, .contact';
 
+const KNOWN_THIRD_PARTY_WARNINGS = [
+  /Support for defaultProps will be removed/,
+];
+
 const VIEWPORTS = [
   { name: 'mobile-360', width: 360, height: 780 },
   { name: 'desktop-1280', width: 1280, height: 900 },
@@ -35,7 +39,15 @@ const problems = [];
 for (const { name, width, height } of VIEWPORTS) {
   const page = await browser.newPage({ viewport: { width, height } });
 
-  page.on('console', (m) => { if (m.type() === 'error') problems.push(`${name}: ${m.text()}`); });
+  page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    // React logs deprecations through console.error. nuka-carousel 5 still
+    // uses defaultProps on a function component; the fix is its v8 major,
+    // not anything in this repository, and failing every run on it would
+    // teach us to stop reading the output.
+    if (KNOWN_THIRD_PARTY_WARNINGS.some((pattern) => pattern.test(m.text()))) return;
+    problems.push(`${name}: ${m.text()}`);
+  });
   page.on('pageerror', (e) => problems.push(`${name}: ${e.message}`));
 
   await page.goto(url, { waitUntil: 'networkidle' });

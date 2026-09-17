@@ -10,6 +10,7 @@ function TeachersControls(props) {
         <button
           type="button"
           className="teacher-control__button"
+          aria-label="Ver profesores anteriores"
           onClick={() => handleTeachersCarousel('left')}
         >
           <i className="icon-keyboard_arrow_left teacher-control__icon " />
@@ -19,6 +20,7 @@ function TeachersControls(props) {
         <button
           type="button"
           className="teacher-control__button"
+          aria-label="Ver más profesores"
           onClick={() => handleTeachersCarousel('right')}
         >
           <i

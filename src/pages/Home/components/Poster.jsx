@@ -4,9 +4,7 @@ import placeholder from '../../../assets/images/posters/Poster_Casting.jpg';
 
 import '../css/poster.css';
 
-function Poster(props) {
-  const { filename, url, priority } = props;
-
+function Poster({ filename, url, priority = false }) {
   // A remote poster whose file has gone missing would otherwise render as a
   // broken-image icon inside the carousel.
   const handleError = (event) => {
@@ -34,10 +32,6 @@ Poster.propTypes = {
   url: PropTypes.string.isRequired,
   // The first slide is visible immediately, so it must not be deferred.
   priority: PropTypes.bool,
-};
-
-Poster.defaultProps = {
-  priority: false,
 };
 
 export default Poster;

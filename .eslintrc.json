@@ -18,6 +18,14 @@
         "beforeAll": "readonly",
         "afterAll": "readonly",
         "vi": "readonly"
+      },
+      "rules": {
+        "import/no-extraneous-dependencies": [
+          "error",
+          {
+            "devDependencies": true
+          }
+        ]
       }
     },
     {
@@ -84,6 +92,12 @@
       "error",
       {
         "exceptions": ["Component"]
+      }
+    ],
+    "react/require-default-props": [
+      "error",
+      {
+        "functions": "defaultArguments"
       }
     ]
   }
