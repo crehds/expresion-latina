@@ -26,7 +26,7 @@ async function renderAt(path) {
 describe('App mounted the way it is deployed', () => {
   it('matches a route at the site root', async () => {
     render(
-      <BrowserRouter basename={process.env.PUBLIC_URL}>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <App />
       </BrowserRouter>,
     );

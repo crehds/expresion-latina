@@ -10,18 +10,18 @@
     "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.4.3",
-    "react-scripts": "^5.0.1"
+    "react-router-dom": "^6.4.3"
   },
   "scripts": {
-    "dev": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:data": "node --test scripts/data/__tests__/*.test.mjs",
     "data:import": "node scripts/data/import.mjs",
     "data:template": "node scripts/data/make-template.mjs",
     "screenshot": "node scripts/dev/screenshot.mjs",
-    "eject": "react-scripts eject",
     "prepare": "husky install"
   },
   "browserslist": {
@@ -37,6 +37,7 @@
     ]
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "eslint": "^8.27.0",
@@ -47,8 +48,11 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "exceljs": "^4.4.0",
     "husky": "^8.0.2",
+    "jsdom": "^30.1.0",
     "lint-staged": "^13.0.3",
     "playwright": "^1.63.0",
-    "prettier": "^3.9.6"
+    "prettier": "^3.9.6",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
   }
 }

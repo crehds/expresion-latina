@@ -1,4 +1,4 @@
-const API_URL = (process.env.REACT_APP_POSTERS_API_URL || '').trim();
+const API_URL = (import.meta.env.VITE_POSTERS_API_URL || '').trim();
 
 const DEFAULT_TIMEOUT_MS = 8000;
 

@@ -6,10 +6,10 @@ import Schedules from './Schedules';
 // jsdom implements no matchMedia at all, so the page would throw on construction.
 // This also lets each test pick the viewport it is about.
 function mockViewport(isWide) {
-  window.matchMedia = jest.fn().mockReturnValue({
+  window.matchMedia = vi.fn().mockReturnValue({
     matches: isWide,
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
   });
 }
 
@@ -17,11 +17,14 @@ function mockViewport(isWide) {
 const TUESDAY = new Date('2025-10-07T12:00:00');
 
 beforeEach(() => {
-  jest.useFakeTimers({ doNotFake: ['nextTick', 'setTimeout'] }).setSystemTime(TUESDAY);
+  // Only the clock is faked. Faking timers as well would hang userEvent,
+  // which waits on real ones.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(TUESDAY);
 });
 
 afterEach(() => {
-  jest.useRealTimers();
+  vi.useRealTimers();
 });
 
 describe('Schedules on a narrow screen', () => {
@@ -55,7 +58,7 @@ describe('Schedules on a narrow screen', () => {
   });
 
   it('swaps the list when another day is chosen', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const user = userEvent.setup();
     render(<Schedules />);
 
     await user.click(screen.getByRole('button', { name: 'Viernes' }));
