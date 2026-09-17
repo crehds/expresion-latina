@@ -110,8 +110,30 @@ function buildGenres(rows, errors, previousVideoIds) {
   return { genres, genresById: byName };
 }
 
+/**
+ * A video the Profesores sheet declares for one teacher.
+ *
+ * The id is derived from the teacher rather than from the value, so importing
+ * the same workbook twice produces the same record and changing the link
+ * replaces it instead of accumulating a second one. A value containing "://"
+ * is treated as a link; anything else is a filename in src/assets/videos.
+ */
+function buildTeacherVideo(teacherId, teacherName, value) {
+  const isLink = value.includes('://');
+
+  return {
+    id: `video-${teacherId}`,
+    title: teacherName,
+    genreId: null,
+    teacherId,
+    assetKey: isLink ? null : value,
+    externalUrl: isLink ? value : null,
+  };
+}
+
 function buildTeachers(rows, genresById, errors) {
   const teachers = [];
+  const videos = [];
   const byName = new Map();
 
   rows.forEach((row) => {
@@ -153,13 +175,21 @@ function buildTeachers(rows, genresById, errors) {
       genreIds,
       bio: readText(row.bio) ?? '',
       social,
+      videoIds: [],
     };
+
+    const videoValue = readText(row.video);
+    if (videoValue) {
+      const video = buildTeacherVideo(id, name, videoValue);
+      videos.push(video);
+      teacher.videoIds = [video.id];
+    }
 
     teachers.push(teacher);
     byName.set(id, { ...teacher, rowNumber: row.rowNumber });
   });
 
-  return { teachers, teachersById: byName };
+  return { teachers, teacherVideos: videos, teachersById: byName };
 }
 
 function buildStudio(rows, errors) {
@@ -275,6 +305,19 @@ function buildSchedule(rows, genresById, teachersById, errors) {
  *   videos, so an import must carry them across rather than delete them.
  * @returns {{academy: object|null, errors: object[]}}
  */
+/**
+ * The videos to keep: everything the previous file held, with the ones this
+ * import rebuilt taking the place of their older selves.
+ *
+ * Videos that no sheet describes — the studio trailer, a genre reel added by
+ * hand — survive untouched, which is the whole reason `previous` is passed in.
+ */
+function mergeVideos(previousVideos, rebuilt) {
+  const rebuiltIds = new Set(rebuilt.map((video) => video.id));
+
+  return [...previousVideos.filter((video) => !rebuiltIds.has(video.id)), ...rebuilt];
+}
+
 export default function buildAcademy(sheets, {
   sourceFileName = null,
   now = new Date(),
@@ -289,7 +332,11 @@ export default function buildAcademy(sheets, {
   );
 
   const { genres, genresById } = buildGenres(sheets.generos ?? [], errors, previousVideoIds);
-  const { teachers, teachersById } = buildTeachers(sheets.profesores ?? [], genresById, errors);
+  const { teachers, teacherVideos, teachersById } = buildTeachers(
+    sheets.profesores ?? [],
+    genresById,
+    errors,
+  );
   const studio = buildStudio(sheets.estudio ?? [], errors);
   const { timeSlots, sessions } = buildSchedule(
     sheets.horario ?? [],
@@ -310,7 +357,7 @@ export default function buildAcademy(sheets, {
       timeSlots,
       genres,
       teachers,
-      videos: previous?.videos ?? [],
+      videos: mergeVideos(previous?.videos ?? [], teacherVideos),
       sessions,
     },
     errors,

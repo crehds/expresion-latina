@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 
-import { Modal } from '../../../components';
-import { getGenreById } from '../../../data';
+import { Modal, VideoPlayer } from '../../../components';
+import { getGenreById, getVideosByTeacherId } from '../../../data';
 
 import '../css/teacher-modal.css';
 
@@ -22,6 +22,8 @@ function TeacherModal(props) {
   // buttons that linked nowhere.
   const socialLinks = Object.entries(teacher.social ?? {})
     .filter(([network, url]) => url && SOCIAL_ICONS[network]);
+
+  const teacherVideos = getVideosByTeacherId(teacher.id);
 
   return (
     <Modal>
@@ -69,6 +71,13 @@ function TeacherModal(props) {
           )}
           {teacher.bio && <p>{teacher.bio}</p>}
         </div>
+        {teacherVideos.length > 0 && (
+          <div className="teacher-modal__videos">
+            {teacherVideos.map((video) => (
+              <VideoPlayer key={video.id} src={video.src} title={video.title} />
+            ))}
+          </div>
+        )}
       </div>
     </Modal>
   );
@@ -77,6 +86,7 @@ function TeacherModal(props) {
 TeacherModal.propTypes = {
   showProfile: PropTypes.func.isRequired,
   teacher: PropTypes.shape({
+    id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
     image: PropTypes.string,
     initials: PropTypes.string,

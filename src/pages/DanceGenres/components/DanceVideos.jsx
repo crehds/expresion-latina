@@ -1,10 +1,10 @@
 import PropTypes from 'prop-types';
 
+import { VideoPlayer } from '../../../components';
 import { getGenreBySlug, getVideosByGenreId } from '../../../data';
 import withRouter from '../../../hocs/withRouter';
 
 import '../css/dance-videos.css';
-import DanceVideo from './DanceVideo';
 
 function DanceVideos(props) {
   const { params, navigate } = props;
@@ -30,7 +30,7 @@ function DanceVideos(props) {
       </div>
       <div className="dance-videos__container">
         {videos.map((video) => (
-          <DanceVideo key={video.id} src={video.src} title={video.title} />
+          <VideoPlayer key={video.id} src={video.src} title={video.title} />
         ))}
         {genre && videos.length === 0 && (
           <p className="text-sm dance-videos__empty">

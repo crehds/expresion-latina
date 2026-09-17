@@ -53,6 +53,19 @@ function restrict(sheet, column, values, lastRow) {
   }
 }
 
+/**
+ * What the teacher's Video cell should already say.
+ *
+ * The template is pre-filled from the current academy.json so the academy
+ * edits what is running rather than retyping it, and a teacher's video is no
+ * different: it comes back as the link or filename it was imported from.
+ */
+function videoOf(teacher, videosByTeacher) {
+  const video = videosByTeacher.get(teacher.id);
+
+  return video?.externalUrl ?? video?.assetKey ?? '';
+}
+
 export default async function makeTemplate(target) {
   const academy = existsSync(SOURCE) ? JSON.parse(readFileSync(SOURCE, 'utf8')) : null;
 
@@ -62,6 +75,11 @@ export default async function makeTemplate(target) {
   const dayById = new Map((academy?.days ?? []).map((day) => [day.id, day]));
   const genreById = new Map(genres.map((genre) => [genre.id, genre]));
   const teacherById = new Map(teachers.map((teacher) => [teacher.id, teacher]));
+  const videosByTeacher = new Map(
+    (academy?.videos ?? [])
+      .filter((video) => video.teacherId)
+      .map((video) => [video.teacherId, video]),
+  );
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Expresión Latina';
@@ -110,7 +128,7 @@ export default async function makeTemplate(target) {
   addSheet(
     workbook,
     'Profesores',
-    ['Nombre', 'NombreCorto', 'Generos', 'Imagen', 'Bio', 'Facebook', 'Instagram'],
+    ['Nombre', 'NombreCorto', 'Generos', 'Imagen', 'Bio', 'Facebook', 'Instagram', 'Video'],
     teachers.map((teacher) => [
       teacher.name,
       teacher.shortName ?? '',
@@ -119,11 +137,14 @@ export default async function makeTemplate(target) {
       teacher.bio ?? '',
       teacher.social?.facebook ?? '',
       teacher.social?.instagram ?? '',
+      // A link, or the name of a file in src/assets/videos.
+      videoOf(teacher, videosByTeacher),
     ]),
-    [24, 16, 28, 26, 40, 30, 30],
+    [24, 16, 28, 26, 40, 30, 30, 34],
   );
 
   const studio = academy?.studio ?? {};
+
   addSheet(
     workbook,
     'Estudio',

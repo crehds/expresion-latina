@@ -121,3 +121,19 @@ export function getVideosByGenreId(genreId) {
 
   return [...new Set([...listed, ...claimed])];
 }
+
+/**
+ * Videos tied to one teacher, by the same two routes a genre uses: the video
+ * naming the teacher, or the teacher listing the video.
+ *
+ * Two routes rather than one because the two sides are filled by different
+ * people — the spreadsheet names a teacher's video on their own row, while a
+ * video added by hand to academy.json is easier to point at its owner.
+ */
+export function getVideosByTeacherId(teacherId) {
+  const teacher = getTeacherById(teacherId);
+  const listed = (teacher?.videoIds ?? []).map(getVideoById).filter(Boolean);
+  const claimed = videos.filter((video) => video.teacherId === teacherId);
+
+  return [...new Set([...listed, ...claimed])];
+}

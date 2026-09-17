@@ -338,3 +338,75 @@ describe('buildAcademy', () => {
     });
   });
 });
+
+describe('a teacher with a video', () => {
+  const HORARIO = sheet([
+    {
+      dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+    },
+  ]);
+
+  function buildWithVideo(video, previous) {
+    return build(
+      {
+        horario: HORARIO,
+        profesores: sheet([
+          { nombre: 'Mishel Fernández', generos: 'Salsa', video },
+        ]),
+      },
+      { previous },
+    );
+  }
+
+  it('reads a link as an external url', () => {
+    const { academy } = buildWithVideo('https://youtu.be/abc123');
+    const [video] = academy.videos;
+
+    assert.equal(video.externalUrl, 'https://youtu.be/abc123');
+    assert.equal(video.assetKey, null);
+    assert.equal(video.teacherId, 'mishel-fernandez');
+  });
+
+  it('reads anything else as a bundled filename', () => {
+    const { academy } = buildWithVideo('mishel_salsa.mp4');
+    const [video] = academy.videos;
+
+    assert.equal(video.assetKey, 'mishel_salsa.mp4');
+    assert.equal(video.externalUrl, null);
+  });
+
+  it('points the teacher at it', () => {
+    const { academy } = buildWithVideo('mishel_salsa.mp4');
+
+    assert.deepEqual(academy.teachers[0].videoIds, ['video-mishel-fernandez']);
+  });
+
+  // Importing the same workbook twice must not grow the file.
+  it('replaces its own previous record rather than adding a second', () => {
+    const first = buildWithVideo('old.mp4').academy;
+    const second = buildWithVideo('new.mp4', first).academy;
+
+    assert.equal(second.videos.length, 1);
+    assert.equal(second.videos[0].assetKey, 'new.mp4');
+  });
+
+  // The spreadsheet has no column for these, so only carrying them across
+  // keeps them alive.
+  it('keeps videos no sheet describes', () => {
+    const previous = {
+      videos: [{
+        id: 'como-llegar', title: 'Cómo llegar', genreId: null, assetKey: 'como_llegar.mp4', externalUrl: null,
+      }],
+    };
+    const { academy } = buildWithVideo('mishel_salsa.mp4', previous);
+
+    assert.deepEqual(academy.videos.map((video) => video.id), ['como-llegar', 'video-mishel-fernandez']);
+  });
+
+  it('leaves a teacher with no video alone', () => {
+    const { academy } = buildWithVideo(undefined);
+
+    assert.deepEqual(academy.videos, []);
+    assert.deepEqual(academy.teachers[0].videoIds, []);
+  });
+});
