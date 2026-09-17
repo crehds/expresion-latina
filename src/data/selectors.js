@@ -63,6 +63,23 @@ export function createSelectors(data) {
   }
 
   /**
+   * Teachers with at least one class in the published schedule.
+   *
+   * Who currently teaches is answered by the schedule itself, so nobody has to
+   * keep a second list in step: a teacher who stops appearing stops being
+   * current, on the next import, with no edit anywhere.
+   *
+   * @returns {Set<string>}
+   */
+  function getActiveTeacherIds() {
+    return new Set(
+      allEnriched()
+        .map((session) => session.teacher?.id)
+        .filter(Boolean),
+    );
+  }
+
+  /**
    * Days that hold at least one class, in display order.
    *
    * The academy currently teaches Monday to Friday, so the week view shows
@@ -110,6 +127,7 @@ export function createSelectors(data) {
 
   return {
     getSessionsForWeekday,
+    getActiveTeacherIds,
     getActiveDays,
     getActiveTimeSlots,
     buildWeekMatrix,
@@ -121,6 +139,7 @@ const selectors = createSelectors(academy);
 
 export const {
   getSessionsForWeekday,
+  getActiveTeacherIds,
   getActiveDays,
   getActiveTimeSlots,
   buildWeekMatrix,

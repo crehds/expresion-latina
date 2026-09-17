@@ -1,6 +1,7 @@
 import { Component } from 'react';
 
 import { teachers } from '../../data';
+import { getActiveTeacherIds } from '../../data/selectors';
 import { TeacherModal, TeachersCarousel, TeachersGrid } from './components';
 
 import './css/teachers.css';
@@ -49,7 +50,13 @@ class Teachers extends Component {
     return (
       <div className="teachers">
         {isWide
-          ? <TeachersGrid teachers={teachers} showProfile={this.showProfile} />
+          ? (
+            <TeachersGrid
+              teachers={teachers}
+              activeIds={getActiveTeacherIds()}
+              showProfile={this.showProfile}
+            />
+          )
           : <TeachersCarousel teachers={teachers} showProfile={this.showProfile} />}
 
         {modalIsOpen && (
