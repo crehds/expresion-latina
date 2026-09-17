@@ -21,6 +21,12 @@
 }
 
 .map__direction {
+  /*
+   * Street on one line, city and country on the next. Left inline, the two
+   * spans ran together and read "Los OlivosLima - Perú".
+   */
+  display: flex;
+  flex-direction: column;
   padding-top: 0.8rem;
   text-align: center;
   color: var(--black-200);
