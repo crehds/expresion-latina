@@ -414,6 +414,25 @@ describe('a teacher with a video', () => {
     assert.deepEqual(second.teachers[0].videoIds, []);
   });
 
+  // Ownership is by id, not by "names a teacher". A second video attached to
+  // someone by hand is not something any row can rebuild, so deleting it for
+  // want of a row would destroy hand-curated content on every import.
+  it('keeps a second video attached to that teacher by hand', () => {
+    const previous = {
+      videos: [{
+        id: 'mishel-showcase',
+        title: 'Showcase 2025',
+        genreId: null,
+        teacherId: 'mishel-fernandez',
+        assetKey: 'showcase.mp4',
+        externalUrl: null,
+      }],
+    };
+    const { academy } = buildWithVideo(undefined, previous);
+
+    assert.deepEqual(academy.videos.map((video) => video.id), ['mishel-showcase']);
+  });
+
   it('leaves a teacher with no video alone', () => {
     const { academy } = buildWithVideo(undefined);
 

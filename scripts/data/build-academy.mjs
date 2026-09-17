@@ -111,18 +111,27 @@ function buildGenres(rows, errors, previousVideoIds) {
 }
 
 /**
- * A video the Profesores sheet declares for one teacher.
+ * The one video id this importer owns for a teacher.
  *
- * The id is derived from the teacher rather than from the value, so importing
- * the same workbook twice produces the same record and changing the link
- * replaces it instead of accumulating a second one. A value containing "://"
- * is treated as a link; anything else is a filename in src/assets/videos.
+ * It is derived from the teacher rather than from the cell's value, so
+ * importing the same workbook twice produces the same record and changing the
+ * link replaces it instead of accumulating a second one. mergeVideos reads the
+ * same function to decide what an import is entitled to delete, so the two
+ * cannot drift apart.
+ */
+function teacherVideoId(teacherId) {
+  return `video-${teacherId}`;
+}
+
+/**
+ * A video the Profesores sheet declares for one teacher. A value containing
+ * "://" is treated as a link; anything else is a filename in src/assets/videos.
  */
 function buildTeacherVideo(teacherId, teacherName, value) {
   const isLink = value.includes('://');
 
   return {
-    id: `video-${teacherId}`,
+    id: teacherVideoId(teacherId),
     title: teacherName,
     genreId: null,
     teacherId,
@@ -312,20 +321,23 @@ function buildSchedule(rows, genresById, teachersById, errors) {
  * Videos that no sheet describes — the studio trailer, a genre reel added by
  * hand — survive untouched, which is the whole reason `previous` is passed in.
  */
-function mergeVideos(previousVideos, rebuilt) {
+function mergeVideos(previousVideos, rebuilt, teachers) {
   const rebuiltIds = new Set(rebuilt.map((video) => video.id));
 
-  const kept = previousVideos.filter((video) => {
-    if (rebuiltIds.has(video.id)) return false;
+  /*
+   * The ids this import is entitled to write: exactly one per teacher in the
+   * sheet. Ownership is by id, not by "names a teacher" — a second video
+   * attached to someone by hand also carries a teacherId, and deleting it
+   * because no row rebuilt it would destroy hand-curated content on the next
+   * data:import with no way back.
+   */
+  const ownedIds = new Set(teachers.map((teacher) => teacherVideoId(teacher.id)));
 
-    // A video that names a teacher is owned by the Profesores sheet, so
-    // clearing that teacher's Video cell has to delete it. Keeping it on the
-    // grounds that no row rebuilt it is what "carry the rest across" would
-    // otherwise mean, and the orphan kept showing on the profile: the record
-    // still carries teacherId, which is one of the two routes the site
-    // resolves a teacher's videos by, so emptying videoIds hid nothing.
-    return !video.teacherId;
-  });
+  // An owned id the sheet no longer fills was cleared, so it goes. Everything
+  // else survives, which is what "records no sheet describes" means.
+  const kept = previousVideos.filter(
+    (video) => !ownedIds.has(video.id) && !rebuiltIds.has(video.id),
+  );
 
   return [...kept, ...rebuilt];
 }
@@ -369,7 +381,7 @@ export default function buildAcademy(sheets, {
       timeSlots,
       genres,
       teachers,
-      videos: mergeVideos(previous?.videos ?? [], teacherVideos),
+      videos: mergeVideos(previous?.videos ?? [], teacherVideos, teachers),
       sessions,
     },
     errors,
