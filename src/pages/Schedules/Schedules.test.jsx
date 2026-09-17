@@ -1,7 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 
 import Schedules from './Schedules';
+
+// Session cards link to a teacher's profile, so the page needs a router even
+// though nothing in these tests navigates.
+const renderSchedules = () => render(<Schedules />, { wrapper: MemoryRouter });
 
 // jsdom implements no matchMedia at all, so the page would throw on construction.
 // This also lets each test pick the viewport it is about.
@@ -31,7 +36,7 @@ describe('Schedules on a narrow screen', () => {
   beforeEach(() => mockViewport(false));
 
   it('offers only the days the academy teaches', () => {
-    render(<Schedules />);
+    renderSchedules();
 
     ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].forEach((day) => {
       expect(screen.getByRole('button', { name: day })).toBeInTheDocument();
@@ -41,14 +46,14 @@ describe('Schedules on a narrow screen', () => {
   });
 
   it('starts on today', () => {
-    render(<Schedules />);
+    renderSchedules();
 
     expect(screen.getByRole('button', { name: 'Martes' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Lunes' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it("shows today's classes, earliest first", () => {
-    render(<Schedules />);
+    renderSchedules();
 
     const times = screen.getAllByRole('article').map((card) => card.textContent);
 
@@ -59,7 +64,7 @@ describe('Schedules on a narrow screen', () => {
 
   it('swaps the list when another day is chosen', async () => {
     const user = userEvent.setup();
-    render(<Schedules />);
+    renderSchedules();
 
     await user.click(screen.getByRole('button', { name: 'Viernes' }));
 
@@ -69,7 +74,7 @@ describe('Schedules on a narrow screen', () => {
   });
 
   it('shows one day at a time, not the whole week', () => {
-    render(<Schedules />);
+    renderSchedules();
 
     expect(screen.queryByText('Reggaeton')).not.toBeInTheDocument();
   });
@@ -79,7 +84,7 @@ describe('Schedules on a wide screen', () => {
   beforeEach(() => mockViewport(true));
 
   it('shows every teaching day as its own column', () => {
-    render(<Schedules />);
+    renderSchedules();
 
     ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].forEach((day) => {
       expect(screen.getByRole('heading', { name: new RegExp(`^${day}`) })).toBeInTheDocument();
@@ -87,14 +92,14 @@ describe('Schedules on a wide screen', () => {
   });
 
   it('shows the whole week at once', () => {
-    render(<Schedules />);
+    renderSchedules();
 
     expect(screen.getByText('Reggaeton')).toBeInTheDocument();
     expect(screen.getAllByText('Bachata')).toHaveLength(2);
   });
 
   it('offers no day picker', () => {
-    render(<Schedules />);
+    renderSchedules();
 
     expect(screen.queryByRole('group', { name: 'Elegir día' })).not.toBeInTheDocument();
   });
@@ -102,11 +107,24 @@ describe('Schedules on a wide screen', () => {
   // The flyer's two ninety-minute Monday classes and its lone Friday morning
   // class are exactly what a shared-row grid could not hold.
   it('keeps each day independent of the others', () => {
-    render(<Schedules />);
+    renderSchedules();
 
     const friday = screen.getByRole('region', { name: 'Viernes' });
 
     expect(friday).toHaveTextContent('10:00');
     expect(friday).toHaveTextContent('Heels');
+  });
+});
+
+// The reason the schedule and the faculty share a data model: reading one
+// should take you to the other.
+describe('a class with a teacher', () => {
+  it('links the name to that teacher profile', () => {
+    mockViewport(false);
+    renderSchedules();
+
+    const [link] = screen.getAllByRole('link');
+
+    expect(link.getAttribute('href')).toMatch(/^\/teachers\/[a-z-]+$/);
   });
 });

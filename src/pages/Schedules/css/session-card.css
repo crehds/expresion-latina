@@ -22,6 +22,24 @@
   color: var(--text-secondary);
 }
 
+/*
+ * The teacher's name is a link to their profile, and it has to read as one
+ * without turning the line into a strip of colour: the underline carries the
+ * affordance, the accent is kept for the hover.
+ */
+.session-card__teacher {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--surface-border);
+  text-underline-offset: 0.3rem;
+}
+
+.session-card__teacher:hover,
+.session-card__teacher:focus-visible {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
 /* accent-alt keeps the note badge visually distinct from the accent border strip. */
 .session-card__note {
   align-self: flex-start;
