@@ -1,0 +1,52 @@
+/*
+ * The academy's palette, sampled from its own October flyer rather than
+ * invented: the deep violets are a third of that image and the card fills are
+ * measured from the class blocks on it. The site had been sky-blue and
+ * mustard, which is not what its students recognise.
+ *
+ * Components should reach for the semantic names at the bottom, not the raw
+ * ramp, so a future change of brand is one edit here.
+ */
+:root {
+  /* Violet ramp — the surface colours. */
+  --violet-950: #0d0322;
+  --violet-900: #130534;
+  --violet-800: #1c0a4a;
+  --violet-700: #281063;
+  --violet-600: #35187d;
+  --violet-500: #4c3384;
+  --violet-400: #6b4fae;
+
+  /* Accents, from the class cards on the flyer. */
+  --accent-violet: #9553d6;
+  --accent-blue: #2d82d9;
+  --accent-magenta: #9416d5;
+  --accent-bright: #7a1fd0;
+
+  --neutral-0: #ffffff;
+  --neutral-100: #ece9f2;
+  --neutral-300: #b3adc2;
+  --neutral-500: #8a8394;
+  --neutral-700: #4a4458;
+
+  /* Semantic roles. */
+  --surface-page: var(--violet-900);
+  --surface-raised: var(--violet-800);
+  --surface-sunken: var(--violet-950);
+  --surface-border: rgba(255, 255, 255, 0.1);
+
+  --text-primary: var(--neutral-0);
+  --text-secondary: var(--neutral-300);
+  --text-muted: var(--neutral-500);
+  --text-on-accent: var(--neutral-0);
+
+  --accent: var(--accent-violet);
+  --accent-strong: var(--accent-bright);
+  --accent-alt: var(--accent-blue);
+
+  --radius-sm: 0.6rem;
+  --radius-md: 1rem;
+  --radius-pill: 999px;
+
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4);
+}

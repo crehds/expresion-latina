@@ -16,21 +16,21 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: var(--text-muted);
   border-radius: 4px;
 }
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 4px;
 }
 ::-webkit-scrollbar:hover {
-  background: #b3b3b3;
+  background: var(--text-secondary);
   box-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.2);
 }
 ::-webkit-scrollbar:hover:active {
-  background: #999;
+  background: var(--accent-strong);
 }
 
 /* Visible to screen readers only. */

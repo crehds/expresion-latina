@@ -1,7 +1,7 @@
 .App {
-  background-color: rgba(225, 225, 225, 0.8);
+  background-color: var(--surface-page);
+  color: var(--text-primary);
   min-height: 100vh;
-  color: black;
   display: grid;
   /*
    * Header and footer take the height they need; the page takes what is left

@@ -6,25 +6,36 @@
   text-align: center;
 }
 
+/*
+ * These are tabs. A button with no background declared falls back to the
+ * browser's light grey, which is where the two pale slabs on the dark page
+ * came from.
+ */
 .contact__option {
-  color: var(--gray-100);
-  border-top-right-radius: 0.5rem;
-  border-top-left-radius: 0.5rem;
-  transition: 1s;
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-border);
+  border-bottom: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-top-right-radius: var(--radius-sm);
+  border-top-left-radius: var(--radius-sm);
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
-.contact__option:nth-child(1):hover {
-  background-image: radial-gradient(
-    circle farthest-corner at 12.3% 19.3%,
-    rgba(85, 88, 218, 1) 0%,
-    rgba(95, 209, 249, 1) 100.2%
-  );
+/*
+ * Which tab is open is already in the DOM as aria-pressed, so it is read from
+ * there rather than duplicated into a class the component has to remember to
+ * set. Both tabs share one treatment: they are the same control, and giving
+ * them different colours would say they are not.
+ */
+.contact__option[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--text-on-accent);
 }
 
-.contact__option:nth-child(2):hover {
-  background-image: radial-gradient(
-    circle farthest-corner at 12.3% 19.3%,
-    rgba(95, 209, 249, 1) 0%,
-    rgba(85, 88, 218, 1) 100.2%
-  );
+.contact__option:hover,
+.contact__option:focus-visible {
+  color: var(--text-primary);
 }

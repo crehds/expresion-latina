@@ -3,10 +3,10 @@
   height: 45rem;
   display: grid;
   grid-template-rows: 1fr 8fr minmax(5%, 15%);
-  background-color: var(--gray-200);
+  background-color: var(--surface-raised);
   border-radius: 1rem;
-  color: var(--white);
-  box-shadow: 0 0 0.5rem 1rem rgba(85, 80, 218, 0.5);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-raised);
 }
 
 .teacher-modal__header {
@@ -32,16 +32,16 @@
 }
 
 .teacher-modal__button-close:hover {
-  background-color: var(--sky-blue-100);
+  background-color: var(--accent-strong);
 }
 
 .teacher-modal__button-close:hover > .teacher-modal__icon-close {
-  color: var(--white);
+  color: var(--text-on-accent);
 }
 
 .teacher-modal__icon-close {
   font-size: 2rem;
-  color: var(--black-100);
+  color: var(--text-primary);
 }
 
 .teacher-modal__presentation {
@@ -72,11 +72,11 @@
 
 .teacher-modal__social-media-icon {
   font-size: 3rem;
-  color: var(--gray-400);
+  color: var(--text-secondary);
 }
 
 .teacher-modal__social-media-button:hover > .teacher-modal__social-media-icon {
-  color: var(--sky-blue-300);
+  color: var(--accent-strong);
 }
 
 .teacher-modal__description {
@@ -111,12 +111,8 @@
   width: 100%;
   min-height: 12rem;
   border-radius: 0.5rem;
-  background: linear-gradient(
-    110.3deg,
-    rgba(72, 85, 99, 1) 8.8%,
-    rgba(127, 146, 166, 1) 95.1%
-  );
-  color: var(--white);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
   font-size: 3rem;
   letter-spacing: 0.1em;
 }

@@ -11,4 +11,6 @@
   padding: 0.5rem;
   font-size: calc(10px + 2vmin);
   position: relative;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
 }

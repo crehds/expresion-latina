@@ -1,5 +1,10 @@
 .menu {
-  background-color: rgba(7, 11, 19, 0.85);
+  /*
+   * --violet-950 at 96%: the page shows through just enough to read as a panel
+   * over it, while the nav labels still clear their contrast ratio.
+   */
+  background-color: rgba(13, 3, 34, 0.96);
+  border-left: 1px solid var(--surface-border);
   position: fixed;
   z-index: 3;
   padding: 0;

@@ -9,7 +9,7 @@
    */
   grid-template-columns: minmax(0, 1fr);
   row-gap: 1rem;
-  color: black;
+  color: var(--text-primary);
   padding: 1.6rem;
   height: 100%;
 }
@@ -31,16 +31,7 @@
   text-align-last: center;
   margin: auto 0;
   font-style: italic;
-  background-image: linear-gradient(
-    to right,
-    rgb(55, 65, 77) 20%,
-    rgba(72, 85, 99, 1) 40%,
-    var(--gray-400) 60%,
-    var(--gray-400) 80%
-  );
-  background-size: 200% auto;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
 }
 
 .review__random-user {

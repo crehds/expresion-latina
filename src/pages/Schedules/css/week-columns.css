@@ -22,9 +22,10 @@
   border-radius: 0.5rem;
 }
 
+/* Subtle raised tint plus an accent ring — no token expresses this translucency. */
 .week-columns__day--today {
-  background: rgba(255, 255, 255, 0.75);
-  box-shadow: inset 0 0 0 2px var(--sky-blue-300);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .week-columns__heading {
@@ -32,13 +33,13 @@
   align-items: baseline;
   justify-content: center;
   gap: 0.4rem;
-  color: var(--black-400);
+  color: var(--text-primary);
 }
 
 .week-columns__today {
   padding: 0.05rem 0.45rem;
   border-radius: 1rem;
-  background: var(--sky-blue-400);
-  color: var(--white);
+  background: var(--accent);
+  color: var(--text-on-accent);
   text-transform: lowercase;
 }

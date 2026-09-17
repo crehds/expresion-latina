@@ -2,7 +2,7 @@
   display: grid;
   grid-template-rows: 4rem auto;
   height: 100%;
-  border-bottom: 1px groove rgba(127, 146, 166, 1);
+  border-bottom: 1px solid var(--surface-border);
 }
 
 .dance-videos__container {
@@ -14,8 +14,8 @@
 }
 
 .dance-videos__title {
-  border-top: 2px outset var(--sky-blue-300);
-  border-bottom: 2px inset var(--sky-blue-300);
+  border-top: 1px solid var(--surface-border);
+  border-bottom: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   position: relative;
@@ -28,16 +28,16 @@
   font-size: 1.5rem;
   display: flex;
   position: absolute;
-  color: var(--gray-100);
+  color: var(--text-secondary);
 }
 
 .dance-videos__heading {
   margin: auto;
-  color: var(--mustard-300);
+  color: var(--text-primary);
 }
 
 .dance-videos__back:hover {
-  color: var(--bronze);
+  color: var(--accent-strong);
 }
 
 @media (min-width: 768px) {

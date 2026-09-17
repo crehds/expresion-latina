@@ -5,6 +5,7 @@ import { Footer, Header } from './components';
 import Loader from './components/Loader/Loader';
 
 import './styles/reset.css';
+import './styles/brand.css';
 import './styles/colors.css';
 import './styles/typography.css';
 import './styles/utils.css';
