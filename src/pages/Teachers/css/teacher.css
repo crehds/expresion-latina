@@ -1,4 +1,11 @@
 .teacher {
+  /*
+   * A column, so the name has somewhere to be. The image used to take
+   * height: 100% of the card and push the name past the bottom edge, where
+   * the carousel clipped it — the top row of every page was unnamed.
+   */
+  display: flex;
+  flex-direction: column;
   border-radius: 0.5rem;
   border-left: 2px inset rgba(140, 140, 140, 0.8);
   border-top: 2px inset rgba(140, 140, 140, 0.8);
@@ -13,7 +20,12 @@
 
 .teacher__image {
   width: 100%;
-  height: 100%;
+  /* Takes the space the name does not, instead of all of it. */
+  flex: 1;
+  min-height: 0;
+  /* These are promotional posters carrying text, not portraits: cropping
+     them cuts the class name and the contact line off the edge. */
+  object-fit: contain;
   border-radius: inherit;
 }
 
@@ -23,6 +35,8 @@
 
 /* Shown instead of a photo when the academy has none of this teacher yet. */
 .teacher__placeholder {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;

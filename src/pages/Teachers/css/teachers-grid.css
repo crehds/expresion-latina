@@ -1,0 +1,32 @@
+/*
+ * Cards size themselves to the screen rather than the screen being paged to
+ * fit four cards: at 1280 this shows the whole faculty in one view, and it
+ * adds columns rather than cards as the window grows.
+ */
+.teachers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1.2rem;
+  width: 100%;
+  max-width: 120rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  list-style: none;
+}
+
+/* The carousel gives its cards a fixed 25rem minimum; here they flex. */
+.teachers-grid .teacher {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+}
+
+.teachers-grid .teacher__image,
+.teachers-grid .teacher__placeholder {
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+.teachers-grid .teacher__placeholder {
+  font-size: 3rem;
+}
