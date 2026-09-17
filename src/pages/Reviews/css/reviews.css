@@ -1,6 +1,13 @@
 .reviews {
   display: grid;
   grid-template-rows: 1fr 1fr;
+  /*
+   * Without this the single column is auto-sized, so it grows to the
+   * textarea's own cols="30" width and the quote runs off the side of a
+   * phone. minmax(0, …) lets the column be narrower than its content, which
+   * is what makes the width: 100% on .review mean anything.
+   */
+  grid-template-columns: minmax(0, 1fr);
   row-gap: 1rem;
   color: black;
   padding: 1.6rem;
@@ -11,6 +18,15 @@
   border: none;
   background-color: transparent;
   white-space: normal;
+  /*
+   * A textarea takes its width from its cols attribute, not from its
+   * container, so at cols="30" it stayed wider than a phone and its text ran
+   * off the edge. Resizing is disabled because this is a quote being read,
+   * not a field being filled in.
+   */
+  width: 100%;
+  max-width: 100%;
+  resize: none;
   text-align: justify;
   text-align-last: center;
   margin: auto 0;

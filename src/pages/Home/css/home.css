@@ -1,6 +1,13 @@
 .home {
   display: flex;
   padding: 0.8rem 0;
+  /*
+   * The carousel sizes its own track wider than the page — 600px inside a
+   * 360px phone — and paginates within it. Left visible, that width became
+   * document width and every page could be dragged sideways. It is clipped
+   * here, at the page that owns the carousel.
+   */
+  overflow-x: hidden;
 }
 
 .home__arrow {

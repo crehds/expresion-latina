@@ -14,4 +14,12 @@
    * last class.
    */
   grid-template-rows: auto 1fr auto;
+  /*
+   * An undeclared grid track is auto-sized, which means it grows to the widest
+   * item in it. The home carousel pushed that track to 600px on a 360px phone
+   * and every row stretched with it, so the whole site could be scrolled
+   * sideways. minmax(0, …) lets the track be narrower than its content and
+   * leaves the overflow where it belongs, inside the page that causes it.
+   */
+  grid-template-columns: minmax(0, 1fr);
 }

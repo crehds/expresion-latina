@@ -2,7 +2,7 @@
  * Callbacks passed to page.evaluate are serialised and run inside the
  * browser, not in Node, so document is defined where they execute.
  */
-/* global document */
+/* global document, getComputedStyle */
 // Drives the running dev server in a real browser and captures the viewports
 // that matter. Jest renders through jsdom, which has no layout engine at all,
 // so nothing there can tell us whether a grid or a chip row actually looks right.
@@ -61,7 +61,23 @@ for (const { name, width, height } of VIEWPORTS) {
       return element ? Math.round(element.getBoundingClientRect().top) : null;
     };
 
+    // Naming what sticks out turns "the page scrolls sideways" into something
+    // that can be fixed without hunting through the DOM by hand.
+    const limit = document.documentElement.clientWidth;
+    const overflowing = [...document.querySelectorAll('body *')]
+      .map((element) => ({ element, box: element.getBoundingClientRect() }))
+      // Fixed elements anchor to the visual viewport, so once anything else
+      // has widened the page they all appear to stick out. Reporting them
+      // buries the element that actually caused it.
+      .filter(({ element }) => getComputedStyle(element).position !== 'fixed')
+      .filter(({ box }) => box.width > 0 && (box.right > limit + 1 || box.left < -1))
+      .map(({ element, box }) => `${element.tagName.toLowerCase()}`
+        + `${element.className && typeof element.className === 'string' ? `.${element.className.trim().split(/\s+/).join('.')}` : ''}`
+        + ` (${Math.round(box.left)}..${Math.round(box.right)} of ${limit})`)
+      .slice(0, 4);
+
     return {
+      overflowing,
       scrollsSideways: document.documentElement.scrollWidth
         > document.documentElement.clientWidth,
       contentBottom: bottomOf('.week-columns') ?? bottomOf('.day-agenda')
@@ -90,7 +106,12 @@ for (const { name, width, height } of VIEWPORTS) {
     + `sideways=${scrollsSideways}  -> ${file}`,
   );
 
-  if (scrollsSideways) problems.push(`${name}: the page body scrolls horizontally`);
+  if (scrollsSideways) {
+    const culprits = layout.overflowing.length
+      ? layout.overflowing.join('; ')
+      : 'no element found past the viewport edge';
+    problems.push(`${name}: the page body scrolls horizontally — ${culprits}`);
+  }
 
   // A measurement that could not be taken is a failure, not a pass. Comparing
   // null with `>` is false, so without this branch an unmeasurable page —
