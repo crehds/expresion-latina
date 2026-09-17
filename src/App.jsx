@@ -26,6 +26,7 @@ export default function App() {
         <Routes>
           <Route index element={<Home />} />
           <Route path="/teachers" element={<Teachers />} />
+          <Route path="/teachers/:teacherId" element={<Teachers />} />
           <Route path="/dances/*" element={<DanceGenres />} />
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/reviews" element={<Reviews />} />
