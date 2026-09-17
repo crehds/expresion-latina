@@ -1,0 +1,58 @@
+.today-strip {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 3.2rem 1.6rem;
+}
+
+.today-strip__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 1.6rem;
+}
+
+.today-strip__heading {
+  color: var(--text-primary);
+}
+
+.today-strip__link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.today-strip__link:hover,
+.today-strip__link:focus-visible {
+  text-decoration: underline;
+}
+
+/*
+ * One column on a phone and two from the tablet breakpoint: four classes is
+ * a long scroll in a single column on a desktop, and a card needs roughly
+ * 28rem before the teacher line wraps.
+ */
+.today-strip__list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.today-strip__more {
+  margin: 1.2rem 0 0;
+  color: var(--text-secondary);
+}
+
+@media (min-width: 768px) {
+  .today-strip {
+    max-width: 96rem;
+    padding: 4.8rem 3.2rem;
+  }
+
+  .today-strip__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,104 @@
+.hero {
+  padding: 4rem 1.6rem 3.2rem;
+  /*
+   * The only gradient kept anywhere: a single wash that lifts the top of the
+   * page off the flat page colour, so the hero reads as a band without a
+   * border. Two stops, both from the brand ramp — not decoration.
+   */
+  background: linear-gradient(
+    160deg,
+    var(--violet-700) 0%,
+    var(--surface-page) 70%
+  );
+}
+
+.hero__content {
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.hero__eyebrow {
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero__title {
+  margin: 0.8rem 0 1.2rem;
+  color: var(--text-primary);
+}
+
+.hero__tagline {
+  margin: 0;
+  max-width: 48rem;
+  color: var(--text-secondary);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin-top: 2.4rem;
+}
+
+.hero__cta {
+  /*
+   * 4.4rem is the minimum comfortable touch target; the horizontal padding is
+   * what makes these read as buttons rather than links on a phone.
+   */
+  display: inline-flex;
+  align-items: center;
+  min-height: 4.4rem;
+  padding: 0 2rem;
+  border-radius: var(--radius-pill);
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hero__cta--primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.hero__cta--primary:hover,
+.hero__cta--primary:focus-visible {
+  background: var(--accent-strong);
+}
+
+.hero__cta--secondary {
+  border: 1px solid var(--surface-border);
+  color: var(--text-primary);
+}
+
+.hero__cta--secondary:hover,
+.hero__cta--secondary:focus-visible {
+  border-color: var(--accent);
+}
+
+.hero__genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin: 2.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero__genre {
+  padding: 0.4rem 1.2rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+}
+
+@media (min-width: 768px) {
+  .hero {
+    padding: 8rem 3.2rem 6rem;
+  }
+
+  .hero__title {
+    font-size: 6rem;
+    line-height: 6.4rem;
+  }
+}

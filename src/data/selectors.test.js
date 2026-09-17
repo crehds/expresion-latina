@@ -71,6 +71,39 @@ describe('schedule selectors', () => {
     });
   });
 
+  describe('getNextOpenDay', () => {
+    // The landing page asks this on whatever day the visitor arrives, so the
+    // closed days are the interesting input, not Monday.
+    it('answers with today when today has classes', () => {
+      const open = selectorsForFixture().getNextOpenDay(1);
+
+      expect(open.day.name).toBe('Lunes');
+      expect(open.isToday).toBe(true);
+      expect(open.sessions).toHaveLength(3);
+    });
+
+    it('rolls forward past a closed day and says it is not today', () => {
+      const open = selectorsForFixture().getNextOpenDay(2);
+
+      expect(open.day.name).toBe('Sábado');
+      expect(open.isToday).toBe(false);
+    });
+
+    // Sunday is weekday 0, so the search has to wrap rather than run off the
+    // end of the week. This is the case the modulo exists for.
+    it('wraps around the end of the week', () => {
+      const open = selectorsForFixture().getNextOpenDay(0);
+
+      expect(open.day.name).toBe('Lunes');
+    });
+
+    it('returns null when nothing is published', () => {
+      const empty = { ...fixture, sessions: [] };
+
+      expect(selectorsForFixture(empty).getNextOpenDay(1)).toBeNull();
+    });
+  });
+
   describe('getActiveDays', () => {
     it('omits days with no classes, so the week view has no empty columns', () => {
       const names = selectorsForFixture().getActiveDays().map((day) => day.name);

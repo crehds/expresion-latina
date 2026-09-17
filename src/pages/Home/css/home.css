@@ -1,6 +1,4 @@
 .home {
-  display: flex;
-  padding: 0.8rem 0;
   /*
    * The carousel sizes its own track wider than the page — 600px inside a
    * 360px phone — and paginates within it. Left visible, that width became
@@ -10,8 +8,19 @@
   overflow-x: hidden;
 }
 
+/*
+ * The posters used to be the whole landing page. They are now the last band:
+ * they are marketing, and the schedule above them is the thing a visitor came
+ * to read.
+ */
+.home__posters {
+  display: flex;
+  padding: 0.8rem 0 3.2rem;
+  border-top: 1px solid var(--surface-border);
+}
+
 .home__arrow {
-  color: var(--mustard-100);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
@@ -26,11 +35,7 @@
 .home__arrow-icon {
   font-size: 3rem;
   border-radius: 50%;
-  background-image: radial-gradient(
-    circle,
-    var(--sky-blue-400) 55%,
-    var(--gray-300) 100%
-  );
+  background: var(--surface-sunken);
 }
 
 .slider-list {
