@@ -1,5 +1,7 @@
 import PropTypes from 'prop-types';
 
+import { getTeachersByGenreId } from '../../../data';
+
 import '../css/genres.css';
 import Genre from './Genre';
 
@@ -8,7 +10,12 @@ function Genres(props) {
   return (
     <div className="dance-genres">
       {danceGenres.map((genre) => (
-        <Genre key={genre.id} name={genre.name} slug={genre.slug} />
+        <Genre
+          key={genre.id}
+          name={genre.name}
+          slug={genre.slug}
+          teachers={getTeachersByGenreId(genre.id)}
+        />
       ))}
     </div>
   );

@@ -1,0 +1,14 @@
+/*
+ * The boxes the academy asked to keep: one per style, sized to the screen
+ * rather than the screen paged to fit a fixed count.
+ */
+.dance-genres {
+  display: grid;
+  /* See dance-videos.css: an auto margin on a grid item shrinks it to fit. */
+  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1.2rem;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 2.4rem var(--page-gutter) 4.8rem;
+}

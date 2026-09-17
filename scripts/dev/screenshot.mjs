@@ -15,7 +15,7 @@ const outDir = process.argv[3] ?? 'screenshots';
 
 // The root element each page renders. Waiting on one of these proves a
 // lazy route actually mounted.
-const PAGE_ROOTS = '.home, .teachers, .dance-genres, .schedules, .reviews, .contact';
+const PAGE_ROOTS = '.home, .teachers, .dance-genres, .dance-videos, .schedules, .reviews, .contact';
 
 const KNOWN_THIRD_PARTY_WARNINGS = [
   /Support for defaultProps will be removed/,
