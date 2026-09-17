@@ -111,6 +111,51 @@ function buildGenres(rows, errors, previousVideoIds) {
 }
 
 /**
+ * A birth date the sheet may give as a real Excel date or as text.
+ *
+ * Stored as a date rather than as an age because an age is wrong within the
+ * year and nothing downstream can tell. A bare year is accepted, since it is
+ * often all the academy knows.
+ */
+function readBirthDate(cell) {
+  if (cell instanceof Date) return cell.toISOString().slice(0, 10);
+
+  const text = readText(cell);
+  if (!text) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+  // Written the way people write dates here: 14/03/1998.
+  const local = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (local) return `${local[3]}-${local[2].padStart(2, '0')}-${local[1].padStart(2, '0')}`;
+
+  if (/^\d{4}$/.test(text)) return text;
+
+  return null;
+}
+
+/**
+ * Titles and championships, one per line or separated by semicolons, each
+ * optionally carrying its year in brackets: "Campeón Nacional Salsa (2023)".
+ */
+function readAchievements(cell) {
+  const text = readText(cell);
+  if (!text) return [];
+
+  return text
+    .split(/[\n;]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const withYear = entry.match(/^(.*?)\s*\((\d{4})\)$/);
+
+      return withYear
+        ? { title: withYear[1].trim(), year: Number(withYear[2]) }
+        : { title: entry, year: null };
+    });
+}
+
+/**
  * The one video id this importer owns for a teacher.
  *
  * It is derived from the teacher rather than from the cell's value, so
@@ -184,6 +229,8 @@ function buildTeachers(rows, genresById, errors) {
       genreIds,
       bio: readText(row.bio) ?? '',
       social,
+      birthDate: readBirthDate(row.nacimiento),
+      achievements: readAchievements(row.logros),
       videoIds: [],
     };
 

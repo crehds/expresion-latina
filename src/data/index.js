@@ -45,12 +45,40 @@ function initialsOf(name) {
     .toUpperCase();
 }
 
+/**
+ * Whole years between a birth date and today, or null when the academy has not
+ * told us.
+ *
+ * Derived rather than stored: an age typed into a spreadsheet is wrong within
+ * the year and nothing in the system can tell. Accepts a bare year too, since
+ * that is often all anyone knows; the age is then correct to within one.
+ */
+function ageFrom(birthDate, today = new Date()) {
+  if (!birthDate) return null;
+
+  const [year, month = '01', day = '01'] = birthDate.split('-');
+  const born = new Date(Number(year), Number(month) - 1, Number(day));
+
+  if (Number.isNaN(born.getTime())) return null;
+
+  let age = today.getFullYear() - born.getFullYear();
+
+  // Their birthday has not come round yet this year.
+  const beforeBirthday = today.getMonth() < born.getMonth()
+    || (today.getMonth() === born.getMonth() && today.getDate() < born.getDate());
+  if (beforeBirthday) age -= 1;
+
+  return age >= 0 && age < 120 ? age : null;
+}
+
 /** Each teacher carries its bundled image URL, resolved once at module load. */
 export const teachers = deepFreeze(
   academy.teachers.map((teacher) => ({
     ...teacher,
     image: teacher.imageKey ? resolveTeacherImage(teacher.imageKey) : undefined,
     initials: initialsOf(teacher.name),
+    age: ageFrom(teacher.birthDate),
+    achievements: teacher.achievements ?? [],
   })),
 );
 

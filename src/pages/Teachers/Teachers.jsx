@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import { getTeacherById, teachers } from '../../data';
 import { getActiveTeacherIds } from '../../data/selectors';
 import withRouter from '../../hocs/withRouter';
-import { TeacherModal, TeachersCarousel, TeachersGrid } from './components';
+import { TeacherPanel, TeachersCarousel, TeachersGrid } from './components';
 
 import './css/teachers.css';
 
@@ -68,8 +68,8 @@ class Teachers extends Component {
           : <TeachersCarousel teachers={teachers} showProfile={this.showProfile} />}
 
         {teacherForModal && (
-          <TeacherModal
-            showProfile={this.showProfile}
+          <TeacherPanel
+            onClose={() => this.showProfile()}
             teacher={teacherForModal}
           />
         )}

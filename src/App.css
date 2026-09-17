@@ -23,3 +23,11 @@
    */
   grid-template-columns: minmax(0, 1fr);
 }
+
+/*
+ * Set while a full-height panel is open. Without it the page behind keeps its
+ * own scrollbar and the wheel moves the faculty rather than the profile.
+ */
+body.has-panel {
+  overflow: hidden;
+}

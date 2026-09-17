@@ -128,19 +128,25 @@ export default async function makeTemplate(target) {
   addSheet(
     workbook,
     'Profesores',
-    ['Nombre', 'NombreCorto', 'Generos', 'Imagen', 'Bio', 'Facebook', 'Instagram', 'Video'],
+    ['Nombre', 'NombreCorto', 'Generos', 'Nacimiento', 'Imagen', 'Bio', 'Facebook', 'Instagram', 'Video', 'Logros'],
     teachers.map((teacher) => [
       teacher.name,
       teacher.shortName ?? '',
       (teacher.genreIds ?? []).map((id) => genreById.get(id)?.name ?? id).join(', '),
+      // A date, not an age: an age is wrong within the year and nobody notices.
+      teacher.birthDate ?? '',
       teacher.imageKey ?? '',
       teacher.bio ?? '',
       teacher.social?.facebook ?? '',
       teacher.social?.instagram ?? '',
       // A link, or the name of a file in src/assets/videos.
       videoOf(teacher, videosByTeacher),
+      // One per line, the year in brackets: Campeón Nacional (2023)
+      (teacher.achievements ?? [])
+        .map(({ title, year }) => (year ? `${title} (${year})` : title))
+        .join('\n'),
     ]),
-    [24, 16, 28, 26, 40, 30, 30, 34],
+    [24, 16, 28, 14, 26, 40, 30, 30, 34, 40],
   );
 
   const studio = academy?.studio ?? {};

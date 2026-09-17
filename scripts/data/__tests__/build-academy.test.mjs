@@ -440,3 +440,58 @@ describe('a teacher with a video', () => {
     assert.deepEqual(academy.teachers[0].videoIds, []);
   });
 });
+
+describe('a teacher with a birth date and titles', () => {
+  function buildTeacher(extra) {
+    return build({
+      horario: sheet([
+        {
+          dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+        },
+      ]),
+      profesores: sheet([
+        { nombre: 'Mishel Fernández', generos: 'Salsa', ...extra },
+      ]),
+    }).academy.teachers[0];
+  }
+
+  // A real Excel date cell and the text a person types must agree, the same
+  // way the class times already have to.
+  it('reads an Excel date cell', () => {
+    const teacher = buildTeacher({ nacimiento: new Date(Date.UTC(1998, 2, 14)) });
+
+    assert.equal(teacher.birthDate, '1998-03-14');
+  });
+
+  it('reads the local written form', () => {
+    assert.equal(buildTeacher({ nacimiento: '14/03/1998' }).birthDate, '1998-03-14');
+  });
+
+  it('accepts a bare year, which is often all anyone knows', () => {
+    assert.equal(buildTeacher({ nacimiento: '1998' }).birthDate, '1998');
+  });
+
+  it('leaves the date out rather than guessing at something unreadable', () => {
+    assert.equal(buildTeacher({ nacimiento: 'marzo del 98' }).birthDate, null);
+    assert.equal(buildTeacher({}).birthDate, null);
+  });
+
+  it('splits titles on lines and reads the year out of the brackets', () => {
+    const teacher = buildTeacher({ logros: 'Campeón Nacional Salsa (2023)\nFinalista Mundial (2021)' });
+
+    assert.deepEqual(teacher.achievements, [
+      { title: 'Campeón Nacional Salsa', year: 2023 },
+      { title: 'Finalista Mundial', year: 2021 },
+    ]);
+  });
+
+  it('keeps a title that carries no year', () => {
+    assert.deepEqual(buildTeacher({ logros: 'Instructor certificado' }).achievements, [
+      { title: 'Instructor certificado', year: null },
+    ]);
+  });
+
+  it('gives an empty list rather than null when the cell is blank', () => {
+    assert.deepEqual(buildTeacher({}).achievements, []);
+  });
+});
