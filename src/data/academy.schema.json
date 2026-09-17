@@ -331,6 +331,33 @@
           }
         }
       }
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "author", "text"],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/slug"
+          },
+          "author": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": ["string", "null"]
+          },
+          "sourceUrl": {
+            "type": ["string", "null"]
+          }
+        }
+      }
     }
   },
   "$defs": {

@@ -249,6 +249,55 @@ function buildTeachers(rows, genresById, errors) {
   return { teachers, teacherVideos: videos, teachersById: byName };
 }
 
+/**
+ * What students have said, one row each.
+ *
+ * The academy expects these to come from Instagram comments, so a row can name
+ * where it was left and link back to it. A row with no text is a trailing
+ * blank row in the sheet, not an error.
+ */
+function buildReviews(rows, errors) {
+  const reviews = [];
+  const seen = new Set();
+
+  rows.forEach((row) => {
+    const text = readText(row.resena) ?? readText(row.texto);
+    const author = readText(row.autor) ?? readText(row.nombre);
+
+    if (!text && !author) return;
+
+    if (!text) {
+      errors.push(error('Resenas', row.rowNumber, 'Resena', 'Falta el texto de la reseña.'));
+      return;
+    }
+    if (!author) {
+      errors.push(error('Resenas', row.rowNumber, 'Autor', 'Falta quién la escribió.'));
+      return;
+    }
+
+    // Two people called Ana get ana and ana-2 rather than one overwriting the
+    // other, and the same sheet imported twice gives the same ids.
+    const base = toSlug(author) || 'resena';
+    let id = base;
+    let suffix = 2;
+    while (seen.has(id)) {
+      id = `${base}-${suffix}`;
+      suffix += 1;
+    }
+    seen.add(id);
+
+    reviews.push({
+      id,
+      author,
+      text,
+      source: readText(row.origen),
+      sourceUrl: readText(row.enlace),
+    });
+  });
+
+  return reviews;
+}
+
 function buildStudio(rows, errors) {
   const studio = { name: 'Expresión Latina', social: {} };
 
@@ -410,6 +459,7 @@ export default function buildAcademy(sheets, {
     errors,
   );
   const studio = buildStudio(sheets.estudio ?? [], errors);
+  const reviews = buildReviews(sheets.resenas ?? [], errors);
   const { timeSlots, sessions } = buildSchedule(
     sheets.horario ?? [],
     genresById,
@@ -430,6 +480,7 @@ export default function buildAcademy(sheets, {
       genres,
       teachers,
       videos: mergeVideos(previous?.videos ?? [], teacherVideos, teachers),
+      reviews,
       sessions,
     },
     errors,

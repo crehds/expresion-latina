@@ -62,6 +62,13 @@ function academyWith(videos, teacher = MISHEL) {
     }],
     teachers: [teacher],
     videos,
+    reviews: [{
+      id: 'evelyn-ramos',
+      author: 'Evelyn Ramos',
+      text: 'Los profesores explican con paciencia.',
+      source: 'Instagram',
+      sourceUrl: 'https://instagram.com/p/abc',
+    }],
     // Ids the importer derives from the content, not invented ones: the point
     // of the scheme is that the same class always lands on the same id.
     sessions: [{
@@ -116,6 +123,13 @@ describe('template then import, with nothing edited', () => {
 
     assert.equal(teacher.birthDate, '1997-04-02');
     assert.deepEqual(teacher.achievements, [{ title: 'Campeona Nacional', year: 2023 }]);
+  });
+
+  it('brings the opinions back unchanged', async () => {
+    const before = academyWith([]);
+    const { academy } = await roundTrip(before);
+
+    assert.deepEqual(academy.reviews, before.reviews);
   });
 
   it('brings the schedule back unchanged', async () => {

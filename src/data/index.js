@@ -91,6 +91,12 @@ export const videos = deepFreeze(
 
 export const sessions = deepFreeze(academy.sessions.map((session) => ({ ...session })));
 
+/**
+ * What students have said. Empty until the academy adds any, which is why the
+ * section that renders them removes itself rather than announcing a gap.
+ */
+export const reviews = deepFreeze((academy.reviews ?? []).map((review) => ({ ...review })));
+
 const daysByWeekday = new Map(days.map((day) => [day.weekday, day]));
 const daysById = indexById(days);
 const slotsById = indexById(timeSlots);

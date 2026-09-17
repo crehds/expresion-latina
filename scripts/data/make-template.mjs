@@ -158,6 +158,20 @@ export default async function makeTemplate(target, { source = SOURCE } = {}) {
     [24, 16, 28, 14, 26, 40, 30, 30, 34, 40],
   );
 
+  addSheet(
+    workbook,
+    'Resenas',
+    ['Autor', 'Resena', 'Origen', 'Enlace'],
+    (academy?.reviews ?? []).map((review) => [
+      review.author,
+      review.text,
+      // Where it was left: Instagram, Google, en clase.
+      review.source ?? '',
+      review.sourceUrl ?? '',
+    ]),
+    [24, 70, 16, 40],
+  );
+
   const studio = academy?.studio ?? {};
 
   addSheet(

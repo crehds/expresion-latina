@@ -112,7 +112,7 @@ function readSheet(worksheet) {
  * belongs to validation, not to reading.
  *
  * @param {string} filePath
- * @returns {Promise<Record<'horario'|'generos'|'profesores'|'estudio', object[]>>}
+ * @returns {Promise<Record<'horario'|'generos'|'profesores'|'estudio'|'resenas', object[]>>}
  */
 export default async function parseWorkbook(filePath) {
   const workbook = new ExcelJS.Workbook();
@@ -126,5 +126,6 @@ export default async function parseWorkbook(filePath) {
     generos: readSheet(byName('generos')),
     profesores: readSheet(byName('profesores')),
     estudio: readSheet(byName('estudio')),
+    resenas: readSheet(byName('resenas')),
   };
 }

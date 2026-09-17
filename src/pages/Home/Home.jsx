@@ -4,6 +4,7 @@ import createAdaptedPoster from './adapters/posters';
 import FALLBACK_POSTERS from './api/fallbackPosters';
 import Hero from './components/Hero';
 import PosterStrip from './components/PosterStrip';
+import ReviewsStrip from './components/ReviewsStrip';
 import TodayStrip from './components/TodayStrip';
 import getPosters from './services/posters';
 
@@ -62,6 +63,8 @@ export default class Home extends Component {
             <PosterStrip posters={posters} />
           </section>
         </div>
+
+        <ReviewsStrip />
       </main>
     );
   }

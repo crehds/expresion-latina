@@ -28,11 +28,6 @@ const OPTIONS = [{
 },
 {
   id: 5,
-  name: 'Reseñas',
-  path: '/reviews',
-},
-{
-  id: 6,
   name: 'Encuéntranos',
   path: '/contact',
 },

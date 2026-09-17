@@ -495,3 +495,75 @@ describe('a teacher with a birth date and titles', () => {
     assert.deepEqual(buildTeacher({}).achievements, []);
   });
 });
+
+describe('the Resenas sheet', () => {
+  function buildReviews(rows) {
+    return build({
+      horario: sheet([
+        {
+          dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+        },
+      ]),
+      resenas: sheet(rows),
+    });
+  }
+
+  it('reads an opinion and where it was left', () => {
+    const { academy, errors } = buildReviews([{
+      autor: 'Evelyn Ramos',
+      resena: 'Los profesores explican con paciencia.',
+      origen: 'Instagram',
+      enlace: 'https://instagram.com/p/abc',
+    }]);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(academy.reviews, [{
+      id: 'evelyn-ramos',
+      author: 'Evelyn Ramos',
+      text: 'Los profesores explican con paciencia.',
+      source: 'Instagram',
+      sourceUrl: 'https://instagram.com/p/abc',
+    }]);
+  });
+
+  // Two people share a first name far more often than they share a comment.
+  it('keeps two authors with the same name apart', () => {
+    const { academy } = buildReviews([
+      { autor: 'Ana', resena: 'Primera' },
+      { autor: 'Ana', resena: 'Segunda' },
+    ]);
+
+    assert.deepEqual(academy.reviews.map((review) => review.id), ['ana', 'ana-2']);
+  });
+
+  it('skips a trailing blank row rather than reporting it', () => {
+    const { academy, errors } = buildReviews([
+      { autor: 'Evelyn', resena: 'Muy buena academia.' },
+      {},
+    ]);
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.reviews.length, 1);
+  });
+
+  it('names the row when half of one is filled in', () => {
+    const { academy, errors } = buildReviews([{ autor: 'Evelyn' }]);
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].sheet, 'Resenas');
+    assert.equal(errors[0].row, 2);
+  });
+
+  it('gives an empty list when the sheet is absent', () => {
+    const { academy } = build({
+      horario: sheet([
+        {
+          dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+        },
+      ]),
+    });
+
+    assert.deepEqual(academy.reviews, []);
+  });
+});
