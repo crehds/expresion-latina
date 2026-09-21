@@ -515,6 +515,33 @@ describe('a teacher with a birth date and titles', () => {
     assert.equal(buildTeacher({ nacimiento: '1998' }).birthDate, '1998');
   });
 
+  /*
+   * A date can be the right shape and still not exist. Both forms below
+   * satisfy the schema's birthDate pattern, which counts digits, so nothing
+   * downstream stops them: src/data/index.js hands the string to Date, which
+   * rolls the overflow into the next month or year, and the profile shows a
+   * confidently wrong age instead of leaving it out.
+   */
+  it('refuses a day that month never had', () => {
+    assert.equal(buildTeacher({ nacimiento: '31/02/1998' }).birthDate, null);
+  });
+
+  it('refuses an impossible month', () => {
+    assert.equal(buildTeacher({ nacimiento: '31/31/1998' }).birthDate, null);
+  });
+
+  it('refuses an impossible iso date', () => {
+    assert.equal(buildTeacher({ nacimiento: '1998-13-45' }).birthDate, null);
+  });
+
+  it('still accepts the last day of a leap february', () => {
+    assert.equal(buildTeacher({ nacimiento: '29/02/1996' }).birthDate, '1996-02-29');
+  });
+
+  it('refuses the 29th of a february that had none', () => {
+    assert.equal(buildTeacher({ nacimiento: '29/02/1998' }).birthDate, null);
+  });
+
   it('leaves the date out rather than guessing at something unreadable', () => {
     assert.equal(buildTeacher({ nacimiento: 'marzo del 98' }).birthDate, null);
     assert.equal(buildTeacher({}).birthDate, null);
