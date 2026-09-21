@@ -1,5 +1,6 @@
 import academy from './academy.json';
 import {
+  ageFrom,
   days,
   classGenres,
   genres,
@@ -150,6 +151,57 @@ describe('academy data layer', () => {
       const [video] = await lookupDoubleLinked();
 
       expect(video.id).toBe('video-mishel');
+    });
+  });
+
+  /*
+   * Four decision points and nothing asserted any of them. The value is only
+   * observable as teachers[].age, printed in the panel as "<n> años", and it
+   * is computed once at module load from the real clock — so a wrong branch
+   * produces a plausible number that nothing contradicts.
+   *
+   * The reference date is passed in, which is what makes every case below
+   * deterministic rather than a function of the day the suite runs.
+   */
+  describe('ageFrom', () => {
+    const on = (iso) => new Date(`${iso}T12:00:00`);
+
+    it('says nothing when the academy has no date', () => {
+      expect(ageFrom(null, on('2026-01-15'))).toBeNull();
+      expect(ageFrom('', on('2026-01-15'))).toBeNull();
+    });
+
+    it('counts a birthday already past this year', () => {
+      expect(ageFrom('1998-03-14', on('2026-06-01'))).toBe(28);
+    });
+
+    it('does not count a birthday still to come', () => {
+      expect(ageFrom('1998-03-14', on('2026-01-15'))).toBe(27);
+    });
+
+    it('counts the birthday itself', () => {
+      expect(ageFrom('1998-03-14', on('2026-03-14'))).toBe(28);
+    });
+
+    it('does not count the day before', () => {
+      expect(ageFrom('1998-03-14', on('2026-03-13'))).toBe(27);
+    });
+
+    it('treats a bare year as the first of January', () => {
+      expect(ageFrom('1998', on('2026-01-01'))).toBe(28);
+      expect(ageFrom('1998', on('2025-12-31'))).toBe(27);
+    });
+
+    it('says nothing for a date it cannot read', () => {
+      expect(ageFrom('marzo', on('2026-01-15'))).toBeNull();
+    });
+
+    it('says nothing rather than a negative age for a date in the future', () => {
+      expect(ageFrom('2030-01-01', on('2026-01-15'))).toBeNull();
+    });
+
+    it('says nothing for an age no dancer has', () => {
+      expect(ageFrom('1850-01-01', on('2026-01-15'))).toBeNull();
     });
   });
 
