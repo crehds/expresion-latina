@@ -7,10 +7,13 @@ import {
   buildWeekMatrix,
   createSelectors,
   getActiveDays,
+  getActiveTeacherIds,
+  getActiveTeachersByGenreId,
   getActiveTimeSlots,
   getSessionsForWeekday,
   hasPublishedSchedule,
 } from './selectors';
+import { classGenres, getTeachersByGenreId } from './index';
 
 function byId(collection) {
   const map = new Map(collection.map((entry) => [entry.id, entry]));
@@ -235,5 +238,38 @@ describe('schedule selectors', () => {
 
       expect(selectorsForFixture(broken).getSessionsForWeekday(1)).toHaveLength(3);
     });
+  });
+});
+
+/*
+ * These run against the real dataset on purpose. The whole point of the
+ * selector is to reconcile two committed collections — a teacher's genreIds
+ * and the published schedule — so a fixture built to agree with itself would
+ * prove nothing about the disagreement it exists to resolve.
+ */
+describe('getActiveTeachersByGenreId', () => {
+  it('never names a teacher the faculty page does not show', () => {
+    const active = getActiveTeacherIds();
+
+    classGenres.forEach((genre) => {
+      getActiveTeachersByGenreId(genre.id).forEach((teacher) => {
+        expect(active.has(teacher.id)).toBe(true);
+      });
+    });
+  });
+
+  it('drops the teachers who kept the genre but left the schedule', () => {
+    // A genre is only evidence of the bug when someone was dropped from it.
+    const thinned = classGenres.filter(
+      (genre) => getActiveTeachersByGenreId(genre.id).length
+        < getTeachersByGenreId(genre.id).length,
+    );
+
+    expect(thinned.length).toBeGreaterThan(0);
+  });
+
+  it('keeps a genre whose teachers are still teaching it intact', () => {
+    expect(getActiveTeachersByGenreId('salsa').map((teacher) => teacher.name))
+      .toEqual(getTeachersByGenreId('salsa').map((teacher) => teacher.name));
   });
 });

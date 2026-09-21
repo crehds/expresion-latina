@@ -2,7 +2,8 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
 import { Page, VideoPlayer } from '../../../components';
-import { getGenreBySlug, getTeachersByGenreId, getVideosByGenreId } from '../../../data';
+import { getGenreBySlug, getVideosByGenreId } from '../../../data';
+import { getActiveTeachersByGenreId } from '../../../data/selectors';
 import withRouter from '../../../hocs/withRouter';
 
 import '../css/dance-videos.css';
@@ -20,7 +21,7 @@ function DanceVideos(props) {
 
   const genre = getGenreBySlug(genreSlug);
   const videos = genre ? getVideosByGenreId(genre.id) : [];
-  const teachers = genre ? getTeachersByGenreId(genre.id) : [];
+  const teachers = genre ? getActiveTeachersByGenreId(genre.id) : [];
 
   const back = (
     <button

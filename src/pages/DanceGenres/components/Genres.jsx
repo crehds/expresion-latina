@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 
 import { Page } from '../../../components';
-import { getTeachersByGenreId } from '../../../data';
+import { getActiveTeachersByGenreId } from '../../../data/selectors';
 
 import '../css/genres.css';
 import Genre from './Genre';
@@ -16,7 +16,7 @@ function Genres(props) {
             key={genre.id}
             name={genre.name}
             slug={genre.slug}
-            teachers={getTeachersByGenreId(genre.id)}
+            teachers={getActiveTeachersByGenreId(genre.id)}
           />
         ))}
       </ul>
