@@ -682,3 +682,67 @@ describe('the Resenas sheet', () => {
     assert.deepEqual(academy.reviews, []);
   });
 });
+
+/*
+ * The question this codebase has had to answer four times now: what does a
+ * workbook that predates a field do to the value already published?
+ *
+ * An absent column is not an empty cell. parseWorkbook only sets a key for a
+ * header the sheet actually has, so a Profesores sheet written before the
+ * Nacimiento and Logros columns existed yields rows with no such keys at all
+ * — and rebuilding the teacher from those rows wiped both fields off every
+ * teacher in the published file.
+ *
+ * The same distinction the Resenas sheet already makes, one level down.
+ */
+describe('a workbook older than the teacher fields it does not carry', () => {
+  const previous = {
+    teachers: [{
+      id: 'mishel-fernandez',
+      name: 'Mishel Fernández',
+      birthDate: '1997-05-02',
+      achievements: [{ title: 'Campeona Nacional', year: 2023 }],
+    }],
+  };
+
+  // No nacimiento or logros key at all, the way an older sheet arrives.
+  const OLD_SHEET = sheet([{ nombre: 'Mishel Fernández', generos: 'Salsa' }]);
+
+  function importWith(profesores) {
+    return build({
+      horario: sheet([{
+        dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+      }]),
+      profesores,
+    }, { previous }).academy.teachers[0];
+  }
+
+  it('keeps a birth date the sheet says nothing about', () => {
+    assert.equal(importWith(OLD_SHEET).birthDate, '1997-05-02');
+  });
+
+  it('keeps titles the sheet says nothing about', () => {
+    assert.deepEqual(importWith(OLD_SHEET).achievements, previous.teachers[0].achievements);
+  });
+
+  /*
+   * The other half of the contract. A column that is present and empty is the
+   * academy removing the value on purpose, and must still clear it — otherwise
+   * a published date could never be taken back.
+   */
+  it('clears a birth date the sheet deliberately empties', () => {
+    const emptied = sheet([{
+      nombre: 'Mishel Fernández', generos: 'Salsa', nacimiento: null, logros: null,
+    }]);
+
+    assert.equal(importWith(emptied).birthDate, null);
+  });
+
+  it('clears titles the sheet deliberately empties', () => {
+    const emptied = sheet([{
+      nombre: 'Mishel Fernández', generos: 'Salsa', nacimiento: null, logros: null,
+    }]);
+
+    assert.deepEqual(importWith(emptied).achievements, []);
+  });
+});

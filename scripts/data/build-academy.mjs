@@ -225,10 +225,28 @@ function buildTeacherVideo(teacherId, teacherName, value) {
   };
 }
 
-function buildTeachers(rows, genresById, errors) {
+function buildTeachers(rows, genresById, errors, previousTeachers = []) {
   const teachers = [];
   const videos = [];
   const byName = new Map();
+
+  const published = new Map(previousTeachers.map((teacher) => [teacher.id, teacher]));
+
+  /*
+   * An absent column is not an empty cell.
+   *
+   * parseWorkbook sets a key only for a header the sheet actually has, so a
+   * Profesores sheet written before these columns existed yields rows with no
+   * such key — and rebuilding from it wiped the published value off every
+   * teacher. A column that is present and empty is the academy taking the
+   * value back on purpose, and still clears it.
+   *
+   * The same distinction the Resenas sheet makes one level up, for the same
+   * reason: an old workbook must not delete what it has never heard of.
+   */
+  const carried = (row, column, id, field, read) => (
+    Object.hasOwn(row, column) ? read(row[column]) : published.get(id)?.[field]
+  );
 
   rows.forEach((row) => {
     const name = readText(row.nombre);
@@ -269,8 +287,8 @@ function buildTeachers(rows, genresById, errors) {
       genreIds,
       bio: readText(row.bio) ?? '',
       social,
-      birthDate: readBirthDate(row.nacimiento),
-      achievements: readAchievements(row.logros),
+      birthDate: carried(row, 'nacimiento', id, 'birthDate', readBirthDate) ?? null,
+      achievements: carried(row, 'logros', id, 'achievements', readAchievements) ?? [],
       videoIds: [],
     };
 
@@ -496,6 +514,7 @@ export default function buildAcademy(sheets, {
     sheets.profesores ?? [],
     genresById,
     errors,
+    previous?.teachers ?? [],
   );
   const studio = buildStudio(sheets.estudio ?? [], errors);
   /*

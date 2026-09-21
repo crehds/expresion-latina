@@ -328,6 +328,19 @@ describe('academy data layer', () => {
       expect(await linkFor('51960507583')).toBe('https://wa.me/51960507583');
     });
 
+    /*
+     * A cell can be non-empty and still carry no number: a dash, a note, a
+     * stray space. Stripping those leaves nothing, and a link to wa.me with
+     * no number behind it is the "link to nowhere" the case below is named
+     * for — the footer and the hero both branch on this value alone.
+     */
+    it.each(['-', 'n/a', '   ', 'preguntar por WhatsApp'])(
+      'is null for %j, which carries no number at all',
+      async (value) => {
+        expect(await linkFor(value)).toBeNull();
+      },
+    );
+
     it('is null, never a link to nowhere, when the studio has no number', async () => {
       expect(await linkFor(null)).toBeNull();
     });
