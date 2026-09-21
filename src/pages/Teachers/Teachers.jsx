@@ -1,46 +1,28 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 
+import { Page } from '../../components';
 import { getTeacherById, teachers } from '../../data';
 import { getActiveTeacherIds } from '../../data/selectors';
 import withRouter from '../../hocs/withRouter';
-import { TeacherPanel, TeachersCarousel, TeachersGrid } from './components';
-
-import './css/teachers.css';
-
-const WIDE_SCREEN = '(min-width: 768px)';
+import { TeacherPanel, TeachersGrid } from './components';
 
 /**
  * The faculty, and one teacher's profile.
  *
  * Which profile is open lives in the URL rather than in state: /teachers/omar
  * is a page that can be linked to, so a class in the schedule can point at the
- * person teaching it, and a visitor can share a teacher with a friend. The
- * only state left here is the viewport, which nothing outside the component
- * can ask about.
+ * person teaching it, and a visitor can share a teacher with a friend.
+ *
+ * One grid at every width. A phone used to get its own component that paged
+ * the faculty four at a time behind two arrows pinned to the middle of the
+ * viewport, and padded its two-card slide by 30rem on a 36rem screen. A grid
+ * that reflows needs none of that: the phone scrolls, which is the gesture it
+ * already has, and the same markup groups who is teaching now on every screen
+ * rather than only on a desktop.
  */
+// eslint-disable-next-line react/prefer-stateless-function
 class Teachers extends Component {
-  constructor(props) {
-    super(props);
-
-    this.mediaQuery = window.matchMedia(WIDE_SCREEN);
-
-    this.state = {
-      // Read before the first paint so the right layout renders straight away.
-      isWide: this.mediaQuery.matches,
-    };
-  }
-
-  componentDidMount() {
-    this.mediaQuery.addEventListener('change', this.handleViewportChange);
-  }
-
-  componentWillUnmount() {
-    this.mediaQuery.removeEventListener('change', this.handleViewportChange);
-  }
-
-  handleViewportChange = (event) => this.setState({ isWide: event.matches });
-
   showProfile = (teacher) => {
     const { navigate } = this.props;
 
@@ -48,7 +30,6 @@ class Teachers extends Component {
   };
 
   render() {
-    const { isWide } = this.state;
     const { params } = this.props;
 
     // An unknown id in the URL shows the faculty rather than an empty modal,
@@ -56,16 +37,12 @@ class Teachers extends Component {
     const teacherForModal = params.teacherId ? getTeacherById(params.teacherId) : null;
 
     return (
-      <div className="teachers">
-        {isWide
-          ? (
-            <TeachersGrid
-              teachers={teachers}
-              activeIds={getActiveTeacherIds()}
-              showProfile={this.showProfile}
-            />
-          )
-          : <TeachersCarousel teachers={teachers} showProfile={this.showProfile} />}
+      <Page title="Profesores" lead="Toca a un profesor para ver su perfil.">
+        <TeachersGrid
+          teachers={teachers}
+          activeIds={getActiveTeacherIds()}
+          showProfile={this.showProfile}
+        />
 
         {teacherForModal && (
           <TeacherPanel
@@ -73,7 +50,7 @@ class Teachers extends Component {
             teacher={teacherForModal}
           />
         )}
-      </div>
+      </Page>
     );
   }
 }

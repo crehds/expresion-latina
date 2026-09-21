@@ -1,16 +1,15 @@
+/* The gutter and the measure come from .page; this owns only the stacking. */
 .teachers-grid {
   display: flex;
   flex-direction: column;
-  gap: 2.4rem;
+  gap: var(--space-md);
   width: 100%;
-  max-width: 120rem;
-  margin: 0 auto;
-  padding: 1.5rem;
+  min-width: 0;
 }
 
 .teachers-grid__heading {
-  margin-bottom: 0.8rem;
-  padding-bottom: 0.4rem;
+  margin-bottom: var(--space-2xs);
+  padding-bottom: var(--space-3xs);
   border-bottom: 1px solid var(--surface-border);
   color: var(--text-secondary);
 }
@@ -27,8 +26,13 @@
  */
 .teachers-grid__list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: 1.2rem;
+  /*
+   * 14rem, not 16rem: at 360px the page keeps 32.8rem of room, and a 16rem
+   * floor leaves the second column 0.4rem short of fitting, so a phone drops
+   * to one card per row and the faculty becomes a very long scroll.
+   */
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-xs);
   list-style: none;
 }
 
