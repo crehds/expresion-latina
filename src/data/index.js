@@ -28,8 +28,17 @@ export const studio = deepFreeze({ ...academy.studio });
  * wa.me wants were written out at each of the three call sites, which is two
  * chances to forget the guard and take a route down with a TypeError.
  */
-export const whatsappLink = studio.whatsapp
-  ? `https://wa.me/${studio.whatsapp.replace(/\D/g, '')}`
+const whatsappDigits = (studio.whatsapp ?? '').replace(/\D/g, '');
+
+/*
+ * The digits, not the cell. A cell can be non-empty and still carry no
+ * number — a dash, a note, a stray space — and testing the cell alone
+ * produced a wa.me address with nothing behind it. Both call sites branch on
+ * this value and nothing else, so that was a tappable link to nowhere on
+ * every page of the site.
+ */
+export const whatsappLink = whatsappDigits
+  ? `https://wa.me/${whatsappDigits}`
   : null;
 
 /** Display order is array order; it is independent of the weekday numbers. */
