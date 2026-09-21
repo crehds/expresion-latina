@@ -107,6 +107,52 @@ describe('academy data layer', () => {
    * link to WhatsApp, the schema allows a studio without one, and each copy of
    * the check was a chance to forget it and take a route down mid-render.
    */
+  /*
+   * The importer fills BOTH links for a teacher's own video: buildTeachers
+   * sets teacher.videoIds while buildTeacherVideo sets teacherId on the same
+   * record. So every imported teacher video arrives on both of the two routes
+   * this lookup unions, and the panel renders whatever it returns.
+   *
+   * No committed teacher carries videoIds today, so nothing exercised the
+   * union until here.
+   */
+  describe('getVideosByTeacherId with both links set', () => {
+    async function lookupDoubleLinked() {
+      vi.resetModules();
+      vi.doMock('./academy.json', () => ({
+        default: {
+          ...academy,
+          teachers: [{
+            id: 'mishel', name: 'Mishel', genreIds: [], videoIds: ['video-mishel'],
+          }],
+          videos: [{
+            id: 'video-mishel',
+            title: 'Mishel',
+            genreId: null,
+            teacherId: 'mishel',
+            assetKey: null,
+            externalUrl: 'https://example.test/mishel.mp4',
+          }],
+        },
+      }));
+
+      const mod = await import('./index');
+      vi.doUnmock('./academy.json');
+
+      return mod.getVideosByTeacherId('mishel');
+    }
+
+    it('returns the video once, not once per link', async () => {
+      expect(await lookupDoubleLinked()).toHaveLength(1);
+    });
+
+    it('returns the video the links point at', async () => {
+      const [video] = await lookupDoubleLinked();
+
+      expect(video.id).toBe('video-mishel');
+    });
+  });
+
   describe('getAcademyVideos', () => {
     /*
      * The academy's own reel: the footage that belongs to the school rather

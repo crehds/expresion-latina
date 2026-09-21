@@ -157,6 +157,20 @@ export function getVideoById(id) {
 }
 
 /**
+ * One entry per id, keeping the first.
+ *
+ * The two lookups below each union a "listed" route with a "claimed" route,
+ * and the importer fills BOTH for a teacher's own video. A Set of the objects
+ * deduplicated that only because each route happened to yield the very same
+ * frozen object; the moment either side mapped or spread its results, the
+ * same clip rendered twice. The identity that matters is the id, so it is
+ * the id that is compared.
+ */
+function uniqueById(list) {
+  return [...new Map(list.map((entry) => [entry.id, entry])).values()];
+}
+
+/**
  * Videos explicitly tied to a genre, either by the video naming the genre or
  * by the genre listing the video.
  */
@@ -165,7 +179,7 @@ export function getVideosByGenreId(genreId) {
   const listed = (genre?.videoIds ?? []).map(getVideoById).filter(Boolean);
   const claimed = videos.filter((video) => video.genreId === genreId);
 
-  return [...new Set([...listed, ...claimed])];
+  return uniqueById([...listed, ...claimed]);
 }
 
 /**
@@ -193,5 +207,5 @@ export function getVideosByTeacherId(teacherId) {
   const listed = (teacher?.videoIds ?? []).map(getVideoById).filter(Boolean);
   const claimed = videos.filter((video) => video.teacherId === teacherId);
 
-  return [...new Set([...listed, ...claimed])];
+  return uniqueById([...listed, ...claimed]);
 }
