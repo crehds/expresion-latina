@@ -511,6 +511,18 @@ describe('a teacher with a birth date and titles', () => {
     }
   });
 
+  /*
+   * An Invalid Date is a real cell value: a sheet can carry one, and
+   * toISOString throws a RangeError on it rather than returning anything.
+   * Every textual branch answers null for a date it cannot use, so this one
+   * must too — otherwise one bad cell aborts the whole import with an
+   * exception instead of the row-scoped error every other bad cell produces.
+   */
+  it('leaves out an unusable date cell instead of throwing', () => {
+    assert.doesNotThrow(() => buildTeacher({ nacimiento: new Date(NaN) }));
+    assert.equal(buildTeacher({ nacimiento: new Date(NaN) }).birthDate, null);
+  });
+
   it('reads the local written form', () => {
     assert.equal(buildTeacher({ nacimiento: '14/03/1998' }).birthDate, '1998-03-14');
   });
