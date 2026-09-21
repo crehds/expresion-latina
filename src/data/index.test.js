@@ -205,39 +205,66 @@ describe('academy data layer', () => {
     });
   });
 
+  /*
+   * The academy's own reel: the footage that belongs to the school rather
+   * than to one style or one teacher. A genre page with no footage of its
+   * own shows these, so the page is never an empty box.
+   *
+   * Every case injects its videos. The first version asserted greater-than-
+   * zero against the committed academy.json, which the importer regenerates
+   * wholesale: retiring the reel, or the ladies footage the companion case
+   * needed, would have turned them red with no code change. The suite was
+   * already mocking the data module a few cases below for exactly this.
+   */
   describe('getAcademyVideos', () => {
+    const REEL = {
+      id: 'presentacion', title: 'Presentación', genreId: null, teacherId: null, assetKey: null, externalUrl: 'https://example.test/reel.mp4',
+    };
+    const OF_A_GENRE = {
+      id: 'ladies-latinas', title: 'Ladies latinas', genreId: 'ladies', teacherId: null, assetKey: null, externalUrl: 'https://example.test/ladies.mp4',
+    };
+    const OF_A_TEACHER = {
+      id: 'video-mishel', title: 'Mishel', genreId: null, teacherId: 'mishel', assetKey: null, externalUrl: 'https://example.test/mishel.mp4',
+    };
+
+    async function reelFrom(videoList) {
+      vi.resetModules();
+      vi.doMock('./academy.json', () => ({
+        default: { ...academy, videos: videoList },
+      }));
+
+      const mod = await import('./index');
+      vi.doUnmock('./academy.json');
+
+      return mod.getAcademyVideos();
+    }
+
+    it('returns the video tied to neither a genre nor a teacher', async () => {
+      const reel = await reelFrom([REEL, OF_A_GENRE, OF_A_TEACHER]);
+
+      expect(reel.map((video) => video.id)).toEqual(['presentacion']);
+    });
+
+    it('leaves out a video that belongs to a genre', async () => {
+      const reel = await reelFrom([OF_A_GENRE]);
+
+      expect(reel).toEqual([]);
+    });
+
+    it('leaves out a video that belongs to a teacher', async () => {
+      const reel = await reelFrom([OF_A_TEACHER]);
+
+      expect(reel).toEqual([]);
+    });
+
     /*
-     * The academy's own reel: the footage that belongs to the school rather
-     * than to one style or one teacher. A genre page with no footage of its
-     * own shows these, so the page is never an empty box.
+     * The shipped file must actually carry a reel, because the genre pages
+     * fall back to it. That is a fact about the content rather than about the
+     * predicate, so it is asserted once, on its own, where a failure says
+     * "the academy retired its reel" instead of "the lookup is broken".
      */
-    /*
-     * The count comes first. Both assertions below iterate the result, which
-     * is vacuously true of an empty array — a predicate that accidentally
-     * excluded every video would have kept them green while every genre page
-     * fell back to nothing.
-     */
-    it('actually returns the reel the genre pages fall back to', () => {
+    it('finds a reel in the published data, which the genre pages rely on', () => {
       expect(getAcademyVideos().length).toBeGreaterThan(0);
-    });
-
-    it('returns the videos tied to neither a genre nor a teacher', () => {
-      const reel = getAcademyVideos();
-
-      expect(reel.length).toBeGreaterThan(0);
-      reel.forEach((video) => {
-        expect(video.genreId ?? null).toBeNull();
-        expect(video.teacherId ?? null).toBeNull();
-      });
-    });
-
-    it('leaves out a video that belongs to a genre', () => {
-      const ladies = getVideosByGenreId('ladies');
-
-      expect(ladies.length).toBeGreaterThan(0);
-      ladies.forEach((video) => {
-        expect(getAcademyVideos()).not.toContainEqual(video);
-      });
     });
   });
 
