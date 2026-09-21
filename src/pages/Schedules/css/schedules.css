@@ -1,30 +1,24 @@
-.schedules {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--surface-page);
-}
-
+/*
+ * The gutter, the measure and the vertical rhythm now come from .page. What is
+ * left here is only what is true of the schedule and of nothing else.
+ */
 .schedules__empty {
-  max-width: 28rem;
-  padding: 2rem 1rem;
-  text-align: center;
+  max-width: 44ch;
   color: var(--text-secondary);
 }
 
-/* The day agenda is a single column on a phone and must not stretch on a tablet. */
+/*
+ * The day agenda is a single column, so it must not stretch into a long line
+ * on a tablet. Centred rather than left-aligned: it is the only thing in the
+ * band, and a lone column pinned to the left edge reads as a layout mistake.
+ */
 .schedules .day-agenda {
   width: 100%;
-  max-width: 32rem;
+  max-width: 48rem;
+  margin-inline: auto;
 }
 
 @media (min-width: 768px) {
-  .schedules {
-    padding: 1.5rem;
-  }
-
   .schedules .day-agenda {
     max-width: none;
   }

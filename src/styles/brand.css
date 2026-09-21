@@ -60,13 +60,42 @@
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.6);
   --shadow-overlay: 0 2.4rem 6rem rgba(0, 0, 0, 0.7);
 
+  /*
+   * Spacing, on an 8px grid. The root is 62.5%, so 1rem is 10px and every step
+   * below is a multiple of 8: 4, 8, 12, 16, 24, 32, 48, 64.
+   *
+   * Most of the site was already spaced on this grid by eye — 1.6rem, 2.4rem,
+   * 3.2rem and 4.8rem appear everywhere. What was missing is the names, so the
+   * odd 1rem, 1.5rem and 2rem crept in beside them and no rule said they were
+   * wrong. Reach for a step; if none fits, the layout wants a different step,
+   * not a new number.
+   */
+  --space-3xs: 0.4rem;
+  --space-2xs: 0.8rem;
+  --space-xs: 1.2rem;
+  --space-sm: 1.6rem;
+  --space-md: 2.4rem;
+  --space-lg: 3.2rem;
+  --space-xl: 4.8rem;
+  --space-2xl: 6.4rem;
+
   /* One number, so the header, the drawer and the page agree on the gutter. */
   --page-gutter: 1.6rem;
   --page-max: 120rem;
+
+  /*
+   * The breathing room above and below a page's content. Separate from the
+   * gutter because vertical and horizontal room grow at different rates: a
+   * phone can spare the height, it cannot spare the width.
+   */
+  --page-block-start: var(--space-md);
+  --page-block-end: var(--space-xl);
 }
 
 @media (min-width: 768px) {
   :root {
     --page-gutter: 3.2rem;
+    --page-block-start: var(--space-lg);
+    --page-block-end: var(--space-2xl);
   }
 }

@@ -20,6 +20,18 @@ function indexById(collection) {
 
 export const studio = deepFreeze({ ...academy.studio });
 
+/**
+ * The studio's WhatsApp as a link, or null when it has none.
+ *
+ * The schema makes every contact field but the name nullable, so the number
+ * has to be checked before it is read. That check and the digits-only rule
+ * wa.me wants were written out at each of the three call sites, which is two
+ * chances to forget the guard and take a route down with a TypeError.
+ */
+export const whatsappLink = studio.whatsapp
+  ? `https://wa.me/${studio.whatsapp.replace(/\D/g, '')}`
+  : null;
+
 /** Display order is array order; it is independent of the weekday numbers. */
 export const days = deepFreeze(academy.days.map((day) => ({ ...day })));
 
@@ -52,8 +64,12 @@ function initialsOf(name) {
  * Derived rather than stored: an age typed into a spreadsheet is wrong within
  * the year and nothing in the system can tell. Accepts a bare year too, since
  * that is often all anyone knows; the age is then correct to within one.
+ *
+ * Exported for its own tests. It is called once per teacher at module load
+ * with today's date, so the only other way to reach its branches would be to
+ * fake the clock and reimport the module for each case.
  */
-function ageFrom(birthDate, today = new Date()) {
+export function ageFrom(birthDate, today = new Date()) {
   if (!birthDate) return null;
 
   const [year, month = '01', day = '01'] = birthDate.split('-');
@@ -145,6 +161,20 @@ export function getVideoById(id) {
 }
 
 /**
+ * One entry per id, keeping the first.
+ *
+ * The two lookups below each union a "listed" route with a "claimed" route,
+ * and the importer fills BOTH for a teacher's own video. A Set of the objects
+ * deduplicated that only because each route happened to yield the very same
+ * frozen object; the moment either side mapped or spread its results, the
+ * same clip rendered twice. The identity that matters is the id, so it is
+ * the id that is compared.
+ */
+function uniqueById(list) {
+  return [...new Map(list.map((entry) => [entry.id, entry])).values()];
+}
+
+/**
  * Videos explicitly tied to a genre, either by the video naming the genre or
  * by the genre listing the video.
  */
@@ -153,7 +183,19 @@ export function getVideosByGenreId(genreId) {
   const listed = (genre?.videoIds ?? []).map(getVideoById).filter(Boolean);
   const claimed = videos.filter((video) => video.genreId === genreId);
 
-  return [...new Set([...listed, ...claimed])];
+  return uniqueById([...listed, ...claimed]);
+}
+
+/**
+ * The academy's own reel: footage belonging to the school rather than to one
+ * style or one teacher.
+ *
+ * A genre page with none of its own shows these instead of an empty box. Most
+ * styles have no footage yet, so without a fallback the page a visitor
+ * reaches by pressing a class is blank more often than not.
+ */
+export function getAcademyVideos() {
+  return videos.filter((video) => !video.genreId && !video.teacherId);
 }
 
 /**
@@ -169,5 +211,5 @@ export function getVideosByTeacherId(teacherId) {
   const listed = (teacher?.videoIds ?? []).map(getVideoById).filter(Boolean);
   const claimed = videos.filter((video) => video.teacherId === teacherId);
 
-  return [...new Set([...listed, ...claimed])];
+  return uniqueById([...listed, ...claimed]);
 }

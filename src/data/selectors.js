@@ -19,6 +19,7 @@ import * as academy from './index';
 export function createSelectors(data) {
   const {
     days, timeSlots, sessions, getDayById, getTimeSlotById, getGenreById, getTeacherById,
+    getTeachersByGenreId,
   } = data;
 
   const byStart = (a, b) => a.slot.start.localeCompare(b.slot.start);
@@ -149,10 +150,25 @@ export function createSelectors(data) {
     return allEnriched().length > 0;
   }
 
+  /**
+   * The teachers of a genre who are actually teaching it this month.
+   *
+   * A teacher keeps their genreIds after they stop appearing in the schedule,
+   * so the plain lookup answers "who has ever been linked to this style". The
+   * faculty page shows only who is dictating now, and the class pages saying
+   * something different is the site contradicting itself.
+   */
+  function getActiveTeachersByGenreId(genreId) {
+    const active = getActiveTeacherIds();
+
+    return getTeachersByGenreId(genreId).filter((teacher) => active.has(teacher.id));
+  }
+
   return {
     getSessionsForWeekday,
     getNextOpenDay,
     getActiveTeacherIds,
+    getActiveTeachersByGenreId,
     getActiveDays,
     getActiveTimeSlots,
     buildWeekMatrix,
@@ -166,6 +182,7 @@ export const {
   getSessionsForWeekday,
   getNextOpenDay,
   getActiveTeacherIds,
+  getActiveTeachersByGenreId,
   getActiveDays,
   getActiveTimeSlots,
   buildWeekMatrix,

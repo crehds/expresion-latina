@@ -1,4 +1,6 @@
 import { Component } from 'react';
+
+import { Page } from '../../components';
 import Info from './components/Info';
 import Map from './components/Map';
 
@@ -30,25 +32,27 @@ class Contact extends Component {
   render() {
     const { content } = this.state;
     return (
-      <div className="contact">
-        <button
-          className="contact__option"
-          type="button"
-          aria-pressed={content === 'map'}
-          onClick={() => this.handleContent('map')}
-        >
-          <h3 className="heading-xs">Mapa</h3>
-        </button>
-        <button
-          className="contact__option"
-          type="button"
-          aria-pressed={content === 'info'}
-          onClick={() => this.handleContent('info')}
-        >
-          <h3 className="heading-xs">Info</h3>
-        </button>
+      <Page title="Contacto" className="contact">
+        <div className="contact__tabs">
+          <button
+            className="contact__option"
+            type="button"
+            aria-pressed={content === 'map'}
+            onClick={() => this.handleContent('map')}
+          >
+            <span className="heading-xs">Mapa</span>
+          </button>
+          <button
+            className="contact__option"
+            type="button"
+            aria-pressed={content === 'info'}
+            onClick={() => this.handleContent('info')}
+          >
+            <span className="heading-xs">Info</span>
+          </button>
+        </div>
         {this.showContent()}
-      </div>
+      </Page>
     );
   }
 }

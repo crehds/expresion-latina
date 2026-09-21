@@ -463,12 +463,83 @@ describe('a teacher with a birth date and titles', () => {
     assert.equal(teacher.birthDate, '1998-03-14');
   });
 
+  /*
+   * The same cell must read the same day wherever the importer runs.
+   *
+   * ExcelJS gives a date cell as UTC midnight of the day the sheet displays,
+   * which is why the reader takes the UTC components — the same reason
+   * readTime takes getUTCHours. Reading the local components instead looks
+   * more natural and answers 13 March in Lima and 14 March in Madrid for one
+   * cell. The assertion above cannot tell those apart, because it only ever
+   * runs in whatever zone the machine is set to; this one runs both sides of
+   * Greenwich.
+   */
+  it('reads a date cell the same way on either side of Greenwich', () => {
+    const original = process.env.TZ;
+    const readIn = (tz) => {
+      process.env.TZ = tz;
+      return buildTeacher({ nacimiento: new Date(Date.UTC(1998, 2, 14)) }).birthDate;
+    };
+
+    try {
+      /*
+       * Prove the switch bites before trusting what it proves. The reader
+       * answers with toISOString, which is timezone-invariant, so if this
+       * runtime ignored a mid-process TZ change the two assertions below
+       * would pass for the wrong reason and this case would quietly become a
+       * duplicate of the one above it.
+       */
+      const probe = (tz) => {
+        process.env.TZ = tz;
+        return new Date(Date.UTC(1998, 2, 14)).getDate();
+      };
+      assert.notEqual(
+        probe('America/Lima'),
+        probe('Europe/Madrid'),
+        'this runtime ignores a mid-process TZ change, so the case below proves nothing',
+      );
+
+      assert.equal(readIn('America/Lima'), '1998-03-14');
+      assert.equal(readIn('Europe/Madrid'), '1998-03-14');
+    } finally {
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
+    }
+  });
+
   it('reads the local written form', () => {
     assert.equal(buildTeacher({ nacimiento: '14/03/1998' }).birthDate, '1998-03-14');
   });
 
   it('accepts a bare year, which is often all anyone knows', () => {
     assert.equal(buildTeacher({ nacimiento: '1998' }).birthDate, '1998');
+  });
+
+  /*
+   * A date can be the right shape and still not exist. Both forms below
+   * satisfy the schema's birthDate pattern, which counts digits, so nothing
+   * downstream stops them: src/data/index.js hands the string to Date, which
+   * rolls the overflow into the next month or year, and the profile shows a
+   * confidently wrong age instead of leaving it out.
+   */
+  it('refuses a day that month never had', () => {
+    assert.equal(buildTeacher({ nacimiento: '31/02/1998' }).birthDate, null);
+  });
+
+  it('refuses an impossible month', () => {
+    assert.equal(buildTeacher({ nacimiento: '31/31/1998' }).birthDate, null);
+  });
+
+  it('refuses an impossible iso date', () => {
+    assert.equal(buildTeacher({ nacimiento: '1998-13-45' }).birthDate, null);
+  });
+
+  it('still accepts the last day of a leap february', () => {
+    assert.equal(buildTeacher({ nacimiento: '29/02/1996' }).birthDate, '1996-02-29');
+  });
+
+  it('refuses the 29th of a february that had none', () => {
+    assert.equal(buildTeacher({ nacimiento: '29/02/1998' }).birthDate, null);
   });
 
   it('leaves the date out rather than guessing at something unreadable', () => {

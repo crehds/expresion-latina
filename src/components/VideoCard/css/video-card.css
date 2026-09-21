@@ -1,0 +1,46 @@
+.video-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  /*
+   * The player rounds its own corners, but the card rounds tighter than the
+   * player does; without this the video's square corners sit proud of the
+   * card's rounded ones.
+   */
+  overflow: hidden;
+}
+
+.video-card__media {
+  /*
+   * Sunken rather than raised: before a frame loads this area is empty, and
+   * a well reads as "something goes here" where a raised panel reads as a
+   * card that failed to render.
+   */
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+/* The card owns the corners now, so the player must not round them again. */
+.video-card__media .video-player {
+  border-radius: 0;
+}
+
+.video-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+}
+
+.video-card__title {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.video-card__caption {
+  margin: 0;
+  color: var(--text-secondary);
+}

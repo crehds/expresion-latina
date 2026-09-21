@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 
-import { getTeachersByGenreId } from '../../../data';
+import { Page } from '../../../components';
+import { getActiveTeachersByGenreId } from '../../../data/selectors';
 
 import '../css/genres.css';
 import Genre from './Genre';
@@ -8,16 +9,18 @@ import Genre from './Genre';
 function Genres(props) {
   const { danceGenres } = props;
   return (
-    <div className="dance-genres">
-      {danceGenres.map((genre) => (
-        <Genre
-          key={genre.id}
-          name={genre.name}
-          slug={genre.slug}
-          teachers={getTeachersByGenreId(genre.id)}
-        />
-      ))}
-    </div>
+    <Page title="Clases" lead="Los estilos que se dictan en la academia.">
+      <ul className="dance-genres">
+        {danceGenres.map((genre) => (
+          <Genre
+            key={genre.id}
+            name={genre.name}
+            slug={genre.slug}
+            teachers={getActiveTeachersByGenreId(genre.id)}
+          />
+        ))}
+      </ul>
+    </Page>
   );
 }
 

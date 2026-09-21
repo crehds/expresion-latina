@@ -1,29 +1,93 @@
+/*
+ * Stacked on a phone, one row once there is width for it. The old footer was
+ * a flex row at every size, which is the reason it could never hold more than
+ * two icons: anything longer than a glyph had nowhere to wrap to.
+ */
 .footer {
   background: var(--surface-sunken);
-  padding: 2px;
-  padding-top: 4px;
+  border-top: 1px solid var(--surface-border);
+}
+
+.footer__inner {
   display: flex;
-  grid-template-columns: 1fr 1fr;
-  text-align: center;
-  justify-content: space-around;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--space-md) var(--page-gutter);
+}
+
+.footer__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.footer__name {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.footer__link {
+  display: flex;
   align-items: center;
-}
-
-.footer__social-media {
-  margin: 0;
-  padding: 0;
-  text-decoration: none;
+  gap: var(--space-2xs);
+  /*
+   * A footer link is a tap target on a phone, and these sit close together.
+   * 4.4rem of height keeps a thumb from hitting the address when it meant the
+   * WhatsApp number.
+   */
+  min-height: 4.4rem;
   color: var(--text-secondary);
-  font-size: 4.5rem;
+  text-decoration: none;
 }
 
-.footer__social-media:hover {
+.footer__link:hover,
+.footer__link:focus-visible {
+  color: var(--text-primary);
+}
+
+.footer__icon {
+  flex-shrink: 0;
+  font-size: 1.8rem;
+}
+
+.footer__social {
+  display: flex;
+  gap: var(--space-sm);
   margin: 0;
   padding: 0;
-  text-decoration: none;
-  color: var(--accent-strong);
+  list-style: none;
 }
 
-.footer__social-media-icon {
-  font-size: 4.5rem;
+.footer__social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  color: var(--text-secondary);
+  font-size: 3.2rem;
+  text-decoration: none;
+}
+
+.footer__social-link:hover,
+.footer__social-link:focus-visible {
+  color: var(--accent);
+}
+
+@media (min-width: 768px) {
+  .footer__inner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-lg);
+  }
+
+  /* The icons go last on a wide row, after the details they used to replace. */
+  .footer__social {
+    margin-left: auto;
+  }
 }

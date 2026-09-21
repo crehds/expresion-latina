@@ -7,6 +7,8 @@ vi.mock('../../../data', () => ({
   studio: {
     name: 'Expresión Latina', address: null, city: null, whatsapp: null,
   },
+  // Derived from studio.whatsapp, so a studio without a number has no link.
+  whatsappLink: null,
   classGenres: [{ id: 'salsa', name: 'Salsa' }],
 }));
 

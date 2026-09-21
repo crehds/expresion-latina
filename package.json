@@ -19,7 +19,7 @@
     "data:template": "node scripts/data/make-template.mjs",
     "screenshot": "node scripts/dev/screenshot.mjs",
     "prepare": "husky install",
-    "lint": "eslint src scripts vite.config.js"
+    "lint": "eslint src scripts vite.config.js --ext .js,.jsx,.mjs"
   },
   "browserslist": {
     "production": [

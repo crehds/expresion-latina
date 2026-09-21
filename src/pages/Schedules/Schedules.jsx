@@ -1,9 +1,9 @@
 import { Component } from 'react';
 
+import { Page } from '../../components';
 import { getActiveDays, getSessionsForWeekday, hasPublishedSchedule } from '../../data/selectors';
 import DayAgenda from './components/DayAgenda';
 import DayPicker from './components/DayPicker';
-import ScheduleIcon from './components/ScheduleIcon';
 import WeekColumns from './components/WeekColumns';
 
 import './css/schedules.css';
@@ -50,12 +50,11 @@ class Schedules extends Component {
 
     if (!hasPublishedSchedule()) {
       return (
-        <div className="schedules">
-          <ScheduleIcon />
+        <Page title="Horarios" className="schedules">
           <p className="text-md schedules__empty">
             Todavía no publicamos el horario de esta semana.
           </p>
-        </div>
+        </Page>
       );
     }
 
@@ -63,22 +62,20 @@ class Schedules extends Component {
     // put the entire week in the DOM of every phone.
     if (isWide) {
       return (
-        <div className="schedules">
-          <ScheduleIcon />
+        <Page title="Horarios" lead="Las clases de la semana, día por día." className="schedules">
           <WeekColumns
             days={this.days}
             sessionsByWeekday={getSessionsForWeekday}
             currentWeekday={currentWeekday}
           />
-        </div>
+        </Page>
       );
     }
 
     const selectedDay = this.days.find((day) => day.weekday === selectedWeekday);
 
     return (
-      <div className="schedules">
-        <ScheduleIcon />
+      <Page title="Horarios" lead="Elige un día para ver sus clases." className="schedules">
         <DayPicker
           days={this.days}
           selectedWeekday={selectedWeekday}
@@ -87,7 +84,7 @@ class Schedules extends Component {
         {selectedDay && (
           <DayAgenda day={selectedDay} sessions={getSessionsForWeekday(selectedWeekday)} />
         )}
-      </div>
+      </Page>
     );
   }
 }

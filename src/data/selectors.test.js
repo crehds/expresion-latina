@@ -26,6 +26,9 @@ function selectorsForFixture(data = fixture) {
     getTimeSlotById: byId(data.timeSlots),
     getGenreById: byId(data.genres),
     getTeacherById: byId(data.teachers),
+    getTeachersByGenreId: (genreId) => data.teachers.filter(
+      (teacher) => (teacher.genreIds ?? []).includes(genreId),
+    ),
   });
 }
 
@@ -235,5 +238,51 @@ describe('schedule selectors', () => {
 
       expect(selectorsForFixture(broken).getSessionsForWeekday(1)).toHaveLength(3);
     });
+  });
+});
+
+/*
+ * A teacher keeps their genreIds after they stop appearing in the schedule,
+ * so a class page reading the links alone names people the faculty page no
+ * longer shows.
+ *
+ * The pair below is the whole point: one teacher linked to salsa and in the
+ * schedule, one linked to salsa and absent from it. An earlier version of
+ * these tests asserted against the committed dataset, which the importer
+ * regenerates — a month where every linked teacher happened to be scheduled
+ * would have turned them red with no code change.
+ */
+describe('getActiveTeachersByGenreId', () => {
+  const LINKED_AND_SCHEDULED = { id: 'mishel', name: 'Mishel', genreIds: ['salsa'] };
+  const LINKED_AND_GONE = { id: 'retirada', name: 'Retirada', genreIds: ['salsa'] };
+
+  function withBothKinds() {
+    return selectorsForFixture({
+      ...fixture,
+      teachers: [LINKED_AND_SCHEDULED, LINKED_AND_GONE],
+    });
+  }
+
+  it('keeps the teacher the schedule still names', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('salsa').map((t) => t.id))
+      .toEqual(['mishel']);
+  });
+
+  it('drops the teacher who kept the genre but left the schedule', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('salsa').map((t) => t.id))
+      .not.toContain('retirada');
+  });
+
+  it('empties a genre whose only teacher has left', () => {
+    const selectors = selectorsForFixture({
+      ...fixture,
+      teachers: [LINKED_AND_GONE],
+    });
+
+    expect(selectors.getActiveTeachersByGenreId('salsa')).toEqual([]);
+  });
+
+  it('returns nothing for a genre nobody is linked to', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('bachata')).toEqual([]);
   });
 });

@@ -1,8 +1,9 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
-import { VideoPlayer } from '../../../components';
-import { getGenreBySlug, getTeachersByGenreId, getVideosByGenreId } from '../../../data';
+import { Page, VideoCard } from '../../../components';
+import { getAcademyVideos, getGenreBySlug, getVideosByGenreId } from '../../../data';
+import { getActiveTeachersByGenreId } from '../../../data/selectors';
 import withRouter from '../../../hocs/withRouter';
 
 import '../css/dance-videos.css';
@@ -20,41 +21,77 @@ function DanceVideos(props) {
 
   const genre = getGenreBySlug(genreSlug);
   const videos = genre ? getVideosByGenreId(genre.id) : [];
-  const teachers = genre ? getTeachersByGenreId(genre.id) : [];
+  const teachers = genre ? getActiveTeachersByGenreId(genre.id) : [];
+  // Shown in place of this style's own footage, which most styles lack.
+  const academyVideos = genre && videos.length === 0 ? getAcademyVideos() : [];
+
+  const back = (
+    <button
+      className="dance-videos__back"
+      type="button"
+      aria-label="Volver"
+      onClick={() => navigate(-1)}
+    >
+      <i className="icon-arrow-left" aria-hidden="true" />
+    </button>
+  );
 
   return (
-    <div className="dance-videos">
-      <div className="dance-videos__title">
-        <button
-          className="dance-videos__back"
-          type="button"
-          aria-label="Volver"
-          onClick={() => navigate(-1)}
-        >
-          <i className="icon-arrow-left" aria-hidden="true" />
-        </button>
-        <h2 className="heading-sm dance-videos__heading">
-          {genre ? genre.name : 'Género no encontrado'}
-        </h2>
-      </div>
-
-      {genre?.description && (
-        <p className="text-md dance-videos__description">{genre.description}</p>
+    <Page
+      title={genre ? genre.name : 'Género no encontrado'}
+      lead={genre?.description}
+      action={back}
+      className="dance-videos"
+    >
+      {videos.length > 0 && (
+        <ul className="dance-videos__container">
+          {videos.map((video) => (
+            <li key={video.id}>
+              <VideoCard src={video.src} title={video.title} />
+            </li>
+          ))}
+        </ul>
       )}
 
-      <div className="dance-videos__container">
-        {videos.map((video) => (
-          <VideoPlayer key={video.id} src={video.src} title={video.title} />
-        ))}
-        {genre && videos.length === 0 && (
-          <p className="text-sm dance-videos__empty">
+      {genre && videos.length === 0 && (
+        /*
+         * Most genres reach this, so it is a state the page is in rather than
+         * an error it is reporting. It says what is missing and offers the
+         * thing the visitor came for anyway: when the class runs.
+         */
+        <div className="dance-videos__empty">
+          <p className="text-md dance-videos__empty-title">
             Todavía no hay videos de
             {' '}
             {genre.name}
             .
           </p>
-        )}
-      </div>
+          <Link className="dance-videos__empty-link" to="/schedules">
+            Ver cuándo se dicta
+          </Link>
+        </div>
+      )}
+
+      {academyVideos.length > 0 && (
+        /*
+         * The academy's own reel, under its own heading. Naming it keeps the
+         * page honest: these are the school's videos, not footage of this
+         * style, and calling them the latter would be the page inventing
+         * content it does not have.
+         */
+        <section className="dance-videos__academy">
+          <h2 className="heading-xs dance-videos__subheading">
+            Videos de la academia
+          </h2>
+          <ul className="dance-videos__container">
+            {academyVideos.map((video) => (
+              <li key={video.id}>
+                <VideoCard src={video.src} title={video.title} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {teachers.length > 0 && (
         <section className="dance-videos__teachers">
@@ -81,7 +118,7 @@ function DanceVideos(props) {
           </ul>
         </section>
       )}
-    </div>
+    </Page>
   );
 }
 

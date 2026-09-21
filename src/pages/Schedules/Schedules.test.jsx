@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
 import Schedules from './Schedules';
+import { getSessionsForWeekday } from '../../data/selectors';
 
 // Session cards link to a teacher's profile, so the page needs a router even
 // though nothing in these tests navigates.
@@ -116,15 +117,29 @@ describe('Schedules on a wide screen', () => {
   });
 });
 
-// The reason the schedule and the faculty share a data model: reading one
-// should take you to the other.
+/*
+ * The reason the schedule and the faculty share a data model: reading one
+ * should take you to the other.
+ *
+ * The teacher is read out of the schedule rather than written down here, and
+ * the link is found by that teacher's name rather than by being first on the
+ * page. The earlier version took getAllByRole('link')[0] and matched its href
+ * against /^\/teachers\/[a-z-]+$/, which proved neither half: a card wired to
+ * the wrong teacher still passed, and the character class excludes digits
+ * while the schema allows a slug to contain them, so one imported teacher
+ * with a digit in their name would have turned it red with no code change.
+ */
 describe('a class with a teacher', () => {
   it('links the name to that teacher profile', () => {
+    const [session] = getSessionsForWeekday(TUESDAY.getDay())
+      .filter((entry) => entry.teacher);
+
+    expect(session).toBeDefined();
+
     mockViewport(false);
     renderSchedules();
 
-    const [link] = screen.getAllByRole('link');
-
-    expect(link.getAttribute('href')).toMatch(/^\/teachers\/[a-z-]+$/);
+    expect(screen.getByRole('link', { name: session.teacher.name }))
+      .toHaveAttribute('href', `/teachers/${session.teacher.id}`);
   });
 });

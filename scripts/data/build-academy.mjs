@@ -111,6 +111,29 @@ function buildGenres(rows, errors, previousVideoIds) {
 }
 
 /**
+ * A yyyy-mm-dd string, or null when those numbers name no real day.
+ *
+ * Shape is not existence: 31/02 and month 13 are as well-formed as any other
+ * digits, and the schema's birthDate pattern counts digits, so nothing
+ * downstream rejects them. src/data/index.js then hands the string to Date,
+ * which rolls 31 February forward into March rather than refusing, and the
+ * profile shows a confidently wrong age instead of leaving it out.
+ *
+ * Built in UTC to match the reader above and to keep the answer independent
+ * of where the import runs.
+ */
+function asDate(year, month, day) {
+  const [y, m, d] = [Number(year), Number(month), Number(day)];
+  const date = new Date(Date.UTC(y, m - 1, d));
+
+  const exists = date.getUTCFullYear() === y
+    && date.getUTCMonth() === m - 1
+    && date.getUTCDate() === d;
+
+  return exists ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null;
+}
+
+/**
  * A birth date the sheet may give as a real Excel date or as text.
  *
  * Stored as a date rather than as an age because an age is wrong within the
@@ -118,16 +141,25 @@ function buildGenres(rows, errors, previousVideoIds) {
  * often all the academy knows.
  */
 function readBirthDate(cell) {
+  /*
+   * The UTC day, deliberately. ExcelJS hands a date cell over as UTC midnight
+   * of the day the sheet displays, whatever timezone the importer runs in —
+   * the same reason readTime below reads getUTCHours rather than getHours.
+   *
+   * Reading the local components instead looks more natural and is wrong: it
+   * would answer 13 March in Lima and 14 March in Madrid for one cell.
+   */
   if (cell instanceof Date) return cell.toISOString().slice(0, 10);
 
   const text = readText(cell);
   if (!text) return null;
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return asDate(iso[1], iso[2], iso[3]);
 
   // Written the way people write dates here: 14/03/1998.
   const local = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (local) return `${local[3]}-${local[2].padStart(2, '0')}-${local[1].padStart(2, '0')}`;
+  if (local) return asDate(local[3], local[2], local[1]);
 
   if (/^\d{4}$/.test(text)) return text;
 
