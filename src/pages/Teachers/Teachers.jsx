@@ -37,7 +37,15 @@ class Teachers extends Component {
     const teacherForModal = params.teacherId ? getTeacherById(params.teacherId) : null;
 
     return (
-      <Page title="Profesores" lead="Toca a un profesor para ver su perfil.">
+      /*
+       * The lead carries "this month" because the list no longer has a
+       * heading of its own saying so: with the past teachers gone there is
+       * one list, and a section title above it would repeat the page title.
+       */
+      <Page
+        title="Profesores"
+        lead="Quienes dictan este mes. Toca a un profesor para ver su perfil."
+      >
         <TeachersGrid
           teachers={teachers}
           activeIds={getActiveTeacherIds()}
