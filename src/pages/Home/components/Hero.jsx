@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-import { classGenres, studio } from '../../../data';
+import { classGenres, studio, whatsappLink } from '../../../data';
 
 import '../css/hero.css';
 
@@ -16,8 +16,7 @@ function Hero() {
   // optional in the same way. Dereferencing either unconditionally would turn
   // a missing field into a TypeError during render, and because this is the
   // first thing on the landing page it would take the whole route down rather
-  // than dropping one button.
-  const whatsappNumber = studio.whatsapp ? studio.whatsapp.replace(/\D/g, '') : null;
+  // than dropping one button. whatsappLink carries that guard for every caller.
   const location = [studio.address, studio.city].filter(Boolean).join(' · ');
 
   return (
@@ -36,10 +35,10 @@ function Hero() {
           <Link className="hero__cta hero__cta--primary" to="/schedules">
             Ver horarios
           </Link>
-          {whatsappNumber && (
+          {whatsappLink && (
             <a
               className="hero__cta hero__cta--secondary"
-              href={`https://wa.me/${whatsappNumber}`}
+              href={whatsappLink}
               target="_blank"
               rel="noreferrer"
             >

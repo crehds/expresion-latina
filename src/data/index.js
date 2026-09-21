@@ -20,6 +20,18 @@ function indexById(collection) {
 
 export const studio = deepFreeze({ ...academy.studio });
 
+/**
+ * The studio's WhatsApp as a link, or null when it has none.
+ *
+ * The schema makes every contact field but the name nullable, so the number
+ * has to be checked before it is read. That check and the digits-only rule
+ * wa.me wants were written out at each of the three call sites, which is two
+ * chances to forget the guard and take a route down with a TypeError.
+ */
+export const whatsappLink = studio.whatsapp
+  ? `https://wa.me/${studio.whatsapp.replace(/\D/g, '')}`
+  : null;
+
 /** Display order is array order; it is independent of the weekday numbers. */
 export const days = deepFreeze(academy.days.map((day) => ({ ...day })));
 

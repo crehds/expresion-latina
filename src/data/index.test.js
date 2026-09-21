@@ -1,3 +1,4 @@
+import academy from './academy.json';
 import {
   days,
   classGenres,
@@ -10,6 +11,7 @@ import {
   getVideosByGenreId,
   studio,
   teachers,
+  whatsappLink,
 } from './index';
 
 describe('academy data layer', () => {
@@ -97,6 +99,38 @@ describe('academy data layer', () => {
   describe('videos', () => {
     it('returns an empty list for a genre with no videos attached', () => {
       expect(getVideosByGenreId('salsa')).toEqual([]);
+    });
+  });
+
+  /*
+   * The guard that used to be repeated at every call site. Three components
+   * link to WhatsApp, the schema allows a studio without one, and each copy of
+   * the check was a chance to forget it and take a route down mid-render.
+   */
+  describe('the whatsapp link', () => {
+    it('strips the formatting wa.me will not accept', () => {
+      // Whatever the workbook holds, the link carries digits and nothing else.
+      if (studio.whatsapp) {
+        expect(whatsappLink).toBe(`https://wa.me/${studio.whatsapp.replace(/\D/g, '')}`);
+        expect(whatsappLink).not.toMatch(/[\s+()-]/);
+      } else {
+        expect(whatsappLink).toBeNull();
+      }
+    });
+
+    it('is null, never a link to nowhere, when the studio has no number', async () => {
+      vi.resetModules();
+      vi.doMock('./academy.json', () => ({
+        default: {
+          ...academy,
+          studio: { ...academy.studio, whatsapp: null },
+        },
+      }));
+
+      const { whatsappLink: link } = await import('./index');
+
+      expect(link).toBeNull();
+      vi.doUnmock('./academy.json');
     });
   });
 
