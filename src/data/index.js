@@ -169,6 +169,18 @@ export function getVideosByGenreId(genreId) {
 }
 
 /**
+ * The academy's own reel: footage belonging to the school rather than to one
+ * style or one teacher.
+ *
+ * A genre page with none of its own shows these instead of an empty box. Most
+ * styles have no footage yet, so without a fallback the page a visitor
+ * reaches by pressing a class is blank more often than not.
+ */
+export function getAcademyVideos() {
+  return videos.filter((video) => !video.genreId && !video.teacherId);
+}
+
+/**
  * Videos tied to one teacher, by the same two routes a genre uses: the video
  * naming the teacher, or the teacher listing the video.
  *

@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
 import { Page, VideoCard } from '../../../components';
-import { getGenreBySlug, getVideosByGenreId } from '../../../data';
+import { getAcademyVideos, getGenreBySlug, getVideosByGenreId } from '../../../data';
 import { getActiveTeachersByGenreId } from '../../../data/selectors';
 import withRouter from '../../../hocs/withRouter';
 
@@ -22,6 +22,8 @@ function DanceVideos(props) {
   const genre = getGenreBySlug(genreSlug);
   const videos = genre ? getVideosByGenreId(genre.id) : [];
   const teachers = genre ? getActiveTeachersByGenreId(genre.id) : [];
+  // Shown in place of this style's own footage, which most styles lack.
+  const academyVideos = genre && videos.length === 0 ? getAcademyVideos() : [];
 
   const back = (
     <button
@@ -68,6 +70,27 @@ function DanceVideos(props) {
             Ver cuándo se dicta
           </Link>
         </div>
+      )}
+
+      {academyVideos.length > 0 && (
+        /*
+         * The academy's own reel, under its own heading. Naming it keeps the
+         * page honest: these are the school's videos, not footage of this
+         * style, and calling them the latter would be the page inventing
+         * content it does not have.
+         */
+        <section className="dance-videos__academy">
+          <h2 className="heading-xs dance-videos__subheading">
+            Videos de la academia
+          </h2>
+          <ul className="dance-videos__container">
+            {academyVideos.map((video) => (
+              <li key={video.id}>
+                <VideoCard src={video.src} title={video.title} />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {teachers.length > 0 && (

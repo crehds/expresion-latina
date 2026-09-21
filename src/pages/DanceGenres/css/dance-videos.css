@@ -85,6 +85,10 @@
   background: var(--accent-strong);
 }
 
+.dance-videos__academy {
+  margin-top: var(--space-lg);
+}
+
 .dance-videos__teachers {
   margin-top: 4rem;
   padding-top: 2.4rem;

@@ -8,6 +8,7 @@ import {
   getGenreBySlug,
   getTeacherById,
   getTeachersByGenreId,
+  getAcademyVideos,
   getVideosByGenreId,
   studio,
   teachers,
@@ -106,6 +107,29 @@ describe('academy data layer', () => {
    * link to WhatsApp, the schema allows a studio without one, and each copy of
    * the check was a chance to forget it and take a route down mid-render.
    */
+  describe('getAcademyVideos', () => {
+    /*
+     * The academy's own reel: the footage that belongs to the school rather
+     * than to one style or one teacher. A genre page with no footage of its
+     * own shows these, so the page is never an empty box.
+     */
+    it('returns the videos tied to neither a genre nor a teacher', () => {
+      getAcademyVideos().forEach((video) => {
+        expect(video.genreId ?? null).toBeNull();
+        expect(video.teacherId ?? null).toBeNull();
+      });
+    });
+
+    it('leaves out a video that belongs to a genre', () => {
+      const ladies = getVideosByGenreId('ladies');
+
+      expect(ladies.length).toBeGreaterThan(0);
+      ladies.forEach((video) => {
+        expect(getAcademyVideos()).not.toContainEqual(video);
+      });
+    });
+  });
+
   describe('the whatsapp link', () => {
     /*
      * The number is fed in rather than read out. An earlier version of the
