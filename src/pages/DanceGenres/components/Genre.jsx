@@ -16,7 +16,7 @@ function Genre({ name, slug, teachers }) {
   const rest = names.length - 2;
 
   return (
-    <div className="dance-genre">
+    <li className="dance-genre">
       <Link to={`/dances/${slug}/videos`} className="dance-genre__link">
         <p className="text-lg dance-genre__name">{name}</p>
         {names.length > 0 && (
@@ -25,7 +25,7 @@ function Genre({ name, slug, teachers }) {
           </p>
         )}
       </Link>
-    </div>
+    </li>
   );
 }
 

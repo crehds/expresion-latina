@@ -1,11 +1,6 @@
-import { studio } from '../../../data';
+import { studio, whatsappLink } from '../../../data';
 
 import '../css/info.css';
-
-/** wa.me wants digits only, so the displayed formatting is stripped. */
-function whatsappUrl(number) {
-  return `https://wa.me/${number.replace(/\D/g, '')}`;
-}
 
 function Info() {
   const {
@@ -20,7 +15,7 @@ function Info() {
             <li className="info__detail">
               <i className="icon-whatsapp" />
               {/* A tappable link beats a number to copy out by hand. */}
-              <a className="text-sm info__link" href={whatsappUrl(whatsapp)} target="_blank" rel="noreferrer">
+              <a className="text-sm info__link" href={whatsappLink} target="_blank" rel="noreferrer">
                 {whatsapp}
               </a>
             </li>

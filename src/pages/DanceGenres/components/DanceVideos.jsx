@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
-import { VideoPlayer } from '../../../components';
+import { Page, VideoPlayer } from '../../../components';
 import { getGenreBySlug, getTeachersByGenreId, getVideosByGenreId } from '../../../data';
 import withRouter from '../../../hocs/withRouter';
 
@@ -22,26 +22,24 @@ function DanceVideos(props) {
   const videos = genre ? getVideosByGenreId(genre.id) : [];
   const teachers = genre ? getTeachersByGenreId(genre.id) : [];
 
+  const back = (
+    <button
+      className="dance-videos__back"
+      type="button"
+      aria-label="Volver"
+      onClick={() => navigate(-1)}
+    >
+      <i className="icon-arrow-left" aria-hidden="true" />
+    </button>
+  );
+
   return (
-    <div className="dance-videos">
-      <div className="dance-videos__title">
-        <button
-          className="dance-videos__back"
-          type="button"
-          aria-label="Volver"
-          onClick={() => navigate(-1)}
-        >
-          <i className="icon-arrow-left" aria-hidden="true" />
-        </button>
-        <h2 className="heading-sm dance-videos__heading">
-          {genre ? genre.name : 'Género no encontrado'}
-        </h2>
-      </div>
-
-      {genre?.description && (
-        <p className="text-md dance-videos__description">{genre.description}</p>
-      )}
-
+    <Page
+      title={genre ? genre.name : 'Género no encontrado'}
+      lead={genre?.description}
+      action={back}
+      className="dance-videos"
+    >
       <div className="dance-videos__container">
         {videos.map((video) => (
           <VideoPlayer key={video.id} src={video.src} title={video.title} />
@@ -81,7 +79,7 @@ function DanceVideos(props) {
           </ul>
         </section>
       )}
-    </div>
+    </Page>
   );
 }
 
