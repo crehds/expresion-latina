@@ -474,7 +474,7 @@ describe('a teacher with a birth date and titles', () => {
    * runs in whatever zone the machine is set to; this one runs both sides of
    * Greenwich.
    */
-  it('reads a date cell the same way on either side of Greenwich', () => {
+  it('reads a date cell the same way on either side of Greenwich', (t) => {
     const original = process.env.TZ;
     const readIn = (tz) => {
       process.env.TZ = tz;
@@ -483,21 +483,25 @@ describe('a teacher with a birth date and titles', () => {
 
     try {
       /*
-       * Prove the switch bites before trusting what it proves. The reader
-       * answers with toISOString, which is timezone-invariant, so if this
-       * runtime ignored a mid-process TZ change the two assertions below
-       * would pass for the wrong reason and this case would quietly become a
-       * duplicate of the one above it.
+       * Whether this runtime honours a mid-process TZ change is a property of
+       * the environment, not of the importer, so it is a reason to skip rather
+       * than to fail: a Node built without full ICU, or one that caches the
+       * zone, would otherwise report a product regression that is not there.
+       *
+       * Without the check the case is worse than useless, because the reader
+       * answers with toISOString, which is timezone-invariant — both
+       * assertions below would pass on a runtime that ignored the switch, and
+       * this would quietly become a duplicate of the case above it.
        */
       const probe = (tz) => {
         process.env.TZ = tz;
         return new Date(Date.UTC(1998, 2, 14)).getDate();
       };
-      assert.notEqual(
-        probe('America/Lima'),
-        probe('Europe/Madrid'),
-        'this runtime ignores a mid-process TZ change, so the case below proves nothing',
-      );
+
+      if (probe('America/Lima') === probe('Europe/Madrid')) {
+        t.skip('this runtime ignores a mid-process TZ change');
+        return;
+      }
 
       assert.equal(readIn('America/Lima'), '1998-03-14');
       assert.equal(readIn('Europe/Madrid'), '1998-03-14');
