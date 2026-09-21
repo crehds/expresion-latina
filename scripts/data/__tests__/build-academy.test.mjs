@@ -463,6 +463,33 @@ describe('a teacher with a birth date and titles', () => {
     assert.equal(teacher.birthDate, '1998-03-14');
   });
 
+  /*
+   * The same cell must read the same day wherever the importer runs.
+   *
+   * ExcelJS gives a date cell as UTC midnight of the day the sheet displays,
+   * which is why the reader takes the UTC components — the same reason
+   * readTime takes getUTCHours. Reading the local components instead looks
+   * more natural and answers 13 March in Lima and 14 March in Madrid for one
+   * cell. The assertion above cannot tell those apart, because it only ever
+   * runs in whatever zone the machine is set to; this one runs both sides of
+   * Greenwich.
+   */
+  it('reads a date cell the same way on either side of Greenwich', () => {
+    const original = process.env.TZ;
+    const readIn = (tz) => {
+      process.env.TZ = tz;
+      return buildTeacher({ nacimiento: new Date(Date.UTC(1998, 2, 14)) }).birthDate;
+    };
+
+    try {
+      assert.equal(readIn('America/Lima'), '1998-03-14');
+      assert.equal(readIn('Europe/Madrid'), '1998-03-14');
+    } finally {
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
+    }
+  });
+
   it('reads the local written form', () => {
     assert.equal(buildTeacher({ nacimiento: '14/03/1998' }).birthDate, '1998-03-14');
   });

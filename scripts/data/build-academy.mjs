@@ -118,6 +118,14 @@ function buildGenres(rows, errors, previousVideoIds) {
  * often all the academy knows.
  */
 function readBirthDate(cell) {
+  /*
+   * The UTC day, deliberately. ExcelJS hands a date cell over as UTC midnight
+   * of the day the sheet displays, whatever timezone the importer runs in —
+   * the same reason readTime below reads getUTCHours rather than getHours.
+   *
+   * Reading the local components instead looks more natural and is wrong: it
+   * would answer 13 March in Lima and 14 March in Madrid for one cell.
+   */
   if (cell instanceof Date) return cell.toISOString().slice(0, 10);
 
   const text = readText(cell);
