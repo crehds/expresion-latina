@@ -482,6 +482,23 @@ describe('a teacher with a birth date and titles', () => {
     };
 
     try {
+      /*
+       * Prove the switch bites before trusting what it proves. The reader
+       * answers with toISOString, which is timezone-invariant, so if this
+       * runtime ignored a mid-process TZ change the two assertions below
+       * would pass for the wrong reason and this case would quietly become a
+       * duplicate of the one above it.
+       */
+      const probe = (tz) => {
+        process.env.TZ = tz;
+        return new Date(Date.UTC(1998, 2, 14)).getDate();
+      };
+      assert.notEqual(
+        probe('America/Lima'),
+        probe('Europe/Madrid'),
+        'this runtime ignores a mid-process TZ change, so the case below proves nothing',
+      );
+
       assert.equal(readIn('America/Lima'), '1998-03-14');
       assert.equal(readIn('Europe/Madrid'), '1998-03-14');
     } finally {

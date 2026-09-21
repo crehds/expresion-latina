@@ -113,8 +113,21 @@ describe('academy data layer', () => {
      * than to one style or one teacher. A genre page with no footage of its
      * own shows these, so the page is never an empty box.
      */
+    /*
+     * The count comes first. Both assertions below iterate the result, which
+     * is vacuously true of an empty array — a predicate that accidentally
+     * excluded every video would have kept them green while every genre page
+     * fell back to nothing.
+     */
+    it('actually returns the reel the genre pages fall back to', () => {
+      expect(getAcademyVideos().length).toBeGreaterThan(0);
+    });
+
     it('returns the videos tied to neither a genre nor a teacher', () => {
-      getAcademyVideos().forEach((video) => {
+      const reel = getAcademyVideos();
+
+      expect(reel.length).toBeGreaterThan(0);
+      reel.forEach((video) => {
         expect(video.genreId ?? null).toBeNull();
         expect(video.teacherId ?? null).toBeNull();
       });
