@@ -149,7 +149,14 @@ function readBirthDate(cell) {
    * Reading the local components instead looks more natural and is wrong: it
    * would answer 13 March in Lima and 14 March in Madrid for one cell.
    */
-  if (cell instanceof Date) return cell.toISOString().slice(0, 10);
+  if (cell instanceof Date) {
+    // An Invalid Date reaches toISOString as a RangeError, which would abort
+    // the import rather than skip one unusable cell the way every branch
+    // below does.
+    if (Number.isNaN(cell.getTime())) return null;
+
+    return cell.toISOString().slice(0, 10);
+  }
 
   const text = readText(cell);
   if (!text) return null;
