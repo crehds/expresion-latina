@@ -13,6 +13,7 @@ import {
   getVideosByGenreId,
   studio,
   teachers,
+  uniqueById,
 } from './index';
 
 describe('academy data layer', () => {
@@ -117,6 +118,33 @@ describe('academy data layer', () => {
    * No committed teacher carries videoIds today, so nothing exercised the
    * union until here.
    */
+  /*
+   * The helper the two video lookups share. Its contract is only observable
+   * here: a duplicate id never reaches it through academy.json, because
+   * indexById collapses those upstream, so the union can only diverge if one
+   * route starts transforming its results.
+   */
+  describe('uniqueById', () => {
+    it('keeps the first entry for an id, as the lookups promise', () => {
+      const listed = { id: 'shared', title: 'Listed' };
+      const claimed = { id: 'shared', title: 'Claimed' };
+
+      expect(uniqueById([listed, claimed])).toEqual([listed]);
+    });
+
+    it('keeps everything with an id of its own', () => {
+      const first = { id: 'a' };
+      const second = { id: 'b' };
+
+      expect(uniqueById([first, second])).toEqual([first, second]);
+    });
+
+    it('preserves the order it was given', () => {
+      expect(uniqueById([{ id: 'b' }, { id: 'a' }, { id: 'b' }]).map((e) => e.id))
+        .toEqual(['b', 'a']);
+    });
+  });
+
   describe('getVideosByTeacherId with both links set', () => {
     async function lookupDoubleLinked() {
       vi.resetModules();

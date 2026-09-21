@@ -170,8 +170,21 @@ export function getVideoById(id) {
  * same clip rendered twice. The identity that matters is the id, so it is
  * the id that is compared.
  */
-function uniqueById(list) {
-  return [...new Map(list.map((entry) => [entry.id, entry])).values()];
+export function uniqueById(list) {
+  const kept = new Map();
+
+  /*
+   * Built by hand rather than with new Map(pairs): that constructor keeps the
+   * LAST value for a repeated key, only the position is first-seen. Today the
+   * two routes hand out the identical frozen object so nothing observable
+   * differs, which is exactly how a later divergence would resolve to the
+   * opposite record from the one this promises, silently.
+   */
+  list.forEach((entry) => {
+    if (!kept.has(entry.id)) kept.set(entry.id, entry);
+  });
+
+  return [...kept.values()];
 }
 
 /**
