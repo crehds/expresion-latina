@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
-import { Page, VideoPlayer } from '../../../components';
+import { Page, VideoCard } from '../../../components';
 import { getGenreBySlug, getVideosByGenreId } from '../../../data';
 import { getActiveTeachersByGenreId } from '../../../data/selectors';
 import withRouter from '../../../hocs/withRouter';
@@ -41,19 +41,34 @@ function DanceVideos(props) {
       action={back}
       className="dance-videos"
     >
-      <div className="dance-videos__container">
-        {videos.map((video) => (
-          <VideoPlayer key={video.id} src={video.src} title={video.title} />
-        ))}
-        {genre && videos.length === 0 && (
-          <p className="text-sm dance-videos__empty">
+      {videos.length > 0 && (
+        <ul className="dance-videos__container">
+          {videos.map((video) => (
+            <li key={video.id}>
+              <VideoCard src={video.src} title={video.title} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {genre && videos.length === 0 && (
+        /*
+         * Most genres reach this, so it is a state the page is in rather than
+         * an error it is reporting. It says what is missing and offers the
+         * thing the visitor came for anyway: when the class runs.
+         */
+        <div className="dance-videos__empty">
+          <p className="text-md dance-videos__empty-title">
             Todavía no hay videos de
             {' '}
             {genre.name}
             .
           </p>
-        )}
-      </div>
+          <Link className="dance-videos__empty-link" to="/schedules">
+            Ver cuándo se dicta
+          </Link>
+        </div>
+      )}
 
       {teachers.length > 0 && (
         <section className="dance-videos__teachers">

@@ -34,17 +34,55 @@
 }
 
 /*
- * One player on a phone, two from the tablet breakpoint. A 16:9 video below
- * about 32rem stops being worth playing.
+ * One card on a phone, two from the tablet breakpoint. A 16:9 video below
+ * about 32rem stops being worth playing, so the cards do not compete for
+ * width until there is width to give them.
  */
 .dance-videos__container {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.6rem;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
+/*
+ * Most genres have no footage yet, so this is the ordinary state of the page
+ * rather than a failure. It is a panel, not a stray sentence, and it carries
+ * somewhere to go.
+ */
 .dance-videos__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  padding: var(--space-lg) var(--space-sm);
+  border: 1px dashed var(--surface-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.dance-videos__empty-title {
+  margin: 0;
   color: var(--text-secondary);
+}
+
+.dance-videos__empty-link {
+  display: inline-flex;
+  align-items: center;
+  /* A link in an empty state is the one thing to press; give it a thumb. */
+  min-height: 4.4rem;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  text-decoration: none;
+}
+
+.dance-videos__empty-link:hover,
+.dance-videos__empty-link:focus-visible {
+  background: var(--accent-strong);
 }
 
 .dance-videos__teachers {
