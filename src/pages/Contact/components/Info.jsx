@@ -11,7 +11,15 @@ function Info() {
     <div className="info">
       <div className="info__content">
         <ul className="info__menu">
-          {whatsapp && (
+          {whatsappLink && (
+            /*
+             * Gated on the link, not on the raw cell. A cell can be non-empty
+             * and still carry no number, and this row used to render an anchor
+             * with no href for exactly those values: it looks like a link, and
+             * is neither focusable, announced as one, nor tappable. The footer
+             * and the hero already branch on the link; this was the call site
+             * the module comment claimed they all did.
+             */
             <li className="info__detail">
               <i className="icon-whatsapp" />
               {/* A tappable link beats a number to copy out by hand. */}

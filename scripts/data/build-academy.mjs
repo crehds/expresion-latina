@@ -233,6 +233,13 @@ function buildTeachers(rows, genresById, errors, previousTeachers = []) {
   const published = new Map(previousTeachers.map((teacher) => [teacher.id, teacher]));
 
   /*
+   * Whether the sheet carries a Video column at all, asked once of the sheet
+   * rather than per row: a row whose cell is empty still has the key, so any
+   * row answering yes means the column exists.
+   */
+  const hasVideoColumn = rows.some((row) => Object.hasOwn(row, 'video'));
+
+  /*
    * An absent column is not an empty cell.
    *
    * parseWorkbook sets a key only for a header the sheet actually has, so a
@@ -292,18 +299,25 @@ function buildTeachers(rows, genresById, errors, previousTeachers = []) {
       videoIds: [],
     };
 
-    const videoValue = readText(row.video);
-    if (videoValue) {
-      const video = buildTeacherVideo(id, name, videoValue);
-      videos.push(video);
-      teacher.videoIds = [video.id];
+    if (!hasVideoColumn) {
+      // The sheet says nothing about videos, so it may not unsay one either.
+      teacher.videoIds = published.get(id)?.videoIds ?? [];
+    } else {
+      const videoValue = readText(row.video);
+      if (videoValue) {
+        const video = buildTeacherVideo(id, name, videoValue);
+        videos.push(video);
+        teacher.videoIds = [video.id];
+      }
     }
 
     teachers.push(teacher);
     byName.set(id, { ...teacher, rowNumber: row.rowNumber });
   });
 
-  return { teachers, teacherVideos: videos, teachersById: byName };
+  return {
+    teachers, teacherVideos: videos, teachersById: byName, hasVideoColumn,
+  };
 }
 
 /**
@@ -475,7 +489,7 @@ function buildSchedule(rows, genresById, teachersById, errors) {
  * Videos that no sheet describes — the studio trailer, a genre reel added by
  * hand — survive untouched, which is the whole reason `previous` is passed in.
  */
-function mergeVideos(previousVideos, rebuilt, teachers) {
+function mergeVideos(previousVideos, rebuilt, teachers, sheetDescribesVideos = true) {
   const rebuiltIds = new Set(rebuilt.map((video) => video.id));
 
   /*
@@ -485,7 +499,11 @@ function mergeVideos(previousVideos, rebuilt, teachers) {
    * because no row rebuilt it would destroy hand-curated content on the next
    * data:import with no way back.
    */
-  const ownedIds = new Set(teachers.map((teacher) => teacherVideoId(teacher.id)));
+  const ownedIds = sheetDescribesVideos
+    ? new Set(teachers.map((teacher) => teacherVideoId(teacher.id)))
+    // A workbook with no Video column is not a workbook that emptied every
+    // Video cell, so it is entitled to delete nothing.
+    : new Set();
 
   // An owned id the sheet no longer fills was cleared, so it goes. Everything
   // else survives, which is what "records no sheet describes" means.
@@ -510,7 +528,9 @@ export default function buildAcademy(sheets, {
   );
 
   const { genres, genresById } = buildGenres(sheets.generos ?? [], errors, previousVideoIds);
-  const { teachers, teacherVideos, teachersById } = buildTeachers(
+  const {
+    teachers, teacherVideos, teachersById, hasVideoColumn,
+  } = buildTeachers(
     sheets.profesores ?? [],
     genresById,
     errors,
@@ -546,7 +566,7 @@ export default function buildAcademy(sheets, {
       timeSlots,
       genres,
       teachers,
-      videos: mergeVideos(previous?.videos ?? [], teacherVideos, teachers),
+      videos: mergeVideos(previous?.videos ?? [], teacherVideos, teachers, hasVideoColumn),
       reviews,
       sessions,
     },

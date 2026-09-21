@@ -191,3 +191,165 @@ describe('template then import, with nothing edited', () => {
     assert.deepEqual(twice, once);
   });
 });
+
+/**
+ * Drops named columns from the Profesores sheet, the way a workbook written
+ * before those columns existed arrives.
+ */
+async function withoutColumns(previous, headings) {
+  const source = join(workDir, `cols-${Date.now()}-${Math.random()}.json`);
+  writeFileSync(source, JSON.stringify(previous));
+
+  const target = join(workDir, `cols-${Date.now()}-${Math.random()}.xlsx`);
+  await makeTemplate(target, { source });
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(target);
+  const sheet = workbook.getWorksheet('Profesores');
+
+  headings.forEach((heading) => {
+    const header = sheet.getRow(1);
+    const index = header.values.findIndex((value) => value === heading);
+    if (index > 0) sheet.spliceColumns(index, 1);
+  });
+
+  await workbook.xlsx.writeFile(target);
+
+  const sheets = await parseWorkbook(target);
+
+  return buildAcademy(sheets, { previous, now: new Date('2026-01-15T10:00:00.000Z') });
+}
+
+/** Empties a cell while leaving its column in place. */
+async function withCellCleared(previous, heading) {
+  const source = join(workDir, `clear-${Date.now()}-${Math.random()}.json`);
+  writeFileSync(source, JSON.stringify(previous));
+
+  const target = join(workDir, `clear-${Date.now()}-${Math.random()}.xlsx`);
+  await makeTemplate(target, { source });
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(target);
+  const sheet = workbook.getWorksheet('Profesores');
+  const column = sheet.getRow(1).values.findIndex((value) => value === heading);
+  if (column > 0) sheet.getRow(2).getCell(column).value = null;
+  await workbook.xlsx.writeFile(target);
+
+  const sheets = await parseWorkbook(target);
+
+  return buildAcademy(sheets, { previous, now: new Date('2026-01-15T10:00:00.000Z') });
+}
+
+/*
+ * The carry-over contract, proved through a real workbook rather than through
+ * a row object built by hand.
+ *
+ * The unit cases construct the row themselves, so Object.hasOwn is true no
+ * matter what the parser does — they cannot tell whether an emptied cell still
+ * reaches the importer as a key. If it did not, clearing a published value
+ * would silently no-op on every import and the academy could never take one
+ * back.
+ */
+describe('a Profesores sheet missing the columns it was written before', () => {
+  it('keeps the birth date the sheet says nothing about', async () => {
+    const before = academyWith([]);
+    const { academy } = await withoutColumns(before, ['Nacimiento']);
+
+    assert.equal(academy.teachers[0].birthDate, before.teachers[0].birthDate);
+  });
+
+  it('keeps the titles the sheet says nothing about', async () => {
+    const before = academyWith([]);
+    const { academy } = await withoutColumns(before, ['Logros']);
+
+    assert.deepEqual(academy.teachers[0].achievements, before.teachers[0].achievements);
+  });
+});
+
+describe('a Profesores sheet whose cell was deliberately emptied', () => {
+  it('clears the birth date, so a published date can be taken back', async () => {
+    const before = academyWith([]);
+
+    assert.ok(before.teachers[0].birthDate, 'the fixture must start with one');
+
+    const { academy } = await withCellCleared(before, 'Nacimiento');
+
+    assert.equal(academy.teachers[0].birthDate, null);
+  });
+
+  it('clears the titles the same way', async () => {
+    const before = academyWith([]);
+
+    assert.ok(before.teachers[0].achievements.length, 'the fixture must start with some');
+
+    const { academy } = await withCellCleared(before, 'Logros');
+
+    assert.deepEqual(academy.teachers[0].achievements, []);
+  });
+});
+
+/*
+ * The Video column is the field the carry-over rule was not extended to.
+ *
+ * mergeVideos derives the ids an import may delete from every teacher in the
+ * sheet, regardless of whether the sheet carries a Video column at all, so a
+ * workbook written before that column looks exactly like one whose Video cells
+ * were emptied on purpose — and deletes the published clip either way.
+ */
+
+/*
+ * The Video column is the field the carry-over rule was not extended to.
+ *
+ * mergeVideos derives the ids an import may delete from every teacher in the
+ * sheet, regardless of whether the sheet carries a Video column at all, so a
+ * workbook written before that column looks exactly like one whose Video cell
+ * was emptied on purpose.
+ *
+ * The fixture must actually hold an owned clip. An earlier version of these
+ * cases used academyWith([]), which ships none, so both halves compared one
+ * empty list against another and proved nothing.
+ */
+const OWNED_VIDEO = {
+  id: 'video-mishel-fernandez',
+  title: 'Mishel Fernández',
+  genreId: null,
+  teacherId: 'mishel-fernandez',
+  assetKey: 'mishel.mp4',
+  externalUrl: null,
+};
+
+const withOwnedVideo = () => academyWith(
+  [OWNED_VIDEO],
+  { ...MISHEL, videoIds: [OWNED_VIDEO.id] },
+);
+
+describe('a Profesores sheet missing the Video column', () => {
+  it('keeps the teacher video it says nothing about', async () => {
+    const before = withOwnedVideo();
+
+    assert.ok(before.videos.length, 'the fixture must start with a clip');
+
+    const { academy } = await withoutColumns(before, ['Video']);
+
+    assert.deepEqual(academy.videos.map((video) => video.id), [OWNED_VIDEO.id]);
+  });
+
+  it('keeps the link from the teacher to that video', async () => {
+    const before = withOwnedVideo();
+    const { academy } = await withoutColumns(before, ['Video']);
+
+    assert.deepEqual(academy.teachers[0].videoIds, [OWNED_VIDEO.id]);
+  });
+});
+
+describe('a Profesores sheet whose Video cell was deliberately emptied', () => {
+  it('deletes the clip, so a published video can be taken back', async () => {
+    const before = withOwnedVideo();
+
+    assert.ok(before.videos.length, 'the fixture must start with a clip');
+
+    const { academy } = await withCellCleared(before, 'Video');
+
+    assert.deepEqual(academy.videos, []);
+  });
+});
