@@ -64,8 +64,12 @@ function initialsOf(name) {
  * Derived rather than stored: an age typed into a spreadsheet is wrong within
  * the year and nothing in the system can tell. Accepts a bare year too, since
  * that is often all anyone knows; the age is then correct to within one.
+ *
+ * Exported for its own tests. It is called once per teacher at module load
+ * with today's date, so the only other way to reach its branches would be to
+ * fake the clock and reimport the module for each case.
  */
-function ageFrom(birthDate, today = new Date()) {
+export function ageFrom(birthDate, today = new Date()) {
   if (!birthDate) return null;
 
   const [year, month = '01', day = '01'] = birthDate.split('-');
