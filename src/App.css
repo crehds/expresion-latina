@@ -1,7 +1,7 @@
 .App {
-  background-color: rgba(225, 225, 225, 0.8);
+  background-color: var(--surface-page);
+  color: var(--text-primary);
   min-height: 100vh;
-  color: black;
   display: grid;
   /*
    * Header and footer take the height they need; the page takes what is left
@@ -22,4 +22,12 @@
    * leaves the overflow where it belongs, inside the page that causes it.
    */
   grid-template-columns: minmax(0, 1fr);
+}
+
+/*
+ * Set while a full-height panel is open. Without it the page behind keeps its
+ * own scrollbar and the wheel moves the faculty rather than the profile.
+ */
+body.has-panel {
+  overflow: hidden;
 }

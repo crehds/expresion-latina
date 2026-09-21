@@ -29,7 +29,7 @@
   flex-direction: column;
   padding-top: 0.8rem;
   text-align: center;
-  color: var(--black-200);
+  color: var(--text-secondary);
 }
 
 @media (min-width: 768px) {

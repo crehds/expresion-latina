@@ -1,20 +1,48 @@
-/*
- * Cards size themselves to the screen rather than the screen being paged to
- * fit four cards: at 1280 this shows the whole faculty in one view, and it
- * adds columns rather than cards as the window grows.
- */
 .teachers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.4rem;
   width: 100%;
   max-width: 120rem;
   margin: 0 auto;
   padding: 1.5rem;
+}
+
+.teachers-grid__heading {
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--surface-border);
+  color: var(--text-secondary);
+}
+
+.teachers-grid__section--current .teachers-grid__heading {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+/*
+ * Cards size themselves to the screen rather than the screen being paged to
+ * fit four: at 1280 this shows the whole faculty, and it adds columns rather
+ * than cards as the window grows.
+ */
+.teachers-grid__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1.2rem;
   list-style: none;
 }
 
-/* The carousel gives its cards a fixed 25rem minimum; here they flex. */
+/* Still here, no longer teaching: present but visibly secondary. */
+.teachers-grid__section--past .teachers-grid__list {
+  opacity: 0.55;
+}
+
+.teachers-grid__section--past .teacher:hover,
+.teachers-grid__section--past .teacher:focus-within {
+  opacity: 1;
+}
+
+/* The carousel gives its cards a fixed minimum; here they flex. */
 .teachers-grid .teacher {
   min-width: 0;
   min-height: 0;

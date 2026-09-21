@@ -1,0 +1,111 @@
+.hero {
+  padding: 5.6rem var(--page-gutter) 4rem;
+  /*
+   * A trace of the brand at the very top and nothing more. The hero used to be
+   * a violet wash, which spent the brand colour on the largest surface on the
+   * site and left the buttons inside it with nothing to stand out against.
+   */
+  background:
+    radial-gradient(
+      70rem 40rem at 15% -10%,
+      rgba(149, 83, 214, 0.16) 0%,
+      transparent 70%
+    ),
+    var(--surface-page);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.hero__content {
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.hero__eyebrow {
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero__title {
+  margin: 0.8rem 0 1.2rem;
+  color: var(--text-primary);
+}
+
+.hero__tagline {
+  margin: 0;
+  max-width: 48rem;
+  color: var(--text-secondary);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin-top: 2.4rem;
+}
+
+.hero__cta {
+  /*
+   * 4.4rem is the minimum comfortable touch target; the horizontal padding is
+   * what makes these read as buttons rather than links on a phone.
+   */
+  display: inline-flex;
+  align-items: center;
+  min-height: 4.4rem;
+  padding: 0 2rem;
+  border-radius: var(--radius-pill);
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hero__cta--primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.hero__cta--primary:hover,
+.hero__cta--primary:focus-visible {
+  background: var(--accent-strong);
+}
+
+.hero__cta--secondary {
+  border: 1px solid var(--surface-border-strong);
+  color: var(--text-primary);
+}
+
+.hero__cta--secondary:hover {
+  background: var(--surface-overlay);
+}
+
+.hero__cta--secondary:hover,
+.hero__cta--secondary:focus-visible {
+  border-color: var(--accent);
+}
+
+.hero__genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin: 2.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hero__genre {
+  padding: 0.4rem 1.2rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+}
+
+@media (min-width: 768px) {
+  .hero {
+    padding: 9.6rem var(--page-gutter) 7.2rem;
+  }
+
+  .hero__title {
+    font-size: 6rem;
+    line-height: 6.4rem;
+  }
+}

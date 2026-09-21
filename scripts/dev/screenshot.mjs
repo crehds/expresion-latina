@@ -15,7 +15,7 @@ const outDir = process.argv[3] ?? 'screenshots';
 
 // The root element each page renders. Waiting on one of these proves a
 // lazy route actually mounted.
-const PAGE_ROOTS = '.home, .teachers, .dance-genres, .schedules, .reviews, .contact';
+const PAGE_ROOTS = '.home, .teachers, .dance-genres, .dance-videos, .schedules, .contact';
 
 const KNOWN_THIRD_PARTY_WARNINGS = [
   /Support for defaultProps will be removed/,
@@ -95,7 +95,13 @@ for (const { name, width, height } of VIEWPORTS) {
       contentBottom: bottomOf('.week-columns') ?? bottomOf('.day-agenda')
         ?? bottomOf(roots),
       surfaceBottom: bottomOf('.App > *:nth-child(2)'),
-      footerTop: topOf('footer'),
+      /*
+       * The page footer by its class, not by its tag. A <footer> is legitimate
+       * inside an <article> or a <blockquote> — a review card carries one for
+       * its author — and matching the tag picked the first of those instead,
+       * reporting the distance to it as an overlap on a page that had none.
+       */
+      footerTop: topOf('.footer'),
       viewportHeight: document.documentElement.clientHeight,
     };
   }, PAGE_ROOTS);

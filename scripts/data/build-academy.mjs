@@ -110,8 +110,85 @@ function buildGenres(rows, errors, previousVideoIds) {
   return { genres, genresById: byName };
 }
 
+/**
+ * A birth date the sheet may give as a real Excel date or as text.
+ *
+ * Stored as a date rather than as an age because an age is wrong within the
+ * year and nothing downstream can tell. A bare year is accepted, since it is
+ * often all the academy knows.
+ */
+function readBirthDate(cell) {
+  if (cell instanceof Date) return cell.toISOString().slice(0, 10);
+
+  const text = readText(cell);
+  if (!text) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+  // Written the way people write dates here: 14/03/1998.
+  const local = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (local) return `${local[3]}-${local[2].padStart(2, '0')}-${local[1].padStart(2, '0')}`;
+
+  if (/^\d{4}$/.test(text)) return text;
+
+  return null;
+}
+
+/**
+ * Titles and championships, one per line or separated by semicolons, each
+ * optionally carrying its year in brackets: "Campeón Nacional Salsa (2023)".
+ */
+function readAchievements(cell) {
+  const text = readText(cell);
+  if (!text) return [];
+
+  return text
+    .split(/[\n;]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const withYear = entry.match(/^(.*?)\s*\((\d{4})\)$/);
+
+      return withYear
+        ? { title: withYear[1].trim(), year: Number(withYear[2]) }
+        : { title: entry, year: null };
+    });
+}
+
+/**
+ * The one video id this importer owns for a teacher.
+ *
+ * It is derived from the teacher rather than from the cell's value, so
+ * importing the same workbook twice produces the same record and changing the
+ * link replaces it instead of accumulating a second one. mergeVideos reads the
+ * same function to decide what an import is entitled to delete, and so does
+ * the template generator when it pre-fills the cell, so the three cannot
+ * drift apart.
+ */
+export function teacherVideoId(teacherId) {
+  return `video-${teacherId}`;
+}
+
+/**
+ * A video the Profesores sheet declares for one teacher. A value containing
+ * "://" is treated as a link; anything else is a filename in src/assets/videos.
+ */
+function buildTeacherVideo(teacherId, teacherName, value) {
+  const isLink = value.includes('://');
+
+  return {
+    id: teacherVideoId(teacherId),
+    title: teacherName,
+    genreId: null,
+    teacherId,
+    assetKey: isLink ? null : value,
+    externalUrl: isLink ? value : null,
+  };
+}
+
 function buildTeachers(rows, genresById, errors) {
   const teachers = [];
+  const videos = [];
   const byName = new Map();
 
   rows.forEach((row) => {
@@ -153,13 +230,72 @@ function buildTeachers(rows, genresById, errors) {
       genreIds,
       bio: readText(row.bio) ?? '',
       social,
+      birthDate: readBirthDate(row.nacimiento),
+      achievements: readAchievements(row.logros),
+      videoIds: [],
     };
+
+    const videoValue = readText(row.video);
+    if (videoValue) {
+      const video = buildTeacherVideo(id, name, videoValue);
+      videos.push(video);
+      teacher.videoIds = [video.id];
+    }
 
     teachers.push(teacher);
     byName.set(id, { ...teacher, rowNumber: row.rowNumber });
   });
 
-  return { teachers, teachersById: byName };
+  return { teachers, teacherVideos: videos, teachersById: byName };
+}
+
+/**
+ * What students have said, one row each.
+ *
+ * The academy expects these to come from Instagram comments, so a row can name
+ * where it was left and link back to it. A row with no text is a trailing
+ * blank row in the sheet, not an error.
+ */
+function buildReviews(rows, errors) {
+  const reviews = [];
+  const seen = new Set();
+
+  rows.forEach((row) => {
+    const text = readText(row.resena) ?? readText(row.texto);
+    const author = readText(row.autor) ?? readText(row.nombre);
+
+    if (!text && !author) return;
+
+    if (!text) {
+      errors.push(error('Resenas', row.rowNumber, 'Resena', 'Falta el texto de la reseña.'));
+      return;
+    }
+    if (!author) {
+      errors.push(error('Resenas', row.rowNumber, 'Autor', 'Falta quién la escribió.'));
+      return;
+    }
+
+    // Two people called Ana get ana and ana-2 rather than one overwriting the
+    // other, and the same sheet imported twice gives the same ids.
+    const base = toSlug(author) || 'resena';
+    let id = base;
+    let suffix = 2;
+    while (seen.has(id)) {
+      id = `${base}-${suffix}`;
+      suffix += 1;
+    }
+    seen.add(id);
+
+    reviews.push({
+      id,
+      author,
+      text,
+      source: readText(row.origen),
+      sourceUrl: readText(row.enlace),
+    });
+  });
+
+  return reviews;
 }
 
 function buildStudio(rows, errors) {
@@ -275,6 +411,34 @@ function buildSchedule(rows, genresById, teachersById, errors) {
  *   videos, so an import must carry them across rather than delete them.
  * @returns {{academy: object|null, errors: object[]}}
  */
+/**
+ * The videos to keep: everything the previous file held, with the ones this
+ * import rebuilt taking the place of their older selves.
+ *
+ * Videos that no sheet describes — the studio trailer, a genre reel added by
+ * hand — survive untouched, which is the whole reason `previous` is passed in.
+ */
+function mergeVideos(previousVideos, rebuilt, teachers) {
+  const rebuiltIds = new Set(rebuilt.map((video) => video.id));
+
+  /*
+   * The ids this import is entitled to write: exactly one per teacher in the
+   * sheet. Ownership is by id, not by "names a teacher" — a second video
+   * attached to someone by hand also carries a teacherId, and deleting it
+   * because no row rebuilt it would destroy hand-curated content on the next
+   * data:import with no way back.
+   */
+  const ownedIds = new Set(teachers.map((teacher) => teacherVideoId(teacher.id)));
+
+  // An owned id the sheet no longer fills was cleared, so it goes. Everything
+  // else survives, which is what "records no sheet describes" means.
+  const kept = previousVideos.filter(
+    (video) => !ownedIds.has(video.id) && !rebuiltIds.has(video.id),
+  );
+
+  return [...kept, ...rebuilt];
+}
+
 export default function buildAcademy(sheets, {
   sourceFileName = null,
   now = new Date(),
@@ -289,8 +453,22 @@ export default function buildAcademy(sheets, {
   );
 
   const { genres, genresById } = buildGenres(sheets.generos ?? [], errors, previousVideoIds);
-  const { teachers, teachersById } = buildTeachers(sheets.profesores ?? [], genresById, errors);
+  const { teachers, teacherVideos, teachersById } = buildTeachers(
+    sheets.profesores ?? [],
+    genresById,
+    errors,
+  );
   const studio = buildStudio(sheets.estudio ?? [], errors);
+  /*
+   * A workbook with no Resenas sheet says nothing about reviews, so the ones
+   * already published survive — every template generated before that sheet
+   * existed is such a workbook, and importing one used to wipe the lot. A
+   * sheet that is present but empty is the academy deleting them, and that is
+   * honoured.
+   */
+  const reviews = sheets.resenas
+    ? buildReviews(sheets.resenas, errors)
+    : (previous?.reviews ?? []);
   const { timeSlots, sessions } = buildSchedule(
     sheets.horario ?? [],
     genresById,
@@ -310,7 +488,8 @@ export default function buildAcademy(sheets, {
       timeSlots,
       genres,
       teachers,
-      videos: previous?.videos ?? [],
+      videos: mergeVideos(previous?.videos ?? [], teacherVideos, teachers),
+      reviews,
       sessions,
     },
     errors,

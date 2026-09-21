@@ -63,6 +63,47 @@ export function createSelectors(data) {
   }
 
   /**
+   * Teachers with at least one class in the published schedule.
+   *
+   * Who currently teaches is answered by the schedule itself, so nobody has to
+   * keep a second list in step: a teacher who stops appearing stops being
+   * current, on the next import, with no edit anywhere.
+   *
+   * @returns {Set<string>}
+   */
+  function getActiveTeacherIds() {
+    return new Set(
+      allEnriched()
+        .map((session) => session.teacher?.id)
+        .filter(Boolean),
+    );
+  }
+
+  /**
+   * The soonest day that actually holds classes, starting from `fromWeekday`.
+   *
+   * The landing page answers "what can I dance today?" and must answer it on a
+   * Sunday too, so a closed day rolls forward rather than rendering an empty
+   * state. Seven steps cover the whole week; if none of them hold a class the
+   * schedule is unpublished and the caller gets null.
+   *
+   * @param {number} fromWeekday 0 is Sunday, matching Date#getDay()
+   * @returns {{day: object, sessions: EnrichedSession[], isToday: boolean}|null}
+   */
+  function getNextOpenDay(fromWeekday) {
+    for (let step = 0; step < 7; step += 1) {
+      const weekday = (fromWeekday + step) % 7;
+      const daySessions = getSessionsForWeekday(weekday);
+
+      if (daySessions.length > 0) {
+        return { day: daySessions[0].day, sessions: daySessions, isToday: step === 0 };
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Days that hold at least one class, in display order.
    *
    * The academy currently teaches Monday to Friday, so the week view shows
@@ -110,6 +151,8 @@ export function createSelectors(data) {
 
   return {
     getSessionsForWeekday,
+    getNextOpenDay,
+    getActiveTeacherIds,
     getActiveDays,
     getActiveTimeSlots,
     buildWeekMatrix,
@@ -121,6 +164,8 @@ const selectors = createSelectors(academy);
 
 export const {
   getSessionsForWeekday,
+  getNextOpenDay,
+  getActiveTeacherIds,
   getActiveDays,
   getActiveTimeSlots,
   buildWeekMatrix,

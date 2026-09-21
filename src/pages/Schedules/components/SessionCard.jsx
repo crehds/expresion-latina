@@ -1,10 +1,15 @@
 import PropTypes from 'prop-types';
+import { Link } from 'react-router-dom';
 
 import '../css/session-card.css';
 
 /**
  * One class. Used both in the day agenda and in the week columns, so it
  * carries no layout of its own beyond its internal stacking.
+ *
+ * The teacher's name links to their profile. That was the point of the whole
+ * data model: a session already knows who teaches it, so reading the schedule
+ * and finding out who that person is should not be two separate journeys.
  */
 function SessionCard(props) {
   const { session } = props;
@@ -24,7 +29,11 @@ function SessionCard(props) {
 
       {(teacher || level) && (
         <p className="text-sm session-card__detail">
-          {teacher?.name}
+          {teacher && (
+            <Link className="session-card__teacher" to={`/teachers/${teacher.id}`}>
+              {teacher.name}
+            </Link>
+          )}
           {teacher && level ? ' · ' : ''}
           {level}
         </p>
@@ -42,7 +51,10 @@ SessionCard.propTypes = {
       start: PropTypes.string.isRequired,
       end: PropTypes.string.isRequired,
     }).isRequired,
-    teacher: PropTypes.shape({ name: PropTypes.string }),
+    teacher: PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      name: PropTypes.string,
+    }),
     level: PropTypes.string,
     note: PropTypes.string,
   }).isRequired,

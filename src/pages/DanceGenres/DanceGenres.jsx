@@ -4,8 +4,6 @@ import { Route, Routes } from 'react-router-dom';
 import { classGenres } from '../../data';
 import { DanceVideos, Genres } from './components';
 
-import './css/dance-genres.css';
-
 // Kept as a class on purpose: pages in this codebase are class components
 // while the migration to hooks is still pending. Dropping the constructor and
 // componentDidMount that only copied static data into state left nothing but

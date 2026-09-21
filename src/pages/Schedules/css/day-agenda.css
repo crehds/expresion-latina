@@ -8,5 +8,5 @@
 .day-agenda__empty {
   padding: 2rem 1rem;
   text-align: center;
-  color: var(--black-200);
+  color: var(--text-secondary);
 }

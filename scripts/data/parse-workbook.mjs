@@ -73,8 +73,13 @@ export function readText(value) {
   return text === '' ? null : text;
 }
 
+/**
+ * @returns {object[]|null} null when the workbook has no such sheet, which is
+ *   not the same as a sheet the academy deliberately emptied. An import can
+ *   only honour a deletion it can tell apart from silence.
+ */
 function readSheet(worksheet) {
-  if (!worksheet) return [];
+  if (!worksheet) return null;
 
   const headerRow = worksheet.getRow(1);
   const headers = new Map();
@@ -108,11 +113,13 @@ function readSheet(worksheet) {
 /**
  * Reads the four sheets into raw rows keyed by normalised header.
  *
- * Missing sheets come back as empty arrays; deciding whether that is fatal
- * belongs to validation, not to reading.
+ * A missing sheet comes back as null and a present but empty one as [], so a
+ * caller can tell "this workbook says nothing about reviews" from "the academy
+ * removed every review". Deciding whether either is fatal belongs to
+ * validation, not to reading.
  *
  * @param {string} filePath
- * @returns {Promise<Record<'horario'|'generos'|'profesores'|'estudio', object[]>>}
+ * @returns {Promise<Record<'horario'|'generos'|'profesores'|'estudio'|'resenas', object[]|null>>}
  */
 export default async function parseWorkbook(filePath) {
   const workbook = new ExcelJS.Workbook();
@@ -126,5 +133,6 @@ export default async function parseWorkbook(filePath) {
     generos: readSheet(byName('generos')),
     profesores: readSheet(byName('profesores')),
     estudio: readSheet(byName('estudio')),
+    resenas: readSheet(byName('resenas')),
   };
 }

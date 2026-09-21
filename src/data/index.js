@@ -45,12 +45,40 @@ function initialsOf(name) {
     .toUpperCase();
 }
 
+/**
+ * Whole years between a birth date and today, or null when the academy has not
+ * told us.
+ *
+ * Derived rather than stored: an age typed into a spreadsheet is wrong within
+ * the year and nothing in the system can tell. Accepts a bare year too, since
+ * that is often all anyone knows; the age is then correct to within one.
+ */
+function ageFrom(birthDate, today = new Date()) {
+  if (!birthDate) return null;
+
+  const [year, month = '01', day = '01'] = birthDate.split('-');
+  const born = new Date(Number(year), Number(month) - 1, Number(day));
+
+  if (Number.isNaN(born.getTime())) return null;
+
+  let age = today.getFullYear() - born.getFullYear();
+
+  // Their birthday has not come round yet this year.
+  const beforeBirthday = today.getMonth() < born.getMonth()
+    || (today.getMonth() === born.getMonth() && today.getDate() < born.getDate());
+  if (beforeBirthday) age -= 1;
+
+  return age >= 0 && age < 120 ? age : null;
+}
+
 /** Each teacher carries its bundled image URL, resolved once at module load. */
 export const teachers = deepFreeze(
   academy.teachers.map((teacher) => ({
     ...teacher,
     image: teacher.imageKey ? resolveTeacherImage(teacher.imageKey) : undefined,
     initials: initialsOf(teacher.name),
+    age: ageFrom(teacher.birthDate),
+    achievements: teacher.achievements ?? [],
   })),
 );
 
@@ -62,6 +90,12 @@ export const videos = deepFreeze(
 );
 
 export const sessions = deepFreeze(academy.sessions.map((session) => ({ ...session })));
+
+/**
+ * What students have said. Empty until the academy adds any, which is why the
+ * section that renders them removes itself rather than announcing a gap.
+ */
+export const reviews = deepFreeze((academy.reviews ?? []).map((review) => ({ ...review })));
 
 const daysByWeekday = new Map(days.map((day) => [day.weekday, day]));
 const daysById = indexById(days);
@@ -118,6 +152,22 @@ export function getVideosByGenreId(genreId) {
   const genre = getGenreById(genreId);
   const listed = (genre?.videoIds ?? []).map(getVideoById).filter(Boolean);
   const claimed = videos.filter((video) => video.genreId === genreId);
+
+  return [...new Set([...listed, ...claimed])];
+}
+
+/**
+ * Videos tied to one teacher, by the same two routes a genre uses: the video
+ * naming the teacher, or the teacher listing the video.
+ *
+ * Two routes rather than one because the two sides are filled by different
+ * people — the spreadsheet names a teacher's video on their own row, while a
+ * video added by hand to academy.json is easier to point at its owner.
+ */
+export function getVideosByTeacherId(teacherId) {
+  const teacher = getTeacherById(teacherId);
+  const listed = (teacher?.videoIds ?? []).map(getVideoById).filter(Boolean);
+  const claimed = videos.filter((video) => video.teacherId === teacherId);
 
   return [...new Set([...listed, ...claimed])];
 }

@@ -28,11 +28,6 @@ const OPTIONS = [{
 },
 {
   id: 5,
-  name: 'Reseñas',
-  path: '/reviews',
-},
-{
-  id: 6,
   name: 'Encuéntranos',
   path: '/contact',
 },
@@ -40,7 +35,7 @@ const OPTIONS = [{
 
 class Options extends PureComponent {
   render() {
-    const { location } = this.props;
+    const { location, onNavigate } = this.props;
     return (
       <ul className="options">
         {
@@ -49,6 +44,7 @@ class Options extends PureComponent {
               key={option.id}
               location={location}
               name={option.name}
+              onNavigate={onNavigate}
               path={option.path}
             />
           ))
@@ -60,6 +56,7 @@ class Options extends PureComponent {
 
 Options.propTypes = {
   location: PropTypes.instanceOf(Object).isRequired,
+  onNavigate: PropTypes.func.isRequired,
 };
 
 export default withRouter(Options);

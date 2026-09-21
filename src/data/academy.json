@@ -258,7 +258,9 @@
       "imageKey": "bachata_izquierdo.jpg",
       "genreIds": ["bachata"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "joan",
@@ -267,7 +269,9 @@
       "imageKey": "mambo_joan.jpg",
       "genreIds": ["mambo"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "martinez",
@@ -276,7 +280,9 @@
       "imageKey": "ballet_martinez.jpg",
       "genreIds": ["ballet"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "kike",
@@ -285,7 +291,9 @@
       "imageKey": "body_kike.jpg",
       "genreIds": ["body-movement"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "pedro",
@@ -294,7 +302,9 @@
       "imageKey": "hells_pedro.jpg",
       "genreIds": [],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "stefanie",
@@ -303,7 +313,9 @@
       "imageKey": "jazz_stephany.jpg",
       "genreIds": ["jazz"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "mary",
@@ -312,7 +324,9 @@
       "imageKey": "ladies_mary.jpg",
       "genreIds": ["ladies"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "estrella",
@@ -321,7 +335,9 @@
       "imageKey": "latin_estrella.jpg",
       "genreIds": ["latin-urban"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "mishel-fernandez",
@@ -330,7 +346,14 @@
       "imageKey": null,
       "genreIds": ["salsa", "bachata"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": "1997",
+      "achievements": [
+        {
+          "title": "Instructora certificada",
+          "year": null
+        }
+      ]
     },
     {
       "id": "giusmary-sosa",
@@ -339,7 +362,9 @@
       "imageKey": null,
       "genreIds": ["urban-dance"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "vannia-valdivia",
@@ -348,7 +373,9 @@
       "imageKey": null,
       "genreIds": ["sexy-power"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "edson-cabanillas",
@@ -357,7 +384,9 @@
       "imageKey": null,
       "genreIds": ["heels"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "kenneth-ocana",
@@ -366,7 +395,9 @@
       "imageKey": null,
       "genreIds": ["bachata"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "omar-lopez",
@@ -375,7 +406,18 @@
       "imageKey": null,
       "genreIds": ["salsa"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": "1994-06-12",
+      "achievements": [
+        {
+          "title": "Campeón Nacional de Salsa en Línea",
+          "year": 2023
+        },
+        {
+          "title": "Finalista World Latin Dance Cup",
+          "year": 2021
+        }
+      ]
     },
     {
       "id": "anthony-sevillano",
@@ -384,7 +426,9 @@
       "imageKey": null,
       "genreIds": ["reggaeton"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     },
     {
       "id": "gonzalo-povis",
@@ -393,7 +437,9 @@
       "imageKey": "urban_povis.jpg",
       "genreIds": ["comercial-dance"],
       "bio": "",
-      "social": {}
+      "social": {},
+      "birthDate": null,
+      "achievements": []
     }
   ],
   "videos": [
@@ -577,5 +623,6 @@
       "room": "Sala 1",
       "note": null
     }
-  ]
+  ],
+  "reviews": []
 }
