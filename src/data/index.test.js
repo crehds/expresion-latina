@@ -11,7 +11,6 @@ import {
   getVideosByGenreId,
   studio,
   teachers,
-  whatsappLink,
 } from './index';
 
 describe('academy data layer', () => {
@@ -108,29 +107,39 @@ describe('academy data layer', () => {
    * the check was a chance to forget it and take a route down mid-render.
    */
   describe('the whatsapp link', () => {
-    it('strips the formatting wa.me will not accept', () => {
-      // Whatever the workbook holds, the link carries digits and nothing else.
-      if (studio.whatsapp) {
-        expect(whatsappLink).toBe(`https://wa.me/${studio.whatsapp.replace(/\D/g, '')}`);
-        expect(whatsappLink).not.toMatch(/[\s+()-]/);
-      } else {
-        expect(whatsappLink).toBeNull();
-      }
-    });
-
-    it('is null, never a link to nowhere, when the studio has no number', async () => {
+    /*
+     * The number is fed in rather than read out. An earlier version of the
+     * first test rebuilt its expected value with the same expression the
+     * module uses and wrapped the whole thing in a branch on the committed
+     * data, so it could not fail for any input and said nothing when the
+     * studio had no number.
+     */
+    async function linkFor(whatsapp) {
       vi.resetModules();
       vi.doMock('./academy.json', () => ({
-        default: {
-          ...academy,
-          studio: { ...academy.studio, whatsapp: null },
-        },
+        default: { ...academy, studio: { ...academy.studio, whatsapp } },
       }));
 
       const { whatsappLink: link } = await import('./index');
-
-      expect(link).toBeNull();
       vi.doUnmock('./academy.json');
+
+      return link;
+    }
+
+    it('strips the formatting wa.me will not accept', async () => {
+      expect(await linkFor('+51 960 507 583')).toBe('https://wa.me/51960507583');
+    });
+
+    it('strips punctuation a workbook is just as likely to carry', async () => {
+      expect(await linkFor('(01) 960-507-583')).toBe('https://wa.me/01960507583');
+    });
+
+    it('leaves a number that needs no cleaning alone', async () => {
+      expect(await linkFor('51960507583')).toBe('https://wa.me/51960507583');
+    });
+
+    it('is null, never a link to nowhere, when the studio has no number', async () => {
+      expect(await linkFor(null)).toBeNull();
     });
   });
 
