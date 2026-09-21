@@ -47,11 +47,14 @@ describe('App', () => {
       'Profesores',
       'Clases',
       'Horario',
-      'Reseñas',
       'Encuéntranos',
     ].forEach((label) => {
       expect(screen.getByText(label)).toBeInTheDocument();
     });
+
+    // Opinions are a section of the landing page, not somewhere to navigate
+    // to, so the menu must not offer them.
+    expect(screen.queryByText('Reseñas')).not.toBeInTheDocument();
   });
 
   it('marks the entry for the current route as active', async () => {

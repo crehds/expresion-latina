@@ -1,0 +1,206 @@
+/*
+ * A scrim that is a real button, so closing by clicking away is reachable by
+ * assistive tech as well as by the pointer. It is out of the tab order because
+ * the panel's own close button is the labelled way to do the same thing.
+ */
+.teacher-panel__scrim {
+  position: fixed;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.66);
+  cursor: pointer;
+}
+
+.teacher-panel {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(42rem, 100vw);
+  background: var(--surface-raised);
+  border-right: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-overlay);
+  overflow-y: auto;
+  /*
+   * Translated rather than positioned, so the browser animates it on the
+   * compositor instead of laying the page out on every frame.
+   */
+  animation: teacher-panel-in 0.28s ease both;
+}
+
+@keyframes teacher-panel-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacher-panel {
+    animation: none;
+  }
+}
+
+.teacher-panel__close {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--text-primary);
+  font-size: 1.8rem;
+  cursor: pointer;
+}
+
+.teacher-panel__close:hover {
+  background: var(--accent);
+}
+
+.teacher-panel__close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * 4:5 rather than a square: it is the portrait crop Instagram gives, which is
+ * where these photographs come from.
+ */
+.teacher-panel__portrait {
+  position: relative;
+  flex-shrink: 0;
+  aspect-ratio: 4 / 5;
+  background: var(--surface-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/*
+ * Most teachers have no photograph yet. Holding the portrait crop for them
+ * gives a 500px void of initials above the only content the panel has, so the
+ * placeholder gets a band instead of a portrait.
+ */
+.teacher-panel__portrait--empty {
+  aspect-ratio: auto;
+  height: 16rem;
+}
+
+.teacher-panel__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.teacher-panel__initials {
+  font-size: 5.6rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.teacher-panel__body {
+  padding: 2.4rem var(--page-gutter) 3.2rem;
+}
+
+.teacher-panel__name {
+  color: var(--text-primary);
+}
+
+.teacher-panel__age {
+  margin: 0.4rem 0 0;
+  color: var(--text-secondary);
+}
+
+.teacher-panel__social {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1.6rem;
+}
+
+.teacher-panel__social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 2rem;
+}
+
+.teacher-panel__social-link:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.teacher-panel__section {
+  margin-top: 2.8rem;
+}
+
+.teacher-panel__label {
+  margin: 0 0 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.teacher-panel__genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teacher-panel__genre {
+  padding: 0.4rem 1.2rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+}
+
+.teacher-panel__achievements {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The accent bar is the one place a title earns brand colour: these are the
+ * thing the academy most wants read.
+ */
+.teacher-panel__achievement {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.2rem;
+  padding: 0.8rem 0 0.8rem 1.2rem;
+  border-left: 2px solid var(--accent);
+  color: var(--text-primary);
+}
+
+.teacher-panel__achievement + .teacher-panel__achievement {
+  margin-top: 0.4rem;
+}
+
+.teacher-panel__year {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.teacher-panel__bio {
+  margin: 0;
+  color: var(--text-secondary);
+}

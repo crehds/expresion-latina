@@ -1,11 +1,10 @@
+/*
+ * The portal's own layer. It positions nothing itself: what goes inside
+ * decides whether it is a centred dialog or a panel against an edge, and a
+ * flex-centred 100vw box would fight a panel that wants the left edge.
+ */
 .modal {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: absolute;
-  right: 0;
-  top: 0;
-  background-color: rgba(50, 50, 50, 0.7);
+  position: fixed;
+  inset: 0;
+  z-index: 50;
 }

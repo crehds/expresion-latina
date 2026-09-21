@@ -338,3 +338,260 @@ describe('buildAcademy', () => {
     });
   });
 });
+
+describe('a teacher with a video', () => {
+  const HORARIO = sheet([
+    {
+      dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+    },
+  ]);
+
+  function buildWithVideo(video, previous) {
+    return build(
+      {
+        horario: HORARIO,
+        profesores: sheet([
+          { nombre: 'Mishel Fernández', generos: 'Salsa', video },
+        ]),
+      },
+      { previous },
+    );
+  }
+
+  it('reads a link as an external url', () => {
+    const { academy } = buildWithVideo('https://youtu.be/abc123');
+    const [video] = academy.videos;
+
+    assert.equal(video.externalUrl, 'https://youtu.be/abc123');
+    assert.equal(video.assetKey, null);
+    assert.equal(video.teacherId, 'mishel-fernandez');
+  });
+
+  it('reads anything else as a bundled filename', () => {
+    const { academy } = buildWithVideo('mishel_salsa.mp4');
+    const [video] = academy.videos;
+
+    assert.equal(video.assetKey, 'mishel_salsa.mp4');
+    assert.equal(video.externalUrl, null);
+  });
+
+  it('points the teacher at it', () => {
+    const { academy } = buildWithVideo('mishel_salsa.mp4');
+
+    assert.deepEqual(academy.teachers[0].videoIds, ['video-mishel-fernandez']);
+  });
+
+  // Importing the same workbook twice must not grow the file.
+  it('replaces its own previous record rather than adding a second', () => {
+    const first = buildWithVideo('old.mp4').academy;
+    const second = buildWithVideo('new.mp4', first).academy;
+
+    assert.equal(second.videos.length, 1);
+    assert.equal(second.videos[0].assetKey, 'new.mp4');
+  });
+
+  // The spreadsheet has no column for these, so only carrying them across
+  // keeps them alive.
+  it('keeps videos no sheet describes', () => {
+    const previous = {
+      videos: [{
+        id: 'como-llegar', title: 'Cómo llegar', genreId: null, assetKey: 'como_llegar.mp4', externalUrl: null,
+      }],
+    };
+    const { academy } = buildWithVideo('mishel_salsa.mp4', previous);
+
+    assert.deepEqual(academy.videos.map((video) => video.id), ['como-llegar', 'video-mishel-fernandez']);
+  });
+
+  // Clearing the cell has to delete the record, not just unlink it: the
+  // surviving record still names the teacher, and that is one of the two
+  // routes the site resolves a teacher's videos by.
+  it('deletes the video when the cell is cleared', () => {
+    const first = buildWithVideo('old.mp4').academy;
+    const second = buildWithVideo(undefined, first).academy;
+
+    assert.deepEqual(second.videos, []);
+    assert.deepEqual(second.teachers[0].videoIds, []);
+  });
+
+  // Ownership is by id, not by "names a teacher". A second video attached to
+  // someone by hand is not something any row can rebuild, so deleting it for
+  // want of a row would destroy hand-curated content on every import.
+  it('keeps a second video attached to that teacher by hand', () => {
+    const previous = {
+      videos: [{
+        id: 'mishel-showcase',
+        title: 'Showcase 2025',
+        genreId: null,
+        teacherId: 'mishel-fernandez',
+        assetKey: 'showcase.mp4',
+        externalUrl: null,
+      }],
+    };
+    const { academy } = buildWithVideo(undefined, previous);
+
+    assert.deepEqual(academy.videos.map((video) => video.id), ['mishel-showcase']);
+  });
+
+  it('leaves a teacher with no video alone', () => {
+    const { academy } = buildWithVideo(undefined);
+
+    assert.deepEqual(academy.videos, []);
+    assert.deepEqual(academy.teachers[0].videoIds, []);
+  });
+});
+
+describe('a teacher with a birth date and titles', () => {
+  function buildTeacher(extra) {
+    return build({
+      horario: sheet([
+        {
+          dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+        },
+      ]),
+      profesores: sheet([
+        { nombre: 'Mishel Fernández', generos: 'Salsa', ...extra },
+      ]),
+    }).academy.teachers[0];
+  }
+
+  // A real Excel date cell and the text a person types must agree, the same
+  // way the class times already have to.
+  it('reads an Excel date cell', () => {
+    const teacher = buildTeacher({ nacimiento: new Date(Date.UTC(1998, 2, 14)) });
+
+    assert.equal(teacher.birthDate, '1998-03-14');
+  });
+
+  it('reads the local written form', () => {
+    assert.equal(buildTeacher({ nacimiento: '14/03/1998' }).birthDate, '1998-03-14');
+  });
+
+  it('accepts a bare year, which is often all anyone knows', () => {
+    assert.equal(buildTeacher({ nacimiento: '1998' }).birthDate, '1998');
+  });
+
+  it('leaves the date out rather than guessing at something unreadable', () => {
+    assert.equal(buildTeacher({ nacimiento: 'marzo del 98' }).birthDate, null);
+    assert.equal(buildTeacher({}).birthDate, null);
+  });
+
+  it('splits titles on lines and reads the year out of the brackets', () => {
+    const teacher = buildTeacher({ logros: 'Campeón Nacional Salsa (2023)\nFinalista Mundial (2021)' });
+
+    assert.deepEqual(teacher.achievements, [
+      { title: 'Campeón Nacional Salsa', year: 2023 },
+      { title: 'Finalista Mundial', year: 2021 },
+    ]);
+  });
+
+  it('keeps a title that carries no year', () => {
+    assert.deepEqual(buildTeacher({ logros: 'Instructor certificado' }).achievements, [
+      { title: 'Instructor certificado', year: null },
+    ]);
+  });
+
+  it('gives an empty list rather than null when the cell is blank', () => {
+    assert.deepEqual(buildTeacher({}).achievements, []);
+  });
+});
+
+describe('the Resenas sheet', () => {
+  function buildReviews(rows) {
+    return build({
+      horario: sheet([
+        {
+          dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+        },
+      ]),
+      resenas: sheet(rows),
+    });
+  }
+
+  it('reads an opinion and where it was left', () => {
+    const { academy, errors } = buildReviews([{
+      autor: 'Evelyn Ramos',
+      resena: 'Los profesores explican con paciencia.',
+      origen: 'Instagram',
+      enlace: 'https://instagram.com/p/abc',
+    }]);
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(academy.reviews, [{
+      id: 'evelyn-ramos',
+      author: 'Evelyn Ramos',
+      text: 'Los profesores explican con paciencia.',
+      source: 'Instagram',
+      sourceUrl: 'https://instagram.com/p/abc',
+    }]);
+  });
+
+  // Two people share a first name far more often than they share a comment.
+  it('keeps two authors with the same name apart', () => {
+    const { academy } = buildReviews([
+      { autor: 'Ana', resena: 'Primera' },
+      { autor: 'Ana', resena: 'Segunda' },
+    ]);
+
+    assert.deepEqual(academy.reviews.map((review) => review.id), ['ana', 'ana-2']);
+  });
+
+  it('skips a trailing blank row rather than reporting it', () => {
+    const { academy, errors } = buildReviews([
+      { autor: 'Evelyn', resena: 'Muy buena academia.' },
+      {},
+    ]);
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.reviews.length, 1);
+  });
+
+  it('names the row when half of one is filled in', () => {
+    const { academy, errors } = buildReviews([{ autor: 'Evelyn' }]);
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].sheet, 'Resenas');
+    assert.equal(errors[0].row, 2);
+  });
+
+  const HORARIO_ONLY = {
+    horario: sheet([
+      {
+        dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+      },
+    ]),
+  };
+
+  const PUBLISHED = [{
+    id: 'evelyn', author: 'Evelyn', text: 'Muy buena academia.', source: null, sourceUrl: null,
+  }];
+
+  /*
+   * Every template generated before the Resenas sheet existed is a workbook
+   * without one. Rebuilding from the sheet alone meant importing any of them
+   * silently deleted every opinion the academy had.
+   */
+  it('keeps the published opinions when the workbook has no sheet', () => {
+    const { academy } = build(HORARIO_ONLY, { previous: { reviews: PUBLISHED } });
+
+    assert.deepEqual(academy.reviews, PUBLISHED);
+  });
+
+  // A sheet that is present and empty is the academy deleting them, which is
+  // a different statement and is honoured.
+  it('empties them when the sheet is there with no rows', () => {
+    const { academy } = build(
+      { ...HORARIO_ONLY, resenas: [] },
+      { previous: { reviews: PUBLISHED } },
+    );
+
+    assert.deepEqual(academy.reviews, []);
+  });
+
+  it('gives an empty list when there is nothing published either', () => {
+    const { academy } = build(HORARIO_ONLY);
+
+    assert.deepEqual(academy.reviews, []);
+  });
+});

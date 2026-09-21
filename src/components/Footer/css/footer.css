@@ -1,4 +1,5 @@
 .footer {
+  background: var(--surface-sunken);
   padding: 2px;
   padding-top: 4px;
   display: flex;
@@ -12,7 +13,7 @@
   margin: 0;
   padding: 0;
   text-decoration: none;
-  color: rgba(120, 120, 120, 0.9);
+  color: var(--text-secondary);
   font-size: 4.5rem;
 }
 
@@ -20,14 +21,7 @@
   margin: 0;
   padding: 0;
   text-decoration: none;
-  color: inherit;
-  background-image: radial-gradient(
-    circle farthest-corner at 12.3% 19.3%,
-    rgba(116, 106, 255, 0.4) 0%,
-    rgba(95, 209, 249, 1) 100.2%
-  );
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-strong);
 }
 
 .footer__social-media-icon {

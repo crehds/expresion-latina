@@ -1,44 +1,39 @@
 .home {
-  display: flex;
-  padding: 0.8rem 0;
   /*
-   * The carousel sizes its own track wider than the page — 600px inside a
-   * 360px phone — and paginates within it. Left visible, that width became
-   * document width and every page could be dragged sideways. It is clipped
-   * here, at the page that owns the carousel.
+   * The strip inside scrolls horizontally on purpose; this keeps that overflow
+   * from becoming the width of the document, which is what used to let every
+   * page be dragged sideways.
    */
   overflow-x: hidden;
 }
 
-.home__arrow {
-  color: var(--mustard-100);
-  cursor: pointer;
+/*
+ * Stacked on a phone, two columns from the desktop breakpoint: what is on
+ * today beside what the academy is announcing. Reading the schedule used to
+ * mean scrolling past a full-height poster to reach it.
+ *
+ * The classes column is the wider of the two because it holds the information;
+ * the posters are the advertisement beside it.
+ */
+.home__band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3.2rem;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 3.2rem var(--page-gutter) 4.8rem;
 }
 
-.home__arrow--left {
-  padding-left: 0.4rem;
+.home__posters-heading {
+  margin-bottom: 1.6rem;
+  color: var(--text-primary);
 }
 
-.home__arrow--right {
-  padding-right: 0.4rem;
-}
-
-.home__arrow-icon {
-  font-size: 3rem;
-  border-radius: 50%;
-  background-image: radial-gradient(
-    circle,
-    var(--sky-blue-400) 55%,
-    var(--gray-300) 100%
-  );
-}
-
-.slider-list {
-  height: 100%;
-}
-
-@media (min-width: 768px) {
-  .home__arrow-icon {
-    font-size: 5rem;
+@media (min-width: 1024px) {
+  .home__band {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 4.8rem;
+    align-items: start;
+    padding-top: 4.8rem;
   }
 }
