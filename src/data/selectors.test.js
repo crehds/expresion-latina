@@ -7,13 +7,10 @@ import {
   buildWeekMatrix,
   createSelectors,
   getActiveDays,
-  getActiveTeacherIds,
-  getActiveTeachersByGenreId,
   getActiveTimeSlots,
   getSessionsForWeekday,
   hasPublishedSchedule,
 } from './selectors';
-import { classGenres, getTeachersByGenreId } from './index';
 
 function byId(collection) {
   const map = new Map(collection.map((entry) => [entry.id, entry]));
@@ -29,6 +26,9 @@ function selectorsForFixture(data = fixture) {
     getTimeSlotById: byId(data.timeSlots),
     getGenreById: byId(data.genres),
     getTeacherById: byId(data.teachers),
+    getTeachersByGenreId: (genreId) => data.teachers.filter(
+      (teacher) => (teacher.genreIds ?? []).includes(genreId),
+    ),
   });
 }
 
@@ -242,34 +242,47 @@ describe('schedule selectors', () => {
 });
 
 /*
- * These run against the real dataset on purpose. The whole point of the
- * selector is to reconcile two committed collections — a teacher's genreIds
- * and the published schedule — so a fixture built to agree with itself would
- * prove nothing about the disagreement it exists to resolve.
+ * A teacher keeps their genreIds after they stop appearing in the schedule,
+ * so a class page reading the links alone names people the faculty page no
+ * longer shows.
+ *
+ * The pair below is the whole point: one teacher linked to salsa and in the
+ * schedule, one linked to salsa and absent from it. An earlier version of
+ * these tests asserted against the committed dataset, which the importer
+ * regenerates — a month where every linked teacher happened to be scheduled
+ * would have turned them red with no code change.
  */
 describe('getActiveTeachersByGenreId', () => {
-  it('never names a teacher the faculty page does not show', () => {
-    const active = getActiveTeacherIds();
+  const LINKED_AND_SCHEDULED = { id: 'mishel', name: 'Mishel', genreIds: ['salsa'] };
+  const LINKED_AND_GONE = { id: 'retirada', name: 'Retirada', genreIds: ['salsa'] };
 
-    classGenres.forEach((genre) => {
-      getActiveTeachersByGenreId(genre.id).forEach((teacher) => {
-        expect(active.has(teacher.id)).toBe(true);
-      });
+  function withBothKinds() {
+    return selectorsForFixture({
+      ...fixture,
+      teachers: [LINKED_AND_SCHEDULED, LINKED_AND_GONE],
     });
+  }
+
+  it('keeps the teacher the schedule still names', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('salsa').map((t) => t.id))
+      .toEqual(['mishel']);
   });
 
-  it('drops the teachers who kept the genre but left the schedule', () => {
-    // A genre is only evidence of the bug when someone was dropped from it.
-    const thinned = classGenres.filter(
-      (genre) => getActiveTeachersByGenreId(genre.id).length
-        < getTeachersByGenreId(genre.id).length,
-    );
-
-    expect(thinned.length).toBeGreaterThan(0);
+  it('drops the teacher who kept the genre but left the schedule', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('salsa').map((t) => t.id))
+      .not.toContain('retirada');
   });
 
-  it('keeps a genre whose teachers are still teaching it intact', () => {
-    expect(getActiveTeachersByGenreId('salsa').map((teacher) => teacher.name))
-      .toEqual(getTeachersByGenreId('salsa').map((teacher) => teacher.name));
+  it('empties a genre whose only teacher has left', () => {
+    const selectors = selectorsForFixture({
+      ...fixture,
+      teachers: [LINKED_AND_GONE],
+    });
+
+    expect(selectors.getActiveTeachersByGenreId('salsa')).toEqual([]);
+  });
+
+  it('returns nothing for a genre nobody is linked to', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('bachata')).toEqual([]);
   });
 });
