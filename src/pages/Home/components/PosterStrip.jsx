@@ -15,6 +15,14 @@ import '../css/poster-strip.css';
  * and keeps the arrows for the desktop pointer that has no swipe.
  */
 class PosterStrip extends Component {
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      currentIndex: 0,
+    };
+  }
+
   scrollBy = (direction) => {
     if (!this.strip) return;
 
@@ -25,8 +33,28 @@ class PosterStrip extends Component {
     this.strip.scrollBy({ left: step * direction, behavior: 'smooth' });
   };
 
+  // A slide is the full width of the track now, so the track's own width is
+  // the step between one poster and the next.
+  scrollToIndex = (index) => {
+    if (!this.strip) return;
+
+    this.strip.scrollTo({ left: this.strip.clientWidth * index, behavior: 'smooth' });
+  };
+
+  // The dots have no state of their own: reading the track's scroll position
+  // back is what keeps them correct after a swipe, not only after a click.
+  handleScroll = () => {
+    if (!this.strip) return;
+
+    const { scrollLeft, clientWidth } = this.strip;
+    if (!clientWidth) return;
+
+    this.setState({ currentIndex: Math.round(scrollLeft / clientWidth) });
+  };
+
   render() {
     const { posters } = this.props;
+    const { currentIndex } = this.state;
 
     return (
       <div className="poster-strip">
@@ -42,6 +70,7 @@ class PosterStrip extends Component {
         <ul
           className="poster-strip__track"
           ref={(node) => { this.strip = node; }}
+          onScroll={this.handleScroll}
         >
           {posters.map((poster, index) => (
             <li className="poster-strip__item" key={poster.id}>
@@ -62,6 +91,19 @@ class PosterStrip extends Component {
         >
           <i className="icon-keyboard_arrow_right" aria-hidden="true" />
         </button>
+
+        <div className="poster-strip__dots">
+          {posters.map((poster, index) => (
+            <button
+              key={poster.id}
+              type="button"
+              className="poster-strip__dot"
+              aria-current={index === currentIndex ? 'true' : undefined}
+              aria-label={`Ver el afiche ${index + 1} de ${posters.length}`}
+              onClick={() => this.scrollToIndex(index)}
+            />
+          ))}
+        </div>
       </div>
     );
   }

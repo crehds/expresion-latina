@@ -23,11 +23,12 @@
 }
 
 /*
- * 84% rather than 100%: the next poster peeks past the right edge, which is
- * what tells a thumb there is more without an arrow or a row of dots.
+ * Full width at every breakpoint: one poster on screen at a time, not a peek
+ * of the next one. The peek used to be what told a thumb there was more; the
+ * dots below the track carry that signal now, so dropping it loses nothing.
  */
 .poster-strip__item {
-  flex: 0 0 84%;
+  flex: 0 0 100%;
   scroll-snap-align: center;
 }
 
@@ -36,11 +37,43 @@
   display: none;
 }
 
-@media (min-width: 1024px) {
-  .poster-strip__item {
-    flex-basis: 100%;
-  }
+/*
+ * The mobile replacement for the peek: which poster is showing, and a direct
+ * way to jump to another one without swiping through everything between.
+ */
+.poster-strip__dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 1.2rem;
+}
 
+/*
+ * Padding beyond the visible circle, clipped off with background-clip: the
+ * dot itself stays small enough to read as one of several, but the button
+ * under it is a comfortable tap target.
+ */
+.poster-strip__dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  padding: 0.6rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background-color: var(--surface-border-strong);
+  background-clip: content-box;
+  cursor: pointer;
+}
+
+.poster-strip__dot[aria-current="true"] {
+  background-color: var(--accent);
+}
+
+.poster-strip__dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
   .poster-strip__arrow {
     position: absolute;
     top: 50%;
