@@ -329,6 +329,18 @@ describe('academy data layer', () => {
     });
 
     /*
+     * Not an endorsement of this output — it is the reason normaliseWhatsapp
+     * exists in the importer. This module strips and links whatever it is
+     * given, so a number stored without a country code still builds a wa.me
+     * address nobody can open. Only values that came through an import carry
+     * the fix; a hand-edited academy.json does not, and this pins what the
+     * footer and the hero would render if one ever did.
+     */
+    it('still builds an undialable link for a number no import normalised', async () => {
+      expect(await linkFor('960 507 583')).toBe('https://wa.me/960507583');
+    });
+
+    /*
      * A cell can be non-empty and still carry no number: a dash, a note, a
      * stray space. Stripping those leaves nothing, and a link to wa.me with
      * no number behind it is the "link to nowhere" the case below is named
