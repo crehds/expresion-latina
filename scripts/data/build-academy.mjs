@@ -413,6 +413,33 @@ function buildReviews(rows, errors) {
   return reviews;
 }
 
+/**
+ * A WhatsApp cell as the number src/data/index.js's wa.me link actually needs.
+ *
+ * That module strips every non-digit from whatever is here and builds
+ * https://wa.me/<digits>, so a number typed the way this academy normally
+ * writes one — nine digits, no country code — produced a link nobody could
+ * open. Only that one shape is rewritten; every other value, including one
+ * already carrying the country code, is returned exactly as typed, since the
+ * footer prints it verbatim.
+ */
+export function normaliseWhatsapp(value, row, errors) {
+  if (!value) return value;
+
+  const digits = value.replace(/\D/g, '');
+
+  if (digits.length === 11 && digits.startsWith('51')) return value;
+  if (digits.length === 9 && digits.startsWith('9')) return `+51 ${value}`;
+
+  errors.push(error(
+    'Estudio',
+    row.rowNumber,
+    'Whatsapp',
+    'Escribe el número con código de país, por ejemplo +51 960 507 583.',
+  ));
+  return value;
+}
+
 function buildStudio(rows, errors) {
   const studio = { name: 'Expresión Latina', social: {} };
 
@@ -422,7 +449,8 @@ function buildStudio(rows, errors) {
     if (!field) return;
 
     if (STUDIO_FIELDS.has(field)) {
-      studio[STUDIO_FIELDS.get(field)] = value;
+      const property = STUDIO_FIELDS.get(field);
+      studio[property] = property === 'whatsapp' ? normaliseWhatsapp(value, row, errors) : value;
       return;
     }
     if (STUDIO_SOCIAL.has(field)) {

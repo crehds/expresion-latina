@@ -8,7 +8,7 @@ import { describe, it } from 'node:test';
 import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 
-import buildAcademy, { toSlug } from '../build-academy.mjs';
+import buildAcademy, { toSlug, normaliseWhatsapp } from '../build-academy.mjs';
 
 const schema = JSON.parse(readFileSync(new URL('../../../src/data/academy.schema.json', import.meta.url)));
 const NOW = new Date('2026-01-15T10:00:00.000Z');
@@ -50,6 +50,52 @@ describe('toSlug', () => {
 
   it('is stable across spacing and case', () => {
     assert.equal(toSlug('  LATIN   urban '), 'latin-urban');
+  });
+});
+
+/*
+ * src/data/index.js strips every non-digit from this value and builds
+ * https://wa.me/<digits>. A number typed the way this academy normally
+ * writes one — nine digits, no country code — stripped down to a wa.me
+ * address nobody could open. Fixing it here, at import time, means the
+ * footer keeps displaying exactly what the academy typed for every other
+ * case, and only the one shape that would otherwise be undialable is
+ * rewritten.
+ */
+describe('normaliseWhatsapp', () => {
+  const row = { rowNumber: 2 };
+
+  it('leaves an already-international number byte-for-byte unchanged', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp('+51 (960) 507-583', row, errors), '+51 (960) 507-583');
+    assert.deepEqual(errors, []);
+  });
+
+  it('prefixes a bare mobile number with +51, keeping its spacing', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp('960 507 583', row, errors), '+51 960 507 583');
+    assert.deepEqual(errors, []);
+  });
+
+  it('leaves a blank value unchanged and raises no error of its own', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp(null, row, errors), null);
+    assert.deepEqual(errors, []);
+  });
+
+  it('flags anything else with one Estudio/Whatsapp error and leaves it unchanged', () => {
+    const errors = [];
+    const result = normaliseWhatsapp('(01) 960-507-583', row, errors);
+
+    assert.equal(result, '(01) 960-507-583');
+    assert.equal(errors.length, 1);
+    assert.deepEqual(
+      { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
+      { sheet: 'Estudio', row: 2, column: 'Whatsapp' },
+    );
   });
 });
 
@@ -306,6 +352,30 @@ describe('buildAcademy', () => {
 
       assert.equal(errors.length, 1);
       assert.equal(errors[0].sheet, 'Estudio');
+    });
+
+    it('normalises a bare mobile number typed into the WhatsApp cell', () => {
+      const { academy, errors } = build({
+        horario: [],
+        estudio: sheet([{ campo: 'WhatsApp', valor: '960 507 583' }]),
+      });
+
+      assert.deepEqual(errors, []);
+      assert.equal(academy.studio.whatsapp, '+51 960 507 583');
+    });
+
+    it('rejects a WhatsApp cell it cannot classify, naming the column', () => {
+      const { academy, errors } = build({
+        horario: [],
+        estudio: sheet([{ campo: 'WhatsApp', valor: '(01) 960-507-583' }]),
+      });
+
+      assert.equal(academy, null);
+      assert.equal(errors.length, 1);
+      assert.deepEqual(
+        { sheet: errors[0].sheet, column: errors[0].column },
+        { sheet: 'Estudio', column: 'Whatsapp' },
+      );
     });
   });
 
