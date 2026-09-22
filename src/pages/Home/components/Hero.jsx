@@ -1,8 +1,20 @@
 import { Link } from 'react-router-dom';
 
 import { classGenres, studio, whatsappLink } from '../../../data';
+import { groupGenresBySchedule } from '../../../data/selectors';
 
 import '../css/hero.css';
+
+/*
+ * The eight the landing page advertises, running classes first.
+ *
+ * Eight of sixteen fit, so which eight is a real choice: slicing the
+ * spreadsheet's own order put styles with no hour on the front page while
+ * styles running twice a week were cut. A visitor who arrives for one of those
+ * finds no class. Falls through to the unscheduled ones only to fill the row.
+ */
+const { scheduled, upcoming } = groupGenresBySchedule(classGenres);
+const featuredGenres = [...scheduled, ...upcoming].slice(0, 8);
 
 /**
  * The first screen: what this place is, where it is, and the two things a
@@ -48,7 +60,7 @@ function Hero() {
         </div>
 
         <ul className="hero__genres">
-          {classGenres.slice(0, 8).map((genre) => (
+          {featuredGenres.map((genre) => (
             <li className="text-sm hero__genre" key={genre.id}>
               {genre.name}
             </li>
