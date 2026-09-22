@@ -407,21 +407,14 @@ describe('a Profesores sheet whose cell was deliberately emptied', () => {
 });
 
 /*
- * The Video column is the field the carry-over rule was not extended to.
+ * The Video column, once the field the carry-over rule had not reached.
  *
- * mergeVideos derives the ids an import may delete from every teacher in the
- * sheet, regardless of whether the sheet carries a Video column at all, so a
- * workbook written before that column looks exactly like one whose Video cells
- * were emptied on purpose — and deletes the published clip either way.
- */
-
-/*
- * The Video column is the field the carry-over rule was not extended to.
- *
- * mergeVideos derives the ids an import may delete from every teacher in the
- * sheet, regardless of whether the sheet carries a Video column at all, so a
- * workbook written before that column looks exactly like one whose Video cell
- * was emptied on purpose.
+ * mergeVideos used to derive the ids an import may delete from every teacher in
+ * the sheet regardless of whether the sheet carried a Video column at all, so a
+ * workbook written before that column looked exactly like one whose Video cell
+ * was emptied on purpose, and the published clip went either way. hasVideoColumn
+ * now tells them apart, and the cases below pin both halves: an absent column
+ * deletes nothing, an emptied cell still takes the clip back.
  *
  * The fixture must actually hold an owned clip. An earlier version of these
  * cases used academyWith([]), which ships none, so both halves compared one
