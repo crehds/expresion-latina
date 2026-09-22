@@ -107,8 +107,18 @@ No. La planilla no maneja videos, así que el comando conserva los que ya
 estaban.
 
 **¿Puedo borrar la planilla después?**
-Sí. La versión que vale es `src/data/academy.json`, que queda en el
-repositorio. La planilla se puede volver a generar cuando haga falta.
+No. `content/horarios.xlsx` ahora vive en el repositorio y es de donde sale el
+contenido del sitio: es el archivo que se reemplaza para actualizarlo. La
+versión publicada, `src/data/academy.json`, se genera a partir de él.
+
+Cualquier otra planilla que se use para trabajar sí queda fuera del
+repositorio. Las únicas dos que entran son `horarios.xlsx` y
+`ejemplo-completo.xlsx`.
+
+**¿De dónde saco una planilla para empezar?**
+De `content/ejemplo-completo.xlsx`, que se puede descargar desde GitHub. Trae
+las cinco hojas con todas sus columnas y un ejemplo en cada una. Las celdas
+pintadas en amarillo son las que todavía faltan completar.
 
 **¿Y si el archivo está abierto en Excel?**
 El comando no va a poder leerlo. Cerralo y volvé a intentar.

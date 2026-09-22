@@ -1,5 +1,13 @@
-# Working spreadsheets stay on the machine that edits them; the canonical
-# content lives in src/data/academy.json, which is generated from them.
+# Scratch spreadsheets stay on the machine that edits them.
 *.xlsx
 *.xls
 *.csv
+
+# Except these two, which the academy needs to reach through the browser.
+#
+# horarios.xlsx is the workbook the academy uploads, and the one the site is
+# rebuilt from — a file nobody can see from GitHub is a file nobody without a
+# terminal can replace. ejemplo-completo.xlsx is the filled-in example they
+# download and copy from, written by scripts/data/make-example.mjs.
+!horarios.xlsx
+!ejemplo-completo.xlsx
