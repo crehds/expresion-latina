@@ -183,14 +183,26 @@ describe('autoplay', () => {
     window.matchMedia = realMatchMedia;
   });
 
-  function reduceMotion() {
+  const CAN_HOVER = '(hover: hover)';
+
+  /** Answers true for exactly the queries named, false for every other. */
+  function matchOnly(...queries) {
     window.matchMedia = (query) => ({
-      matches: query === REDUCED_MOTION,
+      matches: queries.includes(query),
       media: query,
       addEventListener: () => {},
       removeEventListener: () => {},
     });
   }
+
+  const reduceMotion = () => matchOnly(REDUCED_MOTION);
+
+  /*
+   * setupTests answers false to everything, which is a device that cannot
+   * hover — right for the touch case below, wrong for every test about a
+   * mouse resting on the strip. Those have to say so.
+   */
+  const withMouse = () => matchOnly(CAN_HOVER);
 
   it('advances to the next poster once the interval elapses', () => {
     render(<PosterStrip posters={posters} />);
@@ -224,6 +236,7 @@ describe('autoplay', () => {
    * name do not bubble, and firing those instead would silently test nothing.
    */
   it('does not advance while the pointer is over the strip, and resumes once it leaves', () => {
+    withMouse();
     render(<PosterStrip posters={posters} />);
     layOut({ width: 300, gap: 20 });
 
@@ -291,6 +304,7 @@ describe('autoplay', () => {
    * the first extra one, which is why this counts timers rather than scrolls.
    */
   it('never stacks a second interval on top of a running one', () => {
+    withMouse();
     const { container } = render(<PosterStrip posters={posters} />);
     layOut({ width: 300, gap: 20 });
     const strip = container.querySelector('.poster-strip');
@@ -303,12 +317,32 @@ describe('autoplay', () => {
   });
 
   /*
+   * A finger landing on the strip emits an emulated mouseover and then no
+   * mouseout at all, so a hold taken on hover was never lifted: one tap and
+   * the posters stopped for the rest of the visit, on a phone, which is what
+   * most of these visitors are on. Verified against a real touch context
+   * before this test existed — autoplay ran, one tap, and it never moved
+   * again.
+   */
+  it('keeps going after a tap on a device that cannot hover', () => {
+    const { container } = render(<PosterStrip posters={posters} />);
+    layOut({ width: 300, gap: 20 });
+    const strip = container.querySelector('.poster-strip');
+
+    fireEvent.mouseOver(strip);
+    vi.advanceTimersByTime(6000);
+
+    expect(track().scrollTo).toHaveBeenCalled();
+  });
+
+  /*
    * The pointer leaving and the focus leaving are separate permissions to
    * resume, and one cannot speak for the other. Someone tabbing through the
    * dots whose mouse happens to drift off the strip had the slideshow start
    * again underneath them — the exact thing pausing on focus was for.
    */
   it('stays paused when the pointer leaves but the focus is still inside', () => {
+    withMouse();
     const { container } = render(<PosterStrip posters={posters} />);
     layOut({ width: 300, gap: 20 });
     const strip = container.querySelector('.poster-strip');

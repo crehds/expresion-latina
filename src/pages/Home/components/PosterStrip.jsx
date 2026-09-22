@@ -10,6 +10,17 @@ const AUTOPLAY_INTERVAL_MS = 6000;
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
+/*
+ * Whether the pointer can actually rest on something without pressing it.
+ *
+ * A touch screen emits an emulated mouseover when a finger lands and usually
+ * no mouseout at all, so holding autoplay on hover left the hold set forever:
+ * one tap anywhere on the strip and the posters never moved again, on the
+ * device most of these visitors are using. A device that cannot hover cannot
+ * hold by hovering.
+ */
+const CAN_HOVER = '(hover: hover)';
+
 /**
  * The academy's posters, as a strip you scroll rather than a carousel.
  *
@@ -24,6 +35,7 @@ class PosterStrip extends Component {
     super(props);
 
     this.reducedMotionQuery = window.matchMedia(REDUCED_MOTION);
+    this.hoverQuery = window.matchMedia(CAN_HOVER);
 
     /*
      * Every reason autoplay is currently held, not merely that it is.
@@ -96,6 +108,11 @@ class PosterStrip extends Component {
     this.stopAutoplay();
   };
 
+  // The hold a touch screen would never lift again, so it is never taken.
+  holdPointer = () => {
+    if (this.hoverQuery.matches) this.hold('pointer');
+  };
+
   release = (reason) => {
     this.holds.delete(reason);
     this.startAutoplay();
@@ -145,7 +162,7 @@ class PosterStrip extends Component {
     return (
       <div
         className="poster-strip"
-        onMouseEnter={() => this.hold('pointer')}
+        onMouseEnter={this.holdPointer}
         onMouseLeave={() => this.release('pointer')}
         onFocus={() => this.hold('focus')}
         onBlur={() => this.release('focus')}

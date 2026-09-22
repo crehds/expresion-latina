@@ -149,9 +149,27 @@ function buildGeneros(workbook) {
   return sheet;
 }
 
+/*
+ * What addImage will actually accept, mapped from what the folder calls them.
+ *
+ * The extension is written straight into the workbook's content types, so
+ * passing through the file suffix put ContentType="image/jpg" in there —
+ * image/jpg is not a media type, image/jpeg is, and every photograph on file
+ * here ends in .jpg. Anything not on this list has no content type ExcelJS
+ * can declare at all, so it is skipped rather than embedded as something the
+ * spreadsheet cannot open.
+ */
+const EMBEDDABLE = new Map([
+  ['jpg', 'jpeg'],
+  ['jpeg', 'jpeg'],
+  ['png', 'png'],
+  ['gif', 'gif'],
+]);
+
 /**
  * @returns {{buffer: Buffer, extension: string}|null} the teacher's photograph,
- *   or null when the academy has none on file yet
+ *   or null when the academy has none on file, the file is missing, or the
+ *   format is one a workbook cannot carry
  */
 function readPhoto(teacher) {
   if (!teacher.imageKey) return null;
@@ -159,10 +177,10 @@ function readPhoto(teacher) {
   const path = resolve(photoDir, teacher.imageKey);
   if (!existsSync(path)) return null;
 
-  return {
-    buffer: readFileSync(path),
-    extension: teacher.imageKey.split('.').pop().toLowerCase(),
-  };
+  const extension = EMBEDDABLE.get(teacher.imageKey.split('.').pop().toLowerCase());
+  if (!extension) return null;
+
+  return { buffer: readFileSync(path), extension };
 }
 
 function buildProfesores(workbook) {
