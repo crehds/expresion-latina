@@ -52,14 +52,31 @@
  * Padding beyond the visible circle, clipped off with background-clip: the
  * dot itself stays small enough to read as one of several, but the button
  * under it is a comfortable tap target.
+ *
+ * A muted text colour rather than a border one: measured against the page
+ * behind it, --surface-border-strong reached 1.54:1, well under the 3:1 WCAG
+ * asks of a non-text control. These dots are the only thing left telling a
+ * phone there are more posters, so one nobody can see is the whole signal
+ * gone.
  */
 .poster-strip__dot {
+  /*
+   * content-box on purpose. This project sets border-box globally, which makes
+   * width the OUTER size: 0.8rem of width against 0.6rem of padding a side
+   * collapsed the content box to 0x0, and background-clip then painted that
+   * nothing. The dots were invisible on screen while getComputedStyle still
+   * reported a colour, so only a pixel read caught it.
+   *
+   * 0.8rem of dot inside 0.8rem of padding leaves a 2.4rem button, which is
+   * the smallest target WCAG accepts.
+   */
+  box-sizing: content-box;
   width: 0.8rem;
   height: 0.8rem;
-  padding: 0.6rem;
+  padding: 0.8rem;
   border: none;
   border-radius: var(--radius-pill);
-  background-color: var(--surface-border-strong);
+  background-color: var(--text-muted);
   background-clip: content-box;
   cursor: pointer;
 }
