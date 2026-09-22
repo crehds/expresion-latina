@@ -86,6 +86,20 @@ describe('normaliseWhatsapp', () => {
     assert.deepEqual(errors, []);
   });
 
+  /*
+   * The length is only half the rule, and dropping the other half survived a
+   * mutation: a Lima landline is nine digits too. Prefixing one builds a wa.me
+   * address for a number WhatsApp never answers on, which is the same
+   * undialable link this function exists to prevent.
+   */
+  it('refuses a nine-digit number that is not a mobile rather than prefixing it', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp('01 234 5678', row, errors), '01 234 5678');
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].column, 'Whatsapp');
+  });
+
   it('flags anything else with one Estudio/Whatsapp error and leaves it unchanged', () => {
     const errors = [];
     const result = normaliseWhatsapp('(01) 960-507-583', row, errors);
