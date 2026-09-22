@@ -9,6 +9,7 @@ import ExcelJS from 'exceljs';
 import buildAcademy from '../build-academy.mjs';
 import makeTemplate from '../make-template.mjs';
 import parseWorkbook from '../parse-workbook.mjs';
+import validateAcademy from '../validate.mjs';
 
 const workDir = mkdtempSync(join(tmpdir(), 'eyl-round-'));
 
@@ -552,5 +553,57 @@ describe('--fresh leaves the contracts it does not own alone', () => {
     const { academy } = await withoutSheet(before, 'Resenas', { fresh: true });
 
     assert.deepEqual(academy.videos, [trailer]);
+  });
+});
+
+/*
+ * Carrying a sheet forward can outdate what another sheet rebuilt.
+ *
+ * A teacher's and a genre's id come from their name, so renaming a row mints a
+ * new id. With the Horario sheet absent the published sessions are carried
+ * verbatim, and they go on naming the id that just stopped existing.
+ *
+ * buildAcademy cannot see it — it reports cells, and no cell is wrong — so it
+ * returns this academy with no errors at all. validateAcademy is what refuses
+ * it, by checking the finished object rather than the rows. That split is the
+ * whole reason import.mjs runs both, and nothing pinned it: the protection
+ * holds one layer above the code that creates the hazard, which is exactly the
+ * kind of arrangement a later refactor drops without noticing.
+ */
+describe('a carried schedule against a sheet that was edited', () => {
+  const renameTeacher = (previous, to) => importEdited(previous, (workbook) => {
+    workbook.removeWorksheet(workbook.getWorksheet('Horario').id);
+
+    const sheet = workbook.getWorksheet('Profesores');
+    const column = sheet.getRow(1).values.findIndex((value) => value === 'Nombre');
+    sheet.getRow(2).getCell(column).value = to;
+  });
+
+  it('carries sessions that name the teacher who was just renamed', async () => {
+    const before = academyWith([]);
+    const { academy, errors } = await renameTeacher(before, 'Mishel Fernández López');
+
+    // No cell is wrong, so the row-level pass has nothing to report.
+    assert.deepEqual(errors, []);
+    assert.equal(academy.sessions[0].teacherId, 'mishel-fernandez');
+    assert.ok(!academy.teachers.some((teacher) => teacher.id === 'mishel-fernandez'));
+  });
+
+  it('is refused by the check that reads the finished object', async () => {
+    const before = academyWith([]);
+    const { academy } = await renameTeacher(before, 'Mishel Fernández López');
+    const problems = validateAcademy(academy);
+
+    assert.ok(problems.length, 'a dangling teacher reference must be reported');
+    assert.match(problems.map((problem) => problem.message).join('\n'), /mishel-fernandez/);
+  });
+
+  it('leaves nothing dangling when the rename is not carried into a session', async () => {
+    const before = academyWith([]);
+    const { academy } = await importEdited(before, (workbook) => {
+      workbook.removeWorksheet(workbook.getWorksheet('Horario').id);
+    });
+
+    assert.deepEqual(validateAcademy(academy), []);
   });
 });
