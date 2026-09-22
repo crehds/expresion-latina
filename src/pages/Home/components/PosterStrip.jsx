@@ -25,6 +25,16 @@ class PosterStrip extends Component {
 
     this.reducedMotionQuery = window.matchMedia(REDUCED_MOTION);
 
+    /*
+     * Every reason autoplay is currently held, not merely that it is.
+     *
+     * A pointer resting on the strip and the keyboard focus sitting inside it
+     * are independent: collapsing them into one flag let a mouse wandering
+     * out of the area restart the slideshow under a visitor who was still
+     * tabbing through the dots.
+     */
+    this.holds = new Set();
+
     this.state = {
       currentIndex: 0,
     };
@@ -68,12 +78,27 @@ class PosterStrip extends Component {
     return this.strip.clientWidth;
   };
 
-  // Guarded so a second hover, or a reduced-motion flip while already
-  // running, cannot stack a second interval on top of the first.
+  /*
+   * Every reason not to run, in one guard.
+   *
+   * The timer check is what stops a second start stacking an interval on top
+   * of the first: stopAutoplay only ever clears the id it last stored, so the
+   * one underneath would tick on unreferenced for the life of the page.
+   */
   startAutoplay = () => {
-    if (this.autoplayTimer || this.reducedMotionQuery.matches) return;
+    if (this.autoplayTimer || this.holds.size || this.reducedMotionQuery.matches) return;
 
     this.autoplayTimer = setInterval(this.advance, AUTOPLAY_INTERVAL_MS);
+  };
+
+  hold = (reason) => {
+    this.holds.add(reason);
+    this.stopAutoplay();
+  };
+
+  release = (reason) => {
+    this.holds.delete(reason);
+    this.startAutoplay();
   };
 
   stopAutoplay = () => {
@@ -120,10 +145,10 @@ class PosterStrip extends Component {
     return (
       <div
         className="poster-strip"
-        onMouseEnter={this.stopAutoplay}
-        onMouseLeave={this.startAutoplay}
-        onFocus={this.stopAutoplay}
-        onBlur={this.startAutoplay}
+        onMouseEnter={() => this.hold('pointer')}
+        onMouseLeave={() => this.release('pointer')}
+        onFocus={() => this.hold('focus')}
+        onBlur={() => this.release('focus')}
       >
         <button
           type="button"

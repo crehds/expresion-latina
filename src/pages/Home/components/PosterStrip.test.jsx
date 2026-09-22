@@ -283,4 +283,43 @@ describe('autoplay', () => {
 
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  /*
+   * stopAutoplay only ever clears the id it last stored, so a second start
+   * would strand the interval underneath it — ticking on unreferenced, and
+   * beyond the reach of the unmount above. Nothing observable goes wrong on
+   * the first extra one, which is why this counts timers rather than scrolls.
+   */
+  it('never stacks a second interval on top of a running one', () => {
+    const { container } = render(<PosterStrip posters={posters} />);
+    layOut({ width: 300, gap: 20 });
+    const strip = container.querySelector('.poster-strip');
+
+    fireEvent.mouseOut(strip);
+    fireEvent.mouseOut(strip);
+    fireEvent.mouseOut(strip);
+
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  /*
+   * The pointer leaving and the focus leaving are separate permissions to
+   * resume, and one cannot speak for the other. Someone tabbing through the
+   * dots whose mouse happens to drift off the strip had the slideshow start
+   * again underneath them — the exact thing pausing on focus was for.
+   */
+  it('stays paused when the pointer leaves but the focus is still inside', () => {
+    const { container } = render(<PosterStrip posters={posters} />);
+    layOut({ width: 300, gap: 20 });
+    const strip = container.querySelector('.poster-strip');
+
+    fireEvent.focusIn(strip);
+    fireEvent.mouseOut(strip);
+
+    expect(vi.getTimerCount()).toBe(0);
+
+    fireEvent.focusOut(strip);
+
+    expect(vi.getTimerCount()).toBe(1);
+  });
 });
