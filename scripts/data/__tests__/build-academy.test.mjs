@@ -100,6 +100,20 @@ describe('normaliseWhatsapp', () => {
     assert.equal(errors[0].column, 'Whatsapp');
   });
 
+  /*
+   * The same half of the rule on the other branch: every passing case carries
+   * exactly eleven digits, so a length test relaxed to greater-or-equal would
+   * wave through a mistyped extra digit and publish a number that dials
+   * somebody else.
+   */
+  it('refuses a country-coded number carrying one digit too many', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp('+51 960 507 5834', row, errors), '+51 960 507 5834');
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].column, 'Whatsapp');
+  });
+
   it('flags anything else with one Estudio/Whatsapp error and leaves it unchanged', () => {
     const errors = [];
     const result = normaliseWhatsapp('(01) 960-507-583', row, errors);
