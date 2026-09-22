@@ -321,7 +321,7 @@ describe('academy data layer', () => {
     });
 
     it('strips punctuation a workbook is just as likely to carry', async () => {
-      expect(await linkFor('(01) 960-507-583')).toBe('https://wa.me/01960507583');
+      expect(await linkFor('+51 (960) 507-583')).toBe('https://wa.me/51960507583');
     });
 
     it('leaves a number that needs no cleaning alone', async () => {
