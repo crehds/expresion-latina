@@ -156,3 +156,131 @@ describe('the desktop arrows', () => {
     expect(track().scrollBy).toHaveBeenCalledWith({ left: -step, behavior: 'smooth' });
   });
 });
+
+/*
+ * Autoplay is the one behaviour here with a real failure mode: a poster
+ * sliding away under a visitor who is still reading it, or a timer nobody
+ * asked for still spinning after the strip is gone. Fake timers make the
+ * six-second wait instant.
+ *
+ * setupTests stubs matchMedia to always answer false, which is right for
+ * every other suite but wrong for the one test below that needs a visitor
+ * who asked for less motion. That one saves and restores window.matchMedia
+ * itself, the same disciplined way this file already restores the scroll
+ * methods, so the override never leaks into another test.
+ */
+describe('autoplay', () => {
+  const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+  let realMatchMedia;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    realMatchMedia = window.matchMedia;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    window.matchMedia = realMatchMedia;
+  });
+
+  function reduceMotion() {
+    window.matchMedia = (query) => ({
+      matches: query === REDUCED_MOTION,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+  }
+
+  it('advances to the next poster once the interval elapses', () => {
+    render(<PosterStrip posters={posters} />);
+    const step = layOut({ width: 300, gap: 20 });
+
+    vi.advanceTimersByTime(6000);
+
+    expect(track().scrollTo).toHaveBeenCalledWith({ left: step, behavior: 'smooth' });
+  });
+
+  /*
+   * A strip that stops at the last poster is a dead end rather than a loop.
+   * Wrapping through scrollToIndex, instead of a second distance
+   * calculation, is what keeps the measured step the only place that
+   * distance is ever computed.
+   */
+  it('wraps from the last poster back to the first', () => {
+    render(<PosterStrip posters={posters} />);
+    const step = layOut({ width: 300, gap: 20 });
+    Object.defineProperty(track(), 'scrollLeft', { value: step * 2, configurable: true });
+    fireEvent.scroll(track());
+
+    vi.advanceTimersByTime(6000);
+
+    expect(track().scrollTo).toHaveBeenCalledWith({ left: 0, behavior: 'smooth' });
+  });
+
+  /*
+   * mouseover/mouseout are what React's onMouseEnter/onMouseLeave actually
+   * listen for under the hood; the mouseenter/mouseleave events of the same
+   * name do not bubble, and firing those instead would silently test nothing.
+   */
+  it('does not advance while the pointer is over the strip, and resumes once it leaves', () => {
+    render(<PosterStrip posters={posters} />);
+    layOut({ width: 300, gap: 20 });
+
+    fireEvent.mouseOver(track());
+    vi.advanceTimersByTime(6000);
+    expect(track().scrollTo).not.toHaveBeenCalled();
+
+    fireEvent.mouseOut(track());
+    vi.advanceTimersByTime(6000);
+    expect(track().scrollTo).toHaveBeenCalled();
+  });
+
+  /*
+   * Same trap as the hover case: React's onFocus/onBlur are wired to the
+   * native focusin/focusout events, not focus/blur, because only the former
+   * pair bubbles.
+   */
+  it('does not advance while a dot inside the strip is focused, and resumes once focus leaves', () => {
+    render(<PosterStrip posters={posters} />);
+    layOut({ width: 300, gap: 20 });
+    const dot = screen.getByRole('button', { name: 'Ver el afiche 1 de 3' });
+
+    fireEvent.focusIn(dot);
+    vi.advanceTimersByTime(6000);
+    expect(track().scrollTo).not.toHaveBeenCalled();
+
+    fireEvent.focusOut(dot);
+    vi.advanceTimersByTime(6000);
+    expect(track().scrollTo).toHaveBeenCalled();
+  });
+
+  it('never starts when the visitor asked for less motion', () => {
+    reduceMotion();
+    render(<PosterStrip posters={posters} />);
+    layOut({ width: 300, gap: 20 });
+
+    vi.advanceTimersByTime(6000);
+
+    expect(track().scrollTo).not.toHaveBeenCalled();
+  });
+
+  /*
+   * The interval lives outside React, so a missed clearInterval would not
+   * throw — it would just keep firing into a strip that no longer exists. A
+   * scrollTo assertion can't catch that here: the ref callback already nulls
+   * this.strip on unmount, and scrollToIndex quietly no-ops on a null ref
+   * regardless of whether the interval itself was ever cleared. Counting the
+   * live fake timers is what actually proves the teardown ran.
+   */
+  it('clears the interval on unmount', () => {
+    const { unmount } = render(<PosterStrip posters={posters} />);
+    layOut({ width: 300, gap: 20 });
+
+    expect(vi.getTimerCount()).toBe(1);
+
+    unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
