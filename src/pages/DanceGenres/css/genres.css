@@ -16,3 +16,22 @@
   padding: 0;
   list-style: none;
 }
+
+/*
+ * The two groups on the page. The rhythm between them has to be larger than
+ * the gap inside a grid, or the heading reads as belonging to the boxes above
+ * it rather than the ones below.
+ */
+.dance-genres__group + .dance-genres__group {
+  margin-top: var(--space-lg);
+}
+
+.dance-genres__heading {
+  margin: 0 0 var(--space-2xs);
+  font-weight: 600;
+}
+
+.dance-genres__note {
+  margin: 0 0 var(--space-xs);
+  color: var(--text-muted);
+}
