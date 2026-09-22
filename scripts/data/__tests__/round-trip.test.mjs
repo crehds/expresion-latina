@@ -90,7 +90,7 @@ function academyWith(videos, teacher = MISHEL) {
  * Builds a template from `previous`, then hands the workbook to `edit` before
  * importing it back, so a test can describe the shape of an older file.
  */
-async function importEdited(previous, edit) {
+async function importEdited(previous, edit, options = {}) {
   const source = join(workDir, `old-${Date.now()}-${Math.random()}.json`);
   writeFileSync(source, JSON.stringify(previous));
 
@@ -104,7 +104,11 @@ async function importEdited(previous, edit) {
 
   const sheets = await parseWorkbook(target);
 
-  return buildAcademy(sheets, { previous, now: new Date('2026-01-15T10:00:00.000Z') });
+  return buildAcademy(sheets, {
+    previous,
+    now: new Date('2026-01-15T10:00:00.000Z'),
+    ...options,
+  });
 }
 
 /*
@@ -112,9 +116,9 @@ async function importEdited(previous, edit) {
  * already holds predates one sheet or another, so importing an old file must
  * not be the thing that deletes what the file has never heard of.
  */
-const withoutSheet = (previous, name) => importEdited(previous, (workbook) => {
+const withoutSheet = (previous, name, options) => importEdited(previous, (workbook) => {
   workbook.removeWorksheet(workbook.getWorksheet(name).id);
-});
+}, options);
 
 /*
  * A sheet that is present and carries nothing but its header row. This is the
@@ -314,7 +318,7 @@ describe('template then import, with nothing edited', () => {
  * Drops named columns from the Profesores sheet, the way a workbook written
  * before those columns existed arrives.
  */
-async function withoutColumns(previous, headings) {
+async function withoutColumns(previous, headings, options = {}) {
   const source = join(workDir, `cols-${Date.now()}-${Math.random()}.json`);
   writeFileSync(source, JSON.stringify(previous));
 
@@ -335,7 +339,11 @@ async function withoutColumns(previous, headings) {
 
   const sheets = await parseWorkbook(target);
 
-  return buildAcademy(sheets, { previous, now: new Date('2026-01-15T10:00:00.000Z') });
+  return buildAcademy(sheets, {
+    previous,
+    now: new Date('2026-01-15T10:00:00.000Z'),
+    ...options,
+  });
 }
 
 /** Empties a cell while leaving its column in place. */
@@ -462,5 +470,87 @@ describe('a Profesores sheet whose Video cell was deliberately emptied', () => {
     const { academy } = await withCellCleared(before, 'Video');
 
     assert.deepEqual(academy.videos, []);
+  });
+});
+
+/*
+ * --fresh is the deliberate destructive rebuild, and the only switch that
+ * re-enables what the carry-over rule exists to prevent. It is scoped to whole
+ * sheets: what it empties and what it leaves alone are two separate contracts,
+ * and both belong here, or a later edit to that one expression could make the
+ * flag a no-op — or a total wipe — with a green suite.
+ */
+describe('--fresh on a sheet the workbook does not carry', () => {
+  it('publishes no opinions instead of keeping the published ones', async () => {
+    const before = academyWith([]);
+
+    assert.ok(before.reviews.length, 'the fixture must start with some');
+
+    const { academy, errors } = await withoutSheet(before, 'Resenas', { fresh: true });
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(academy.reviews, []);
+  });
+
+  it('drops the studio details instead of keeping them', async () => {
+    const before = academyWith([]);
+    before.studio = { ...before.studio, address: 'Av. Palmeras 3839' };
+
+    const { academy } = await withoutSheet(before, 'Estudio', { fresh: true });
+
+    assert.equal(academy.studio.address, undefined);
+  });
+
+  // The same workbook, the same sheet, the opposite outcome. Without this pair
+  // a test could pass because nothing carried in the first place.
+  it('is the only thing that changes: the default still carries', async () => {
+    const before = academyWith([]);
+
+    const fresh = await withoutSheet(before, 'Resenas', { fresh: true });
+    const kept = await withoutSheet(before, 'Resenas');
+
+    assert.deepEqual(fresh.academy.reviews, []);
+    assert.deepEqual(kept.academy.reviews, before.reviews);
+  });
+});
+
+describe('--fresh leaves the contracts it does not own alone', () => {
+  it('still carries a column the sheet was written before', async () => {
+    const before = academyWith([]);
+
+    assert.ok(before.teachers[0].birthDate, 'the fixture must start with one');
+
+    const { academy } = await withoutColumns(before, ['Nacimiento'], { fresh: true });
+
+    assert.equal(academy.teachers[0].birthDate, before.teachers[0].birthDate);
+  });
+
+  it('still keeps the titles of a sheet with no Logros column', async () => {
+    const before = academyWith([]);
+    const { academy } = await withoutColumns(before, ['Logros'], { fresh: true });
+
+    assert.deepEqual(academy.teachers[0].achievements, before.teachers[0].achievements);
+  });
+
+  it('still keeps a teacher video the sheet describes no column for', async () => {
+    const before = withOwnedVideo();
+    const { academy } = await withoutColumns(before, ['Video'], { fresh: true });
+
+    assert.deepEqual(academy.videos, before.videos);
+  });
+
+  it('still keeps a video no sheet describes at all', async () => {
+    const trailer = {
+      id: 'presentacion-larga',
+      title: 'Presentación larga',
+      genreId: null,
+      assetKey: 'video_largo.mp4',
+      externalUrl: null,
+    };
+    const before = academyWith([trailer]);
+
+    const { academy } = await withoutSheet(before, 'Resenas', { fresh: true });
+
+    assert.deepEqual(academy.videos, [trailer]);
   });
 });
