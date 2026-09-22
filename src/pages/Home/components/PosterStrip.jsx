@@ -5,6 +5,11 @@ import Poster from './Poster';
 
 import '../css/poster-strip.css';
 
+// Long enough to read a poster; short enough that the row still feels alive.
+const AUTOPLAY_INTERVAL_MS = 6000;
+
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
 /**
  * The academy's posters, as a strip you scroll rather than a carousel.
  *
@@ -18,10 +23,29 @@ class PosterStrip extends Component {
   constructor(props) {
     super(props);
 
+    this.reducedMotionQuery = window.matchMedia(REDUCED_MOTION);
+
     this.state = {
       currentIndex: 0,
     };
   }
+
+  componentDidMount() {
+    this.reducedMotionQuery.addEventListener('change', this.handleReducedMotionChange);
+    this.startAutoplay();
+  }
+
+  componentWillUnmount() {
+    this.reducedMotionQuery.removeEventListener('change', this.handleReducedMotionChange);
+    this.stopAutoplay();
+  }
+
+  // A visitor can flip this preference mid-visit, not only before the page
+  // loads, so autoplay has to react to it rather than check it once at mount.
+  handleReducedMotionChange = (event) => {
+    if (event.matches) this.stopAutoplay();
+    else this.startAutoplay();
+  };
 
   /**
    * The distance from one poster to the next, measured rather than assumed.
@@ -42,6 +66,28 @@ class PosterStrip extends Component {
     }
 
     return this.strip.clientWidth;
+  };
+
+  // Guarded so a second hover, or a reduced-motion flip while already
+  // running, cannot stack a second interval on top of the first.
+  startAutoplay = () => {
+    if (this.autoplayTimer || this.reducedMotionQuery.matches) return;
+
+    this.autoplayTimer = setInterval(this.advance, AUTOPLAY_INTERVAL_MS);
+  };
+
+  stopAutoplay = () => {
+    clearInterval(this.autoplayTimer);
+    this.autoplayTimer = null;
+  };
+
+  // Reuses scrollToIndex rather than a second distance calculation, and
+  // wraps past the last poster back to the first instead of stopping there.
+  advance = () => {
+    const { posters } = this.props;
+    const { currentIndex } = this.state;
+
+    this.scrollToIndex((currentIndex + 1) % posters.length);
   };
 
   scrollBy = (direction) => {
@@ -72,7 +118,13 @@ class PosterStrip extends Component {
     const { currentIndex } = this.state;
 
     return (
-      <div className="poster-strip">
+      <div
+        className="poster-strip"
+        onMouseEnter={this.stopAutoplay}
+        onMouseLeave={this.startAutoplay}
+        onFocus={this.stopAutoplay}
+        onBlur={this.startAutoplay}
+      >
         <button
           type="button"
           className="poster-strip__arrow poster-strip__arrow--prev"
