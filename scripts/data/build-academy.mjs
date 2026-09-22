@@ -518,6 +518,7 @@ export default function buildAcademy(sheets, {
   sourceFileName = null,
   now = new Date(),
   previous = null,
+  fresh = false,
 } = {}) {
   const errors = [];
 
@@ -527,32 +528,59 @@ export default function buildAcademy(sheets, {
       .map((genre) => [genre.id, genre.videoIds]),
   );
 
-  const { genres, genresById } = buildGenres(sheets.generos ?? [], errors, previousVideoIds);
+  /*
+   * A sheet the workbook does not carry says nothing, and silence is not a
+   * deletion: what is published survives. Every template generated before a
+   * sheet existed is such a workbook, and importing one used to wipe whatever
+   * it had never heard of. A sheet that is present and empty is the academy
+   * deleting its contents, and that is honoured. parseWorkbook keeps the two
+   * apart by returning null against [], and this is the only place that
+   * distinction is spent.
+   *
+   * `fresh` is the deliberate destructive rebuild, reached only by someone
+   * typing --fresh: an omitted sheet then publishes empty. It is scoped to
+   * whole sheets and leaves the column-level carry-over and the videos no
+   * sheet describes alone, which are separate contracts.
+   */
+  const carry = fresh ? null : previous;
+
+  /*
+   * Rebuilt from the carried records rather than left empty. The schedule
+   * resolves a session's genre and teacher through these maps, so carrying the
+   * faculty forward without its index would keep every teacher on the site and
+   * still break every session's link to one.
+   */
+  const indexById = (records) => new Map(records.map((record) => [record.id, record]));
+
+  const carriedGenres = carry?.genres ?? [];
+  const { genres, genresById } = sheets.generos
+    ? buildGenres(sheets.generos, errors, previousVideoIds)
+    : { genres: carriedGenres, genresById: indexById(carriedGenres) };
+
+  const carriedTeachers = carry?.teachers ?? [];
   const {
     teachers, teacherVideos, teachersById, hasVideoColumn,
-  } = buildTeachers(
-    sheets.profesores ?? [],
-    genresById,
-    errors,
-    previous?.teachers ?? [],
-  );
-  const studio = buildStudio(sheets.estudio ?? [], errors);
-  /*
-   * A workbook with no Resenas sheet says nothing about reviews, so the ones
-   * already published survive — every template generated before that sheet
-   * existed is such a workbook, and importing one used to wipe the lot. A
-   * sheet that is present but empty is the academy deleting them, and that is
-   * honoured.
-   */
+  } = sheets.profesores
+    ? buildTeachers(sheets.profesores, genresById, errors, previous?.teachers ?? [])
+    : {
+      teachers: carriedTeachers,
+      teacherVideos: [],
+      teachersById: indexById(carriedTeachers),
+      // The sheet describes no video, so mergeVideos may delete none.
+      hasVideoColumn: false,
+    };
+
+  const studio = sheets.estudio
+    ? buildStudio(sheets.estudio, errors)
+    : (carry?.studio ?? buildStudio([], errors));
+
   const reviews = sheets.resenas
     ? buildReviews(sheets.resenas, errors)
-    : (previous?.reviews ?? []);
-  const { timeSlots, sessions } = buildSchedule(
-    sheets.horario ?? [],
-    genresById,
-    teachersById,
-    errors,
-  );
+    : (carry?.reviews ?? []);
+
+  const { timeSlots, sessions } = sheets.horario
+    ? buildSchedule(sheets.horario, genresById, teachersById, errors)
+    : { timeSlots: carry?.timeSlots ?? [], sessions: carry?.sessions ?? [] };
 
   if (errors.length) return { academy: null, errors };
 

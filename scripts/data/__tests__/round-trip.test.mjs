@@ -86,12 +86,11 @@ function academyWith(videos, teacher = MISHEL) {
   };
 }
 
-/*
- * A workbook generated before the Resenas sheet existed. Every template the
- * academy already holds is one of these, so importing one must not be the
- * thing that deletes their opinions.
+/**
+ * Builds a template from `previous`, then hands the workbook to `edit` before
+ * importing it back, so a test can describe the shape of an older file.
  */
-async function withoutReviewsSheet(previous) {
+async function importEdited(previous, edit) {
   const source = join(workDir, `old-${Date.now()}-${Math.random()}.json`);
   writeFileSync(source, JSON.stringify(previous));
 
@@ -100,7 +99,7 @@ async function withoutReviewsSheet(previous) {
 
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(target);
-  workbook.removeWorksheet(workbook.getWorksheet('Resenas').id);
+  edit(workbook);
   await workbook.xlsx.writeFile(target);
 
   const sheets = await parseWorkbook(target);
@@ -108,10 +107,30 @@ async function withoutReviewsSheet(previous) {
   return buildAcademy(sheets, { previous, now: new Date('2026-01-15T10:00:00.000Z') });
 }
 
+/*
+ * A workbook generated before a sheet existed. Every template the academy
+ * already holds predates one sheet or another, so importing an old file must
+ * not be the thing that deletes what the file has never heard of.
+ */
+const withoutSheet = (previous, name) => importEdited(previous, (workbook) => {
+  workbook.removeWorksheet(workbook.getWorksheet(name).id);
+});
+
+/*
+ * A sheet that is present and carries nothing but its header row. This is the
+ * academy deleting every entry on purpose, which is not the same as silence and
+ * must still be honoured.
+ */
+const withEmptiedSheet = (previous, name) => importEdited(previous, (workbook) => {
+  const sheet = workbook.getWorksheet(name);
+  // Backwards: removing a row renumbers every row below it.
+  for (let row = sheet.rowCount; row > 1; row -= 1) sheet.spliceRows(row, 1);
+});
+
 describe('importing a workbook from before the Resenas sheet existed', () => {
   it('keeps the opinions rather than deleting them', async () => {
     const before = academyWith([]);
-    const { academy, errors } = await withoutReviewsSheet(before);
+    const { academy, errors } = await withoutSheet(before, 'Resenas');
 
     assert.deepEqual(errors, []);
     assert.deepEqual(academy.reviews, before.reviews);
@@ -119,10 +138,109 @@ describe('importing a workbook from before the Resenas sheet existed', () => {
 
   it('still imports the rest of the workbook', async () => {
     const before = academyWith([]);
-    const { academy } = await withoutReviewsSheet(before);
+    const { academy } = await withoutSheet(before, 'Resenas');
 
     assert.deepEqual(academy.sessions, before.sessions);
     assert.equal(academy.teachers.length, 1);
+  });
+});
+
+/*
+ * The same rule one level up, for the four sheets that still collapse a missing
+ * sheet to an empty list. A workbook that never carried the Profesores sheet
+ * used to wipe the faculty and, with it, every session's teacher link.
+ */
+describe('a workbook missing the Profesores sheet', () => {
+  it('keeps the published faculty', async () => {
+    const before = academyWith([]);
+    const { academy, errors } = await withoutSheet(before, 'Profesores');
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(academy.teachers, before.teachers);
+  });
+
+  it('still links every session to its teacher', async () => {
+    const before = academyWith([]);
+    const { academy } = await withoutSheet(before, 'Profesores');
+
+    assert.deepEqual(academy.sessions, before.sessions);
+  });
+
+  it('deletes no teacher video, having described none', async () => {
+    const video = {
+      id: 'mishel-fernandez-video',
+      title: 'Mishel Fernández',
+      genreId: null,
+      assetKey: null,
+      externalUrl: 'https://youtu.be/abc',
+      teacherId: 'mishel-fernandez',
+    };
+    const before = academyWith([video], { ...MISHEL, videoIds: [video.id] });
+    const { academy } = await withoutSheet(before, 'Profesores');
+
+    assert.deepEqual(academy.videos, [video]);
+  });
+});
+
+describe('a workbook missing the Generos sheet', () => {
+  it('keeps the published genres', async () => {
+    const before = academyWith([]);
+    const { academy, errors } = await withoutSheet(before, 'Generos');
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(academy.genres, before.genres);
+  });
+
+  it('still links every session to its genre', async () => {
+    const before = academyWith([]);
+    const { academy } = await withoutSheet(before, 'Generos');
+
+    assert.deepEqual(academy.sessions, before.sessions);
+  });
+});
+
+describe('a workbook missing the Estudio sheet', () => {
+  it('keeps the address, whatsapp and email', async () => {
+    const before = academyWith([]);
+    before.studio = {
+      ...before.studio,
+      address: 'Av. Palmeras 3839',
+      whatsapp: '+51 960 507 583',
+      email: 'expresionlatina@gmail.com',
+    };
+    const { academy, errors } = await withoutSheet(before, 'Estudio');
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(academy.studio, before.studio);
+  });
+});
+
+describe('a workbook missing the Horario sheet', () => {
+  it('keeps the published schedule', async () => {
+    const before = academyWith([]);
+    const { academy, errors } = await withoutSheet(before, 'Horario');
+
+    assert.deepEqual(errors, []);
+    assert.deepEqual(academy.sessions, before.sessions);
+    assert.deepEqual(academy.timeSlots, before.timeSlots);
+  });
+});
+
+describe('a sheet that is present and deliberately emptied', () => {
+  it('clears the studio details the academy took back', async () => {
+    const before = academyWith([]);
+    before.studio = { ...before.studio, address: 'Av. Palmeras 3839' };
+    const { academy, errors } = await withEmptiedSheet(before, 'Estudio');
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.studio.address, undefined);
+  });
+
+  it('is not confused for a sheet that was never there', async () => {
+    const before = academyWith([]);
+    const { academy } = await withEmptiedSheet(before, 'Resenas');
+
+    assert.deepEqual(academy.reviews, []);
   });
 });
 
