@@ -261,3 +261,6 @@ $RECYCLE.BIN/
 
 # Local screenshots from npm run screenshot
 screenshots/
+
+# Local CodeGraph index from codegraph init
+.codegraph/
