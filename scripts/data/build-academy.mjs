@@ -208,12 +208,29 @@ export function teacherVideoId(teacherId) {
   return `video-${teacherId}`;
 }
 
+/** The extensions the bundle actually resolves, from src/assets/videos. */
+const VIDEO_FILE = /\.(mp4|webm)$/i;
+
+/**
+ * Whether a Video cell is one of the two shapes the site can play.
+ *
+ * Neither is inferred from the other. "://" used to be the only test, so a
+ * share sheet's protocol-less address — youtu.be/abc, www.youtube.com/watch —
+ * was written as a filename that is not in the bundle: resolveVideoAsset
+ * answers undefined, the card renders with nothing to play, and the import
+ * reports success. Guessing the other way is no better, so a value that is
+ * neither becomes a cell to fix, which is the one outcome the academy can act
+ * on.
+ */
+const isVideoLink = (value) => value.includes('://');
+const isVideoFile = (value) => VIDEO_FILE.test(value);
+
 /**
  * A video the Profesores sheet declares for one teacher. A value containing
- * "://" is treated as a link; anything else is a filename in src/assets/videos.
+ * "://" is a link; one ending in .mp4 or .webm is a file in src/assets/videos.
  */
 function buildTeacherVideo(teacherId, teacherName, value) {
-  const isLink = value.includes('://');
+  const isLink = isVideoLink(value);
 
   return {
     id: teacherVideoId(teacherId),
@@ -304,10 +321,37 @@ function buildTeachers(rows, genresById, errors, previousTeachers = []) {
       teacher.videoIds = published.get(id)?.videoIds ?? [];
     } else {
       const videoValue = readText(row.video);
-      if (videoValue) {
+
+      /*
+       * The sheet owns exactly one id per teacher — the same ownership rule
+       * mergeVideos applies to the records themselves. A link to any other
+       * video was made by hand, and a cell that says nothing about it may not
+       * unlink it. Assigning the cell's id alone dropped those every import
+       * while mergeVideos kept the record alive, and a surviving record with
+       * no teacherId that nothing points at falls into getAcademyVideos, which
+       * reads it as the school's own reel.
+       */
+      const ownId = teacherVideoId(id);
+      const handMade = (published.get(id)?.videoIds ?? [])
+        .filter((videoId) => videoId !== ownId);
+
+      if (!videoValue) {
+        // An emptied cell is the academy taking its own clip back, and only
+        // that one.
+        teacher.videoIds = handMade;
+      } else if (!isVideoLink(videoValue) && !isVideoFile(videoValue)) {
+        errors.push(error(
+          'Profesores',
+          row.rowNumber,
+          'Video',
+          `"${videoValue}" no es un enlace ni un archivo de video. `
+          + 'Usa una dirección que empiece con https:// o el nombre de un archivo .mp4.',
+        ));
+        teacher.videoIds = handMade;
+      } else {
         const video = buildTeacherVideo(id, name, videoValue);
         videos.push(video);
-        teacher.videoIds = [video.id];
+        teacher.videoIds = [...handMade, video.id];
       }
     }
 

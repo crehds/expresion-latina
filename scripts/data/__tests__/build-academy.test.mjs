@@ -746,3 +746,143 @@ describe('a workbook older than the teacher fields it does not carry', () => {
     assert.deepEqual(importWith(emptied).achievements, []);
   });
 });
+
+/*
+ * The sheet owns exactly one video id per teacher, the same ownership rule
+ * mergeVideos applies to the records themselves. A link the published file held
+ * to some other video was made by hand, and an import that says nothing about
+ * it may not unlink it.
+ *
+ * The record surviving while the link is dropped is the bad half: a video with
+ * no teacherId that nothing points at falls into getAcademyVideos, which reads
+ * "no genre, no teacher" as the school's own reel and shows it on every genre
+ * page with no footage of its own.
+ */
+describe('a teacher who also links a video added by hand', () => {
+  const HORARIO = sheet([
+    {
+      dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+    },
+  ]);
+
+  const HAND_ADDED = {
+    id: 'clase-abierta',
+    title: 'Clase abierta',
+    genreId: null,
+    assetKey: 'clase_abierta.mp4',
+    externalUrl: null,
+  };
+
+  const previousWith = (videoIds) => ({
+    videos: [HAND_ADDED],
+    teachers: [{ id: 'mishel-fernandez', videoIds }],
+  });
+
+  const buildWith = (video, previous) => build(
+    {
+      horario: HORARIO,
+      profesores: sheet([{ nombre: 'Mishel Fernández', generos: 'Salsa', video }]),
+    },
+    { previous },
+  );
+
+  it('keeps the hand-made link when the cell names a video', () => {
+    const { academy } = buildWith('mishel_salsa.mp4', previousWith(['clase-abierta']));
+
+    assert.deepEqual(
+      academy.teachers[0].videoIds,
+      ['clase-abierta', 'video-mishel-fernandez'],
+    );
+  });
+
+  it('keeps the hand-made link when the cell is empty', () => {
+    const { academy } = buildWith('', previousWith(['clase-abierta']));
+
+    assert.deepEqual(academy.teachers[0].videoIds, ['clase-abierta']);
+  });
+
+  // Its own id is the one thing the sheet may take back, and an emptied cell
+  // is the academy taking it back.
+  it('still drops its own id when the cell is emptied', () => {
+    const previous = previousWith(['clase-abierta', 'video-mishel-fernandez']);
+    const { academy } = buildWith('', previous);
+
+    assert.deepEqual(academy.teachers[0].videoIds, ['clase-abierta']);
+  });
+
+  it('does not list its own id twice when the cell still names one', () => {
+    const previous = previousWith(['video-mishel-fernandez']);
+    const { academy } = buildWith('mishel_salsa.mp4', previous);
+
+    assert.deepEqual(academy.teachers[0].videoIds, ['video-mishel-fernandez']);
+  });
+
+  it('leaves the hand-made video reachable from the teacher', () => {
+    const { academy } = buildWith('mishel_salsa.mp4', previousWith(['clase-abierta']));
+
+    assert.ok(academy.videos.some((video) => video.id === 'clase-abierta'));
+    assert.ok(academy.teachers[0].videoIds.includes('clase-abierta'));
+  });
+});
+
+/*
+ * A share sheet hands out addresses with no protocol, and "://" is the only
+ * thing telling a link from a filename. Such a value used to be written as an
+ * assetKey naming a file that is not in the bundle: resolveVideoAsset answers
+ * undefined, the card renders with nothing to play, and the import reports
+ * success. Neither shape is guessed at now — an unrecognisable value is a cell
+ * to fix, which is the one outcome the academy can act on.
+ */
+describe('a Video cell that is neither a link nor a file', () => {
+  const HORARIO = sheet([
+    {
+      dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+    },
+  ]);
+
+  const buildWith = (video) => build({
+    horario: HORARIO,
+    profesores: sheet([{ nombre: 'Mishel Fernández', generos: 'Salsa', video }]),
+  });
+
+  const messages = ({ errors }) => errors.map((problem) => problem.message).join('\n');
+
+  it('refuses a link pasted without its protocol', () => {
+    const result = buildWith('youtu.be/abc123');
+
+    assert.equal(result.academy, null);
+    assert.match(messages(result), /youtu\.be\/abc123/);
+  });
+
+  it('refuses a bare host copied from the address bar', () => {
+    assert.equal(buildWith('www.youtube.com/watch?v=abc').academy, null);
+  });
+
+  it('refuses a filename with no video extension', () => {
+    assert.equal(buildWith('mishel_salsa').academy, null);
+  });
+
+  it('says how to correct the cell', () => {
+    assert.match(messages(buildWith('youtu.be/abc123')), /https:\/\/|\.mp4/);
+  });
+
+  it('names the sheet, the row and the column', () => {
+    const [problem] = buildWith('youtu.be/abc').errors;
+
+    assert.equal(problem.sheet, 'Profesores');
+    assert.equal(problem.column, 'Video');
+    assert.equal(problem.row, 2);
+  });
+
+  it('still accepts a webm file', () => {
+    const { academy } = buildWith('mishel_salsa.webm');
+
+    assert.equal(academy.videos[0].assetKey, 'mishel_salsa.webm');
+  });
+
+  it('is not case sensitive about the extension', () => {
+    const { academy } = buildWith('Mishel_Salsa.MP4');
+
+    assert.equal(academy.videos[0].assetKey, 'Mishel_Salsa.MP4');
+  });
+});
