@@ -98,6 +98,11 @@ class PosterStrip extends Component {
    * one underneath would tick on unreferenced for the life of the page.
    */
   startAutoplay = () => {
+    const { posters } = this.props;
+
+    // One poster has nowhere to advance to, and none at all would make the
+    // modulo in advance() hand scrollToIndex a NaN every six seconds.
+    if (posters.length < 2) return;
     if (this.autoplayTimer || this.holds.size || this.reducedMotionQuery.matches) return;
 
     this.autoplayTimer = setInterval(this.advance, AUTOPLAY_INTERVAL_MS);

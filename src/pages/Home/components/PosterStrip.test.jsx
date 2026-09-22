@@ -268,6 +268,18 @@ describe('autoplay', () => {
     expect(track().scrollTo).toHaveBeenCalled();
   });
 
+  /*
+   * Home never renders an empty strip — it keeps the bundled posters when the
+   * API answers with nothing — but the component takes the list as a prop and
+   * cannot assume that. With none, the modulo in advance() is a NaN handed to
+   * scrollToIndex every six seconds; with one, the timer has nowhere to go.
+   */
+  it.each([[[]], [[posters[0]]]])('starts no timer for %# poster(s)', (few) => {
+    render(<PosterStrip posters={few} />);
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('never starts when the visitor asked for less motion', () => {
     reduceMotion();
     render(<PosterStrip posters={posters} />);
