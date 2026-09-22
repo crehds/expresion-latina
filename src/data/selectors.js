@@ -164,6 +164,37 @@ export function createSelectors(data) {
     return getTeachersByGenreId(genreId).filter((teacher) => active.has(teacher.id));
   }
 
+  /** The genres with at least one class on the published schedule. */
+  function getScheduledGenreIds() {
+    return new Set(allEnriched().map((session) => session.genre.id));
+  }
+
+  /** Whether this genre is being dictated at all right now. */
+  function isGenreScheduled(genreId) {
+    return getScheduledGenreIds().has(genreId);
+  }
+
+  /**
+   * Genres split into the ones on the schedule and the ones not yet on it.
+   *
+   * A style with no hour is not a mistake: the academy lists one before it can
+   * staff it, so nothing is hidden and nothing is invented. But a visitor
+   * scanning the page is looking for something they can attend this week, and
+   * putting the running classes first answers that without taking anything
+   * away from the rest.
+   *
+   * The order inside each group is the caller's, which is the spreadsheet's —
+   * this decides the grouping, never the sequence within it.
+   */
+  function groupGenresBySchedule(list) {
+    const scheduled = getScheduledGenreIds();
+
+    return {
+      scheduled: list.filter((genre) => scheduled.has(genre.id)),
+      upcoming: list.filter((genre) => !scheduled.has(genre.id)),
+    };
+  }
+
   return {
     getSessionsForWeekday,
     getNextOpenDay,
@@ -173,6 +204,9 @@ export function createSelectors(data) {
     getActiveTimeSlots,
     buildWeekMatrix,
     hasPublishedSchedule,
+    getScheduledGenreIds,
+    isGenreScheduled,
+    groupGenresBySchedule,
   };
 }
 
@@ -187,4 +221,7 @@ export const {
   getActiveTimeSlots,
   buildWeekMatrix,
   hasPublishedSchedule,
+  getScheduledGenreIds,
+  isGenreScheduled,
+  groupGenresBySchedule,
 } = selectors;

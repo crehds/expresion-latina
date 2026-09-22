@@ -286,3 +286,69 @@ describe('getActiveTeachersByGenreId', () => {
     expect(withBothKinds().getActiveTeachersByGenreId('bachata')).toEqual([]);
   });
 });
+
+describe('groupGenresBySchedule', () => {
+  const JAZZ = {
+    id: 'jazz', name: 'Jazz', slug: 'jazz', kind: 'class', videoIds: [],
+  };
+
+  /** The fixture plus a style the academy lists but has not staffed yet. */
+  function withUnscheduledGenre() {
+    return selectorsForFixture({ ...fixture, genres: [...fixture.genres, JAZZ] });
+  }
+
+  it('puts the genres that have classes first', () => {
+    const { scheduled } = withUnscheduledGenre().groupGenresBySchedule(
+      [JAZZ, ...fixture.genres],
+    );
+
+    expect(scheduled.map((genre) => genre.id)).toEqual(['salsa', 'bachata']);
+  });
+
+  it('keeps the unscheduled ones rather than dropping them', () => {
+    const { upcoming } = withUnscheduledGenre().groupGenresBySchedule(
+      [JAZZ, ...fixture.genres],
+    );
+
+    expect(upcoming.map((genre) => genre.id)).toEqual(['jazz']);
+  });
+
+  it('loses no genre between the two groups', () => {
+    const list = [JAZZ, ...fixture.genres];
+    const { scheduled, upcoming } = withUnscheduledGenre().groupGenresBySchedule(list);
+
+    expect([...scheduled, ...upcoming]).toHaveLength(list.length);
+  });
+
+  it('preserves the spreadsheet order inside each group', () => {
+    const reversed = [...fixture.genres].reverse();
+    const { scheduled } = withUnscheduledGenre().groupGenresBySchedule(reversed);
+
+    expect(scheduled.map((genre) => genre.id)).toEqual(reversed.map((genre) => genre.id));
+  });
+
+  it('leaves upcoming empty when every genre is running', () => {
+    const { scheduled, upcoming } = selectorsForFixture().groupGenresBySchedule(fixture.genres);
+
+    expect(scheduled).toHaveLength(fixture.genres.length);
+    expect(upcoming).toEqual([]);
+  });
+
+  it('treats a genre with no published class as upcoming, not as missing', () => {
+    const selectors = selectorsForFixture({ ...fixture, sessions: [] });
+    const { scheduled, upcoming } = selectors.groupGenresBySchedule(fixture.genres);
+
+    expect(scheduled).toEqual([]);
+    expect(upcoming).toHaveLength(fixture.genres.length);
+  });
+});
+
+describe('isGenreScheduled', () => {
+  it('is true for a genre with classes on the schedule', () => {
+    expect(selectorsForFixture().isGenreScheduled('salsa')).toBe(true);
+  });
+
+  it('is false for a genre the academy lists but does not dictate', () => {
+    expect(selectorsForFixture().isGenreScheduled('jazz')).toBe(false);
+  });
+});
