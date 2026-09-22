@@ -4,6 +4,7 @@ import {
 import { basename, extname, resolve } from 'node:path';
 
 import buildAcademy from './build-academy.mjs';
+import guardAcademy from './guard.mjs';
 import parseWorkbook from './parse-workbook.mjs';
 import validateAcademy from './validate.mjs';
 
@@ -19,6 +20,10 @@ Actualiza el contenido del sitio desde una planilla.
 
 Opciones
   --dry-run   Revisa el archivo y muestra el resumen, sin escribir nada.
+  --fresh     Reconstruye desde cero: una hoja que el archivo no trae se
+              publica vacía en vez de conservar lo que ya está publicado.
+              Borra datos a propósito. Úsalo solo si eso es exactamente
+              lo que buscas.
 `.trim());
 }
 
@@ -67,7 +72,7 @@ function readPrevious() {
   }
 }
 
-async function readSource(file) {
+async function readSource(file, previous, fresh) {
   if (extname(file).toLowerCase() === '.json') {
     // The same validation path, so a future admin panel can emit this shape
     // and be held to exactly the same contract as a spreadsheet.
@@ -77,12 +82,14 @@ async function readSource(file) {
   const sheets = await parseWorkbook(file);
   return buildAcademy(sheets, {
     sourceFileName: basename(file),
-    previous: readPrevious(),
+    previous,
+    fresh,
   });
 }
 
 async function main(argv) {
   const dryRun = argv.includes('--dry-run');
+  const fresh = argv.includes('--fresh');
   const [file] = argv.filter((arg) => !arg.startsWith('--'));
 
   if (!file) {
@@ -96,11 +103,28 @@ async function main(argv) {
     return 1;
   }
 
-  const { academy, errors } = await readSource(source);
+  const previous = readPrevious();
 
-  // Structure and cross-references are checked even when the rows were fine,
-  // so nothing reaches the site that the app itself would reject.
-  const problems = [...errors, ...(academy ? validateAcademy(academy) : [])];
+  if (fresh) {
+    console.warn('\n--fresh: una hoja ausente se publicará vacía en vez de conservar lo publicado.');
+  }
+
+  const { academy, errors } = await readSource(source, previous, fresh);
+
+  /*
+   * Structure and cross-references are checked even when the rows were fine, so
+   * nothing reaches the site that the app itself would reject.
+   *
+   * The guard runs after them and asks a different question: not whether the
+   * file is well-formed, but whether it would leave the site with nothing to
+   * show. --fresh stands it down, because the guard exists to catch the
+   * accident, never to forbid the decision.
+   */
+  const problems = [
+    ...errors,
+    ...(academy ? validateAcademy(academy) : []),
+    ...(academy && !fresh ? guardAcademy(academy, previous) : []),
+  ];
 
   if (problems.length) {
     reportProblems(problems);
