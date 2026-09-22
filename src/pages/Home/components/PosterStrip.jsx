@@ -23,22 +23,37 @@ class PosterStrip extends Component {
     };
   }
 
+  /**
+   * The distance from one poster to the next, measured rather than assumed.
+   *
+   * A slide is the full width of the track, so the track's own width looks
+   * like the step — but the flex gap sits between them, leaving every jump
+   * short by one gap per poster passed. Snapping hides that on the way there;
+   * the index read back out of scrollLeft is what drifts, and far enough
+   * along it rounds to the wrong dot. Reading two items settles it, and it is
+   * the one measurement both the arrows and the dots move by.
+   */
+  step = () => {
+    const items = this.strip.querySelectorAll('.poster-strip__item');
+
+    if (items.length > 1) {
+      const [first, second] = items;
+      return second.getBoundingClientRect().left - first.getBoundingClientRect().left;
+    }
+
+    return this.strip.clientWidth;
+  };
+
   scrollBy = (direction) => {
     if (!this.strip) return;
 
-    // One card at a time, whatever a card currently measures.
-    const card = this.strip.querySelector('.poster');
-    const step = card ? card.getBoundingClientRect().width : this.strip.clientWidth;
-
-    this.strip.scrollBy({ left: step * direction, behavior: 'smooth' });
+    this.strip.scrollBy({ left: this.step() * direction, behavior: 'smooth' });
   };
 
-  // A slide is the full width of the track now, so the track's own width is
-  // the step between one poster and the next.
   scrollToIndex = (index) => {
     if (!this.strip) return;
 
-    this.strip.scrollTo({ left: this.strip.clientWidth * index, behavior: 'smooth' });
+    this.strip.scrollTo({ left: this.step() * index, behavior: 'smooth' });
   };
 
   // The dots have no state of their own: reading the track's scroll position
@@ -46,10 +61,10 @@ class PosterStrip extends Component {
   handleScroll = () => {
     if (!this.strip) return;
 
-    const { scrollLeft, clientWidth } = this.strip;
-    if (!clientWidth) return;
+    const step = this.step();
+    if (!step) return;
 
-    this.setState({ currentIndex: Math.round(scrollLeft / clientWidth) });
+    this.setState({ currentIndex: Math.round(this.strip.scrollLeft / step) });
   };
 
   render() {
