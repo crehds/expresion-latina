@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-17T03:33:32.536Z",
+  "generatedAt": "2026-09-23T18:32:20.178Z",
   "generatedFrom": "horarios.xlsx",
   "studio": {
     "name": "Expresión Latina",
@@ -260,7 +260,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "joan",
@@ -271,7 +272,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "martinez",
@@ -282,7 +284,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "kike",
@@ -293,7 +296,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "pedro",
@@ -304,7 +308,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "stefanie",
@@ -315,7 +320,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "mary",
@@ -326,7 +332,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "estrella",
@@ -337,7 +344,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "mishel-fernandez",
@@ -353,7 +361,8 @@
           "title": "Instructora certificada",
           "year": null
         }
-      ]
+      ],
+      "videoIds": []
     },
     {
       "id": "giusmary-sosa",
@@ -364,7 +373,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "vannia-valdivia",
@@ -375,7 +385,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "edson-cabanillas",
@@ -386,7 +397,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "kenneth-ocana",
@@ -397,7 +409,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "omar-lopez",
@@ -417,7 +430,8 @@
           "title": "Finalista World Latin Dance Cup",
           "year": 2021
         }
-      ]
+      ],
+      "videoIds": []
     },
     {
       "id": "anthony-sevillano",
@@ -428,7 +442,8 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
     },
     {
       "id": "gonzalo-povis",
@@ -439,7 +454,20 @@
       "bio": "",
       "social": {},
       "birthDate": null,
-      "achievements": []
+      "achievements": [],
+      "videoIds": []
+    },
+    {
+      "id": "por-confirmar",
+      "name": "Por confirmar",
+      "shortName": "Por confirmar",
+      "imageKey": null,
+      "genreIds": ["sexy-style"],
+      "bio": "",
+      "social": {},
+      "birthDate": null,
+      "achievements": [],
+      "videoIds": []
     }
   ],
   "videos": [
@@ -472,6 +500,7 @@
       "externalUrl": null
     }
   ],
+  "reviews": [],
   "sessions": [
     {
       "id": "lun-1800",
@@ -508,7 +537,7 @@
       "dayId": "martes",
       "slotId": "t1900-2000",
       "genreId": "sexy-style",
-      "teacherId": null,
+      "teacherId": "por-confirmar",
       "level": "Principiantes",
       "room": "Sala 1",
       "note": null
@@ -558,7 +587,7 @@
       "dayId": "jueves",
       "slotId": "t1900-2000",
       "genreId": "sexy-style",
-      "teacherId": null,
+      "teacherId": "por-confirmar",
       "level": "Principiantes",
       "room": "Sala 1",
       "note": null
@@ -623,6 +652,5 @@
       "room": "Sala 1",
       "note": null
     }
-  ],
-  "reviews": []
+  ]
 }

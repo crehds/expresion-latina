@@ -8,7 +8,7 @@ import { describe, it } from 'node:test';
 import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 
-import buildAcademy, { toSlug } from '../build-academy.mjs';
+import buildAcademy, { toSlug, normaliseWhatsapp, IMAGE_EXTENSION } from '../build-academy.mjs';
 
 const schema = JSON.parse(readFileSync(new URL('../../../src/data/academy.schema.json', import.meta.url)));
 const NOW = new Date('2026-01-15T10:00:00.000Z');
@@ -25,8 +25,11 @@ const GENEROS = sheet([
   { nombre: 'Ensayo Elenco', tipo: 'Ensayo' },
 ]);
 
+// A real file under src/assets/images/teachers, so the existence check the
+// Imagen column now has to pass does not turn every test in this file that
+// merely reuses this fixture into an assertion about a missing photograph.
 const PROFESORES = sheet([
-  { nombre: 'Mishel Fernández', generos: 'Salsa, Bachata', imagen: 'mishel_fernandez.jpg' },
+  { nombre: 'Mishel Fernández', generos: 'Salsa, Bachata', imagen: 'bachata_izquierdo.jpg' },
   { nombre: 'Kenneth Ocaña', generos: 'Bachata' },
 ]);
 
@@ -50,6 +53,111 @@ describe('toSlug', () => {
 
   it('is stable across spacing and case', () => {
     assert.equal(toSlug('  LATIN   urban '), 'latin-urban');
+  });
+});
+
+/*
+ * src/data/index.js strips every non-digit from this value and builds
+ * https://wa.me/<digits>. A number typed the way this academy normally
+ * writes one — nine digits, no country code — stripped down to a wa.me
+ * address nobody could open. Fixing it here, at import time, means the
+ * footer keeps displaying exactly what the academy typed for every other
+ * case, and only the one shape that would otherwise be undialable is
+ * rewritten.
+ */
+describe('normaliseWhatsapp', () => {
+  const row = { rowNumber: 2 };
+
+  it('leaves an already-international number byte-for-byte unchanged', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp('+51 (960) 507-583', row, errors), '+51 (960) 507-583');
+    assert.deepEqual(errors, []);
+  });
+
+  it('prefixes a bare mobile number with +51, keeping its spacing', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp('960 507 583', row, errors), '+51 960 507 583');
+    assert.deepEqual(errors, []);
+  });
+
+  it('leaves a blank value unchanged and raises no error of its own', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp(null, row, errors), null);
+    assert.deepEqual(errors, []);
+  });
+
+  /*
+   * The length is only half the rule, and dropping the other half survived a
+   * mutation: a Lima landline is nine digits too. Prefixing one builds a wa.me
+   * address for a number WhatsApp never answers on, which is the same
+   * undialable link this function exists to prevent.
+   */
+  it('refuses a nine-digit number that is not a mobile rather than prefixing it', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp('01 234 5678', row, errors), '01 234 5678');
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].column, 'Whatsapp');
+  });
+
+  /*
+   * The same half of the rule on the other branch: every passing case carries
+   * exactly eleven digits, so a length test relaxed to greater-or-equal would
+   * wave through a mistyped extra digit and publish a number that dials
+   * somebody else.
+   */
+  it('refuses a country-coded number carrying one digit too many', () => {
+    const errors = [];
+
+    assert.equal(normaliseWhatsapp('+51 960 507 5834', row, errors), '+51 960 507 5834');
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].column, 'Whatsapp');
+  });
+
+  it('flags anything else with one Estudio/Whatsapp error and leaves it unchanged', () => {
+    const errors = [];
+    const result = normaliseWhatsapp('(01) 960-507-583', row, errors);
+
+    assert.equal(result, '(01) 960-507-583');
+    assert.equal(errors.length, 1);
+    assert.deepEqual(
+      { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
+      { sheet: 'Estudio', row: 2, column: 'Whatsapp' },
+    );
+  });
+});
+
+/*
+ * The importer decides what a pasted photograph may be; src/data/assets.js
+ * decides what the site can actually resolve. They are separate lists in
+ * separate languages — the glob has to be a literal for Vite to read it at
+ * build time, so neither can import the other — and they drifted: the
+ * importer took a gif, wrote it, and the site then found nothing under that
+ * name. A teacher fell back to their initials with nothing anywhere saying
+ * why, which is the same silence the Imagen check exists to end.
+ *
+ * So this reads the glob out of the real file rather than restating it. A
+ * format added to one side and not the other fails here instead of on the
+ * published site.
+ */
+describe('the formats a pasted photograph may take', () => {
+  const assets = readFileSync(new URL('../../../src/data/assets.js', import.meta.url), 'utf8');
+  const [, pattern] = assets.match(/images\/teachers\/\*\.\{([^}]+)\}/);
+  const resolvable = pattern.split(',').map((extension) => extension.trim());
+
+  it('are all ones the site can resolve', () => {
+    const unresolvable = [...IMAGE_EXTENSION.values()]
+      .filter((extension) => !resolvable.includes(extension));
+
+    assert.deepEqual(unresolvable, [], `src/data/assets.js globs {${pattern}}`);
+  });
+
+  it('accept the two shapes a photograph normally arrives in', () => {
+    assert.equal(IMAGE_EXTENSION.get('jpg'), 'jpeg');
+    assert.equal(IMAGE_EXTENSION.get('png'), 'png');
   });
 });
 
@@ -307,6 +415,30 @@ describe('buildAcademy', () => {
       assert.equal(errors.length, 1);
       assert.equal(errors[0].sheet, 'Estudio');
     });
+
+    it('normalises a bare mobile number typed into the WhatsApp cell', () => {
+      const { academy, errors } = build({
+        horario: [],
+        estudio: sheet([{ campo: 'WhatsApp', valor: '960 507 583' }]),
+      });
+
+      assert.deepEqual(errors, []);
+      assert.equal(academy.studio.whatsapp, '+51 960 507 583');
+    });
+
+    it('rejects a WhatsApp cell it cannot classify, naming the column', () => {
+      const { academy, errors } = build({
+        horario: [],
+        estudio: sheet([{ campo: 'WhatsApp', valor: '(01) 960-507-583' }]),
+      });
+
+      assert.equal(academy, null);
+      assert.equal(errors.length, 1);
+      assert.deepEqual(
+        { sheet: errors[0].sheet, column: errors[0].column },
+        { sheet: 'Estudio', column: 'Whatsapp' },
+      );
+    });
   });
 
   // The spreadsheet has no say over videos, so an import must not be the thing
@@ -438,6 +570,262 @@ describe('a teacher with a video', () => {
 
     assert.deepEqual(academy.videos, []);
     assert.deepEqual(academy.teachers[0].videoIds, []);
+  });
+});
+
+/*
+ * Naming a file nobody uploaded is how the published data ended up pointing at
+ * a photograph that does not exist. A pasted photograph cannot be wrong about
+ * itself, so it now wins over the filename column, which still has to name a
+ * file that is actually on disk.
+ */
+describe('a photograph pasted into the Profesores sheet', () => {
+  // Opaque to buildAcademy, which never decodes it — only ExcelJS and the
+  // browser ever look inside.
+  const PHOTO = Buffer.from('a pretend photograph, opaque to buildAcademy');
+
+  const KENNETH = sheet([{ nombre: 'Kenneth Ocaña', generos: 'Bachata' }]);
+
+  it("becomes the teacher's imageKey, named from their own id, and is queued to be written", () => {
+    const { academy, errors, photos } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'jpg' }],
+    });
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.teachers[0].imageKey, 'kenneth-ocana.jpeg');
+    assert.deepEqual(photos, [{ filename: 'kenneth-ocana.jpeg', buffer: PHOTO }]);
+  });
+
+  it('beats an Imagen filename on the same row', () => {
+    const { academy, errors } = build({
+      profesores: sheet([{
+        nombre: 'Kenneth Ocaña', generos: 'Bachata', imagen: 'bachata_izquierdo.jpg',
+      }]),
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'png' }],
+    });
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.teachers[0].imageKey, 'kenneth-ocana.png');
+  });
+
+  // jpg and jpeg must collapse to the same file, or re-pasting a photo saved
+  // in the other shape would accumulate a second one instead of replacing it.
+  it('collapses jpg and jpeg to the one canonical extension', () => {
+    const imageKeyWith = (extension) => build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension }],
+    }).academy.teachers[0].imageKey;
+
+    assert.equal(imageKeyWith('jpg'), 'kenneth-ocana.jpeg');
+    assert.equal(imageKeyWith('JPEG'), 'kenneth-ocana.jpeg');
+    assert.equal(imageKeyWith('png'), 'kenneth-ocana.png');
+  });
+
+  /*
+   * A workbook can carry a gif and the site cannot resolve one, so accepting
+   * it wrote a file nothing would ever find — the teacher falling back to
+   * their initials with nothing to say why. Refused at the door instead,
+   * where it can be said out loud.
+   */
+  it('refuses a gif, which a workbook carries but the site cannot resolve', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'gif' }],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].sheet, 'Profesores');
+    assert.equal(errors[0].row, 2);
+  });
+
+  /*
+   * The rejection named gif after the map had stopped taking it, so doing
+   * what the message said got you refused again in the same words, with no
+   * way out but guessing. Whatever it offers has to be something that works.
+   */
+  it('offers only formats it will actually accept when it refuses one', () => {
+    const { errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'bmp' }],
+    });
+
+    const offered = errors[0].message.match(/Usa (.+)\./)[1]
+      .split(/,| o /)
+      .map((name) => name.trim());
+
+    assert.deepEqual(offered, [...IMAGE_EXTENSION.keys()]);
+  });
+
+  // The defect this whole change exists to end: a filename with nothing
+  // behind it must never reach the published file again.
+  it('refuses an Imagen filename that does not exist, naming the sheet, row and column', () => {
+    const { academy, errors } = build({
+      profesores: sheet([{
+        nombre: 'Kenneth Ocaña', generos: 'Bachata', imagen: 'mishel_fernandez.jpg',
+      }]),
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.deepEqual(
+      { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
+      { sheet: 'Profesores', row: 2, column: 'Imagen' },
+    );
+    assert.match(errors[0].message, /mishel_fernandez\.jpg/);
+  });
+
+  /*
+   * The check resolves the cell against the teachers folder and asks whether
+   * something is there, which two shapes of value answer yes to while meaning
+   * nothing the site can use.
+   *
+   * An absolute path leaves the folder altogether — C:/Windows/win.ini
+   * resolves to itself and exists. A relative one that climbs out and back
+   * can land on a real photograph, but the stored key then carries
+   * separators, and src/data/assets.js indexes the folder by bare filename,
+   * so resolveTeacherImage finds nothing under it. Both end the same way: a
+   * teacher quietly drawn as initials, which is the silence this column's
+   * check was added to break.
+   */
+  [
+    'C:/Windows/win.ini',
+    'otra-carpeta/../bachata_izquierdo.jpg',
+    '../../../package.json',
+  ].forEach((imagen) => {
+    it(`refuses ${JSON.stringify(imagen)} in Imagen, a path rather than a filename`, () => {
+      const { academy, errors } = build({
+        profesores: sheet([{ nombre: 'Kenneth Ocaña', generos: 'Bachata', imagen }]),
+      });
+
+      assert.equal(academy, null);
+      assert.equal(errors.length, 1);
+      assert.equal(errors[0].column, 'Imagen');
+    });
+  });
+
+  /*
+   * existsSync says yes to a directory, and basename leaves a lone dot
+   * segment untouched — so "." resolved to the teachers folder itself and was
+   * accepted as a photograph. The key stored would name a directory, nothing
+   * in src/data/assets.js could resolve it, and the teacher fell back to
+   * initials without a word: the same silence, reached by asking the wrong
+   * question about the path.
+   */
+  ['.', '..'].forEach((imagen) => {
+    it(`refuses ${JSON.stringify(imagen)} in Imagen, which is a folder`, () => {
+      const { academy, errors } = build({
+        profesores: sheet([{ nombre: 'Kenneth Ocaña', generos: 'Bachata', imagen }]),
+      });
+
+      assert.equal(academy, null);
+      assert.equal(errors.length, 1);
+      assert.equal(errors[0].column, 'Imagen');
+    });
+  });
+
+  /*
+   * Two anchors on one row are ambiguous whether or not the workbook could
+   * read them: the row still has to be refused, and for that reason rather
+   * than for the unreadable one, or the message sends the academy to delete
+   * and re-paste a photograph when the real problem is that there are two.
+   */
+  it('calls a row with one readable and one unreadable photograph ambiguous', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [
+        { row: 2, buffer: PHOTO, extension: 'png' },
+        { row: 2, unreadable: true },
+      ],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].column, 'Foto');
+    assert.match(errors[0].message, /dos fotos/);
+  });
+
+  /*
+   * new Map(pairs) keeps the LAST value for a repeated key. Two photographs
+   * anchored to one row therefore left one of them simply gone, with nothing
+   * said — and nobody can tell which of the two the academy meant. This
+   * repository already carries that warning in src/data/index.js's uniqueById
+   * and the trap was walked into again here.
+   */
+  it('refuses two photographs anchored to the same row rather than keeping one', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [
+        { row: 2, buffer: PHOTO, extension: 'png' },
+        { row: 2, buffer: PHOTO, extension: 'jpg' },
+      ],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].row, 2);
+    assert.equal(errors[0].column, 'Foto');
+  });
+
+  /*
+   * parse-workbook drops an anchor whose image is missing from the workbook's
+   * media so the rest can still be read. Saying nothing about it meant a
+   * green import, the old photograph still published, and the person who
+   * pasted a new one never learning it was thrown away.
+   */
+  it('refuses a pasted photograph the workbook could not actually read', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, unreadable: true }],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].row, 2);
+    assert.equal(errors[0].column, 'Foto');
+  });
+
+  it('keeps the photograph a teacher already had when the row pastes none and names none', () => {
+    const previous = { teachers: [{ id: 'kenneth-ocana', imageKey: 'kenneth_old.jpg' }] };
+
+    const { academy, errors } = build({ profesores: KENNETH }, { previous });
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.teachers[0].imageKey, 'kenneth_old.jpg');
+  });
+
+  // Dragging an image, or sorting the rows beneath it, can leave it floating
+  // over nothing typed at all — the row never reaches the teachers array, so
+  // the loop that would otherwise claim the photo never visits it.
+  it('refuses a photo anchored to a row with no teacher name', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      // Row 5 has no entry at all: nothing was ever typed there, only pasted.
+      profesoresImagenes: [{ row: 5, buffer: PHOTO, extension: 'jpg' }],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.deepEqual(
+      { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
+      { sheet: 'Profesores', row: 5, column: 'Foto' },
+    );
+  });
+
+  it('refuses a pasted photo in a format that cannot be used', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'bmp' }],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.deepEqual(
+      { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
+      { sheet: 'Profesores', row: 2, column: 'Foto' },
+    );
+    assert.match(errors[0].message, /bmp/);
   });
 });
 
@@ -744,5 +1132,145 @@ describe('a workbook older than the teacher fields it does not carry', () => {
     }]);
 
     assert.deepEqual(importWith(emptied).achievements, []);
+  });
+});
+
+/*
+ * The sheet owns exactly one video id per teacher, the same ownership rule
+ * mergeVideos applies to the records themselves. A link the published file held
+ * to some other video was made by hand, and an import that says nothing about
+ * it may not unlink it.
+ *
+ * The record surviving while the link is dropped is the bad half: a video with
+ * no teacherId that nothing points at falls into getAcademyVideos, which reads
+ * "no genre, no teacher" as the school's own reel and shows it on every genre
+ * page with no footage of its own.
+ */
+describe('a teacher who also links a video added by hand', () => {
+  const HORARIO = sheet([
+    {
+      dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+    },
+  ]);
+
+  const HAND_ADDED = {
+    id: 'clase-abierta',
+    title: 'Clase abierta',
+    genreId: null,
+    assetKey: 'clase_abierta.mp4',
+    externalUrl: null,
+  };
+
+  const previousWith = (videoIds) => ({
+    videos: [HAND_ADDED],
+    teachers: [{ id: 'mishel-fernandez', videoIds }],
+  });
+
+  const buildWith = (video, previous) => build(
+    {
+      horario: HORARIO,
+      profesores: sheet([{ nombre: 'Mishel Fernández', generos: 'Salsa', video }]),
+    },
+    { previous },
+  );
+
+  it('keeps the hand-made link when the cell names a video', () => {
+    const { academy } = buildWith('mishel_salsa.mp4', previousWith(['clase-abierta']));
+
+    assert.deepEqual(
+      academy.teachers[0].videoIds,
+      ['clase-abierta', 'video-mishel-fernandez'],
+    );
+  });
+
+  it('keeps the hand-made link when the cell is empty', () => {
+    const { academy } = buildWith('', previousWith(['clase-abierta']));
+
+    assert.deepEqual(academy.teachers[0].videoIds, ['clase-abierta']);
+  });
+
+  // Its own id is the one thing the sheet may take back, and an emptied cell
+  // is the academy taking it back.
+  it('still drops its own id when the cell is emptied', () => {
+    const previous = previousWith(['clase-abierta', 'video-mishel-fernandez']);
+    const { academy } = buildWith('', previous);
+
+    assert.deepEqual(academy.teachers[0].videoIds, ['clase-abierta']);
+  });
+
+  it('does not list its own id twice when the cell still names one', () => {
+    const previous = previousWith(['video-mishel-fernandez']);
+    const { academy } = buildWith('mishel_salsa.mp4', previous);
+
+    assert.deepEqual(academy.teachers[0].videoIds, ['video-mishel-fernandez']);
+  });
+
+  it('leaves the hand-made video reachable from the teacher', () => {
+    const { academy } = buildWith('mishel_salsa.mp4', previousWith(['clase-abierta']));
+
+    assert.ok(academy.videos.some((video) => video.id === 'clase-abierta'));
+    assert.ok(academy.teachers[0].videoIds.includes('clase-abierta'));
+  });
+});
+
+/*
+ * A share sheet hands out addresses with no protocol, and "://" is the only
+ * thing telling a link from a filename. Such a value used to be written as an
+ * assetKey naming a file that is not in the bundle: resolveVideoAsset answers
+ * undefined, the card renders with nothing to play, and the import reports
+ * success. Neither shape is guessed at now — an unrecognisable value is a cell
+ * to fix, which is the one outcome the academy can act on.
+ */
+describe('a Video cell that is neither a link nor a file', () => {
+  const HORARIO = sheet([
+    {
+      dia: 'Lunes', inicio: '19:00', fin: '20:00', genero: 'Salsa', profesor: 'Mishel Fernández',
+    },
+  ]);
+
+  const buildWith = (video) => build({
+    horario: HORARIO,
+    profesores: sheet([{ nombre: 'Mishel Fernández', generos: 'Salsa', video }]),
+  });
+
+  const messages = ({ errors }) => errors.map((problem) => problem.message).join('\n');
+
+  it('refuses a link pasted without its protocol', () => {
+    const result = buildWith('youtu.be/abc123');
+
+    assert.equal(result.academy, null);
+    assert.match(messages(result), /youtu\.be\/abc123/);
+  });
+
+  it('refuses a bare host copied from the address bar', () => {
+    assert.equal(buildWith('www.youtube.com/watch?v=abc').academy, null);
+  });
+
+  it('refuses a filename with no video extension', () => {
+    assert.equal(buildWith('mishel_salsa').academy, null);
+  });
+
+  it('says how to correct the cell', () => {
+    assert.match(messages(buildWith('youtu.be/abc123')), /https:\/\/|\.mp4/);
+  });
+
+  it('names the sheet, the row and the column', () => {
+    const [problem] = buildWith('youtu.be/abc').errors;
+
+    assert.equal(problem.sheet, 'Profesores');
+    assert.equal(problem.column, 'Video');
+    assert.equal(problem.row, 2);
+  });
+
+  it('still accepts a webm file', () => {
+    const { academy } = buildWith('mishel_salsa.webm');
+
+    assert.equal(academy.videos[0].assetKey, 'mishel_salsa.webm');
+  });
+
+  it('is not case sensitive about the extension', () => {
+    const { academy } = buildWith('Mishel_Salsa.MP4');
+
+    assert.equal(academy.videos[0].assetKey, 'Mishel_Salsa.MP4');
   });
 });

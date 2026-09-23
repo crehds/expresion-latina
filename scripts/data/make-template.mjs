@@ -11,6 +11,10 @@ const SOURCE = resolve(new URL('../../src/data/academy.json', import.meta.url).p
 const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const LEVELS = ['Principiantes', 'Básico', 'Intermedio', 'Avanzado', 'All levels'];
 
+// Room past the last genre or teacher that the dropdowns still read, so one
+// added later can be chosen without regenerating the template.
+const ROOM = 20;
+
 const HEADER_FILL = {
   type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B2A7A' },
 };
@@ -36,10 +40,11 @@ function addSheet(workbook, name, headers, rows, widths) {
  * This is the single most useful thing in the file: it makes "Miercoles"
  * without the accent, or a teacher who does not exist, impossible to enter
  * rather than something the importer has to reject afterwards.
+ *
+ * `formula` is either a fixed list, from listOf, or the cells of another
+ * sheet, from namesIn.
  */
-function restrict(sheet, column, values, lastRow) {
-  if (!values.length) return;
-
+function restrict(sheet, column, formula, lastRow) {
   for (let row = 2; row <= lastRow; row += 1) {
     // ExcelJS is configured by assigning onto the objects it hands back;
     // there is no non-mutating way to attach a validation to a cell.
@@ -47,13 +52,26 @@ function restrict(sheet, column, values, lastRow) {
     sheet.getCell(`${column}${row}`).dataValidation = {
       type: 'list',
       allowBlank: true,
-      formulae: [`"${values.join(',').slice(0, 250)}"`],
+      formulae: [formula],
       showErrorMessage: true,
       errorTitle: 'Valor no permitido',
-      error: 'Elegí una opción de la lista.',
+      error: 'Elige una opción de la lista.',
     };
   }
 }
+
+/** A list that never changes: the days, the levels. */
+const listOf = (values) => `"${values.join(',')}"`;
+
+/**
+ * The names on another sheet, read live rather than copied.
+ *
+ * A copy taken when the template was made could not offer a teacher the
+ * academy added afterwards, and Excel refuses what the list does not hold. A
+ * quoted list is also capped at 255 characters, which the copy used to meet
+ * by cutting the last name in half.
+ */
+const namesIn = (sheetName, lastRow) => `${sheetName}!$A$2:$A$${lastRow}`;
 
 /**
  * What the teacher's Video cell should already say.
@@ -116,10 +134,10 @@ export default async function makeTemplate(target, { source = SOURCE } = {}) {
 
   // Room to add classes without losing the dropdowns.
   const lastRow = horarioRows.length + 40;
-  restrict(horario, 'A', DAY_NAMES, lastRow);
-  restrict(horario, 'D', genres.map((genre) => genre.name), lastRow);
-  restrict(horario, 'E', teachers.map((teacher) => teacher.name), lastRow);
-  restrict(horario, 'F', LEVELS, lastRow);
+  restrict(horario, 'A', listOf(DAY_NAMES), lastRow);
+  restrict(horario, 'D', namesIn('Generos', genres.length + ROOM), lastRow);
+  restrict(horario, 'E', namesIn('Profesores', teachers.length + ROOM), lastRow);
+  restrict(horario, 'F', listOf(LEVELS), lastRow);
 
   const generos = addSheet(
     workbook,
@@ -132,7 +150,7 @@ export default async function makeTemplate(target, { source = SOURCE } = {}) {
     ]),
     [22, 12, 50],
   );
-  restrict(generos, 'B', ['Clase', 'Ensayo'], genres.length + 20);
+  restrict(generos, 'B', listOf(['Clase', 'Ensayo']), genres.length + ROOM);
 
   addSheet(
     workbook,

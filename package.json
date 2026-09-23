@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:data": "node --test scripts/data/__tests__/*.test.mjs",
+    "test:e2e": "node scripts/e2e/content-reaches-page.mjs",
     "data:import": "node scripts/data/import.mjs",
     "data:template": "node scripts/data/make-template.mjs",
     "screenshot": "node scripts/dev/screenshot.mjs",

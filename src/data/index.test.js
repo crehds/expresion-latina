@@ -321,11 +321,23 @@ describe('academy data layer', () => {
     });
 
     it('strips punctuation a workbook is just as likely to carry', async () => {
-      expect(await linkFor('(01) 960-507-583')).toBe('https://wa.me/01960507583');
+      expect(await linkFor('+51 (960) 507-583')).toBe('https://wa.me/51960507583');
     });
 
     it('leaves a number that needs no cleaning alone', async () => {
       expect(await linkFor('51960507583')).toBe('https://wa.me/51960507583');
+    });
+
+    /*
+     * Not an endorsement of this output — it is the reason normaliseWhatsapp
+     * exists in the importer. This module strips and links whatever it is
+     * given, so a number stored without a country code still builds a wa.me
+     * address nobody can open. Only values that came through an import carry
+     * the fix; a hand-edited academy.json does not, and this pins what the
+     * footer and the hero would render if one ever did.
+     */
+    it('still builds an undialable link for a number no import normalised', async () => {
+      expect(await linkFor('960 507 583')).toBe('https://wa.me/960507583');
     });
 
     /*

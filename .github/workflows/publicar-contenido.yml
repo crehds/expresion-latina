@@ -1,0 +1,165 @@
+# Rebuilds the site's content from the workbook the academy uploads.
+#
+# Without this, uploading a spreadsheet through the GitHub web interface did
+# nothing at all: the file landed in the repository and no one ran the
+# importer, so academy.json never changed and the site never moved. This is
+# the step that was missing between "the academy uploaded a file" and "the
+# site shows it".
+name: Publicar el contenido de la planilla
+
+on:
+  push:
+    branches: [develop, main]
+    # Only the workbook. This is also what stops the job from triggering
+    # itself: the commit it pushes touches src/, never content/.
+    paths:
+      - content/horarios.xlsx
+  # So the import can be re-run from the Actions tab after fixing a photograph
+  # or an asset, without having to touch the workbook again.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Two uploads in quick succession would otherwise race to commit the same
+# file. The second waits rather than being dropped, since it carries the
+# newer content.
+concurrency:
+  group: contenido-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    name: Importar la planilla y publicar
+    runs-on: ubuntu-latest
+
+    steps:
+      # Full history: when the branch moves under it, the publish step resets
+      # onto the new tip, and a shallow clone may not have it.
+      - name: Traer el repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # The exit code is kept rather than failing here, so the summary below
+      # still runs and the academy sees the table of what is wrong instead of
+      # a red cross and a log to dig through.
+      - name: Leer la planilla
+        id: importar
+        run: |
+          set +e
+          npm run data:import -- content/horarios.xlsx 2>&1 | tee importacion.log
+          echo "codigo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Contar qué pasó
+        if: always()
+        run: |
+          {
+            if [ "${{ steps.importar.outputs.codigo }}" = "0" ]; then
+              echo "## La planilla se leyó bien"
+            else
+              echo "## La planilla tiene problemas y no se publicó nada"
+              echo ""
+              echo "Corrige las celdas que aparecen abajo en \`content/horarios.xlsx\`, vuelve a subir el archivo y esto se repite solo."
+            fi
+            echo ""
+            echo '```'
+            cat importacion.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Detenerse si la planilla tiene problemas
+        if: steps.importar.outputs.codigo != '0'
+        run: exit 1
+
+      # Staged first because a photograph pasted into the sheet arrives as a
+      # new file, and a plain diff does not see one of those.
+      #
+      # The push retries, and the retry rebuilds rather than rebases: it
+      # resets to the branch's new tip and runs the import again there.
+      #
+      # The concurrency group above only keeps two runs from overlapping — it
+      # does not hold the branch still. A second upload queued behind the
+      # first checks out its own triggering commit, which by then has the
+      # first run's commit sitting on top of it, and a plain push of that is
+      # refused as non-fast-forward. The job would go red having already told
+      # the academy their spreadsheet was fine.
+      #
+      # Rebasing cannot fix that here. academy.json is generated wholesale
+      # from the workbook, so two runs that each regenerated it share no
+      # common ground to replay, and the rebase is a content conflict on a
+      # file nobody wrote by hand. Importing the tip's own workbook again is
+      # what makes the attempt current.
+      #
+      # If the site ever stops updating while this job stays green, look here
+      # first: GitHub does not start push-triggered *workflows* for a push made
+      # with GITHUB_TOKEN. Vercel deploys through its own GitHub App rather
+      # than a workflow, so it is not subject to that, but anything moved into
+      # a workflow later would be.
+      - name: Publicar los cambios
+        run: |
+          # This step decides its own control flow. The default shell is
+          # `bash -e`, which would end the whole step on the first command that
+          # returns non-zero — including a push this is expecting to lose, and
+          # then the summary explaining why would never be written.
+          set +e
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # 0 pushed, 1 could not, 2 nothing to publish.
+          publicar() {
+            git add src/data/academy.json src/assets/images/teachers
+            git diff --cached --quiet && return 2
+
+            git commit -q -m 'chore(content): publicar la planilla' || return 1
+            git push --quiet || return 1
+          }
+
+          for intento in 1 2 3; do
+            publicar
+            resultado=$?
+
+            if [ "$resultado" = 0 ]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "El sitio se está publicando con el contenido nuevo." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            if [ "$resultado" = 2 ]; then
+              echo "La planilla no cambió nada publicable." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            [ "$intento" = 3 ] && break
+
+            # The result is checked rather than assumed. Left unchecked, a
+            # failed reset leaves the unpushed commit as HEAD, the next pass
+            # stages nothing, and "nothing to publish" is reported with a
+            # green tick over a publish that never happened — the silent
+            # failure this whole workflow exists to stop.
+            echo "La rama se movió mientras corría. Reintento $intento de 2."
+
+            if ! { git fetch --quiet origin "${GITHUB_REF_NAME}" \
+                   && git reset --quiet --hard "origin/${GITHUB_REF_NAME}" \
+                   && npm run data:import -- content/horarios.xlsx; }; then
+              echo "No se pudo rehacer la importación sobre la rama actualizada."
+              break
+            fi
+          done
+
+          {
+            echo ""
+            echo "La planilla se leyó bien, pero **no se pudo publicar**: la rama siguió cambiando, o no se pudo rehacer la importación sobre ella."
+            echo "Vuelve a subir el archivo para que se intente otra vez."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

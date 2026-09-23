@@ -23,11 +23,12 @@
 }
 
 /*
- * 84% rather than 100%: the next poster peeks past the right edge, which is
- * what tells a thumb there is more without an arrow or a row of dots.
+ * Full width at every breakpoint: one poster on screen at a time, not a peek
+ * of the next one. The peek used to be what told a thumb there was more; the
+ * dots below the track carry that signal now, so dropping it loses nothing.
  */
 .poster-strip__item {
-  flex: 0 0 84%;
+  flex: 0 0 100%;
   scroll-snap-align: center;
 }
 
@@ -36,11 +37,114 @@
   display: none;
 }
 
-@media (min-width: 1024px) {
-  .poster-strip__item {
-    flex-basis: 100%;
-  }
+/*
+ * The mobile replacement for the peek: which poster is showing, and a direct
+ * way to jump to another one without swiping through everything between.
+ */
+.poster-strip__dots {
+  display: flex;
+  /*
+   * The pause control is taller than a dot. Stretch, the default, leaves a
+   * fixed-height dot at the top of the row, and the dots then sat 0.4rem
+   * above the middle of the button beside them.
+   */
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 1.2rem;
+}
 
+/*
+ * Padding beyond the visible circle, clipped off with background-clip: the
+ * dot itself stays small enough to read as one of several, but the button
+ * under it is a comfortable tap target.
+ *
+ * A muted text colour rather than a border one: measured against the page
+ * behind it, --surface-border-strong reached 1.54:1, well under the 3:1 WCAG
+ * asks of a non-text control. These dots are the only thing left telling a
+ * phone there are more posters, so one nobody can see is the whole signal
+ * gone.
+ */
+.poster-strip__dot {
+  /*
+   * content-box on purpose. This project sets border-box globally, which makes
+   * width the OUTER size: 0.8rem of width against 0.6rem of padding a side
+   * collapsed the content box to 0x0, and background-clip then painted that
+   * nothing. The dots were invisible on screen while getComputedStyle still
+   * reported a colour, so only a pixel read caught it.
+   *
+   * 0.8rem of dot inside 0.8rem of padding leaves a 2.4rem button, which is
+   * the smallest target WCAG accepts.
+   */
+  box-sizing: content-box;
+  width: 0.8rem;
+  height: 0.8rem;
+  padding: 0.8rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background-color: var(--text-muted);
+  background-clip: content-box;
+  cursor: pointer;
+}
+
+.poster-strip__dot[aria-current="true"] {
+  background-color: var(--accent);
+}
+
+.poster-strip__dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * The WCAG 2.2.2 pause/resume control. border-box sizing is the default
+ * here (unlike the dots above, which opt out of it on purpose), so 3.2rem of
+ * width is already the whole button including its border — comfortably over
+ * the 2.4rem minimum target, with no content-box arithmetic needed.
+ *
+ * Sized and coloured like the desktop arrows rather than the dots: it sits
+ * in the same row as the dots on every breakpoint, including the phone
+ * width the arrows are hidden on, so it needs to read as a control on its
+ * own rather than blend into the indicator row.
+ */
+.poster-strip__toggle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  margin-right: 0.4rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.poster-strip__toggle svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+/*
+ * Only where a pointer can rest. A phone keeps :hover on whatever was last
+ * tapped, so the button stayed violet after a pause, reading as pressed or
+ * busy until the next tap somewhere else.
+ */
+@media (hover: hover) {
+  .poster-strip__toggle:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.poster-strip__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
   .poster-strip__arrow {
     position: absolute;
     top: 50%;

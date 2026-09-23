@@ -53,15 +53,15 @@ export default class Home extends Component {
       <main className="home">
         <Hero />
 
+        <section className="home__posters" aria-labelledby="home-posters-heading">
+          <h2 className="heading-md home__posters-heading" id="home-posters-heading">
+            Novedades
+          </h2>
+          <PosterStrip posters={posters} />
+        </section>
+
         <div className="home__band">
           <TodayStrip />
-
-          <section className="home__posters" aria-labelledby="home-posters-heading">
-            <h2 className="heading-sm home__posters-heading" id="home-posters-heading">
-              Novedades
-            </h2>
-            <PosterStrip posters={posters} />
-          </section>
         </div>
 
         <ReviewsStrip />
