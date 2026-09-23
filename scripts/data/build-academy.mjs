@@ -283,6 +283,10 @@ export const IMAGE_EXTENSION = new Map([
  */
 const ACCEPTED_FORMATS = (() => {
   const names = [...IMAGE_EXTENSION.keys()];
+
+  // Trimming the map to one would otherwise leave the message reading " o png".
+  if (names.length < 2) return names.join('');
+
   return `${names.slice(0, -1).join(', ')} o ${names.at(-1)}`;
 })();
 

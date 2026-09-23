@@ -6,7 +6,9 @@ import { after, describe, it } from 'node:test';
 
 import ExcelJS from 'exceljs';
 
-import parseWorkbook, { normalise, readText, readTime } from '../parse-workbook.mjs';
+import parseWorkbook, {
+  normalise, readText, readTime, readImages,
+} from '../parse-workbook.mjs';
 
 const workDir = mkdtempSync(join(tmpdir(), 'eyl-parse-'));
 after(() => rmSync(workDir, { recursive: true, force: true }));
@@ -232,6 +234,33 @@ describe('parseWorkbook', () => {
       assert.equal(profesoresImagenes[0].row, 3);
       assert.equal(profesoresImagenes[0].extension, 'png');
       assert.deepEqual(profesoresImagenes[0].buffer, PHOTO);
+    });
+
+    /*
+     * An anchor whose image is missing from the workbook's media happens with
+     * some editors and with a file that did not survive a copy. Reading
+     * straight through it threw a TypeError, which the command then reported
+     * as "no pude leer el archivo, revisá que no esté abierto en Excel" —
+     * sending whoever uploaded it to close a spreadsheet that was never open.
+     *
+     * Stubbed rather than written out to a real file: ExcelJS refuses to save
+     * a workbook whose anchor names media it does not hold, so the only way
+     * to hand this reader the shape it has to survive is to build it here.
+     */
+    it('drops an anchor whose image is not in the workbook, keeping the others', () => {
+      const worksheet = {
+        getImages: () => [
+          { imageId: '0', range: { tl: { nativeCol: 1, nativeRow: 1 } } },
+          { imageId: '404', range: { tl: { nativeCol: 1, nativeRow: 2 } } },
+        ],
+      };
+      const media = [{ index: 0, buffer: PHOTO, extension: 'png' }];
+
+      const images = readImages(worksheet, media);
+
+      assert.equal(images.length, 1);
+      assert.equal(images[0].row, 2);
+      assert.deepEqual(images[0].buffer, PHOTO);
     });
 
     it('returns an empty list when the sheet carries no images', async () => {

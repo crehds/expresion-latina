@@ -122,7 +122,7 @@ function readSheet(worksheet) {
  *
  * @returns {{row: number, buffer: Buffer, extension: string}[]}
  */
-function readImages(worksheet, media) {
+export function readImages(worksheet, media) {
   if (!worksheet) return [];
 
   return worksheet.getImages().flatMap(({ imageId, range }) => {

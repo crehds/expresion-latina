@@ -98,31 +98,56 @@ jobs:
       # a workflow later would be.
       - name: Publicar los cambios
         run: |
-          git add src/data/academy.json src/assets/images/teachers
-
-          if git diff --cached --quiet; then
-            echo "La planilla no cambió nada publicable." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
+          # This step decides its own control flow. The default shell is
+          # `bash -e`, which would end the whole step on the first command that
+          # returns non-zero — including a push this is expecting to lose, and
+          # then the summary explaining why would never be written.
+          set +e
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'chore(content): publicar la planilla'
+
+          # 0 pushed, 1 could not, 2 nothing to publish.
+          publicar() {
+            git add src/data/academy.json src/assets/images/teachers
+            git diff --cached --quiet && return 2
+
+            git commit -q -m 'chore(content): publicar la planilla' || return 1
+            git push --quiet || return 1
+          }
 
           for intento in 1 2 3; do
-            if git push; then
+            publicar
+            resultado=$?
+
+            if [ "$resultado" = 0 ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "El sitio se está publicando con el contenido nuevo." >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
 
+            if [ "$resultado" = 2 ]; then
+              echo "La planilla no cambió nada publicable." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            [ "$intento" = 3 ] && break
+
+            # Rebuilt from the branch's new tip rather than rebased onto it.
+            # academy.json is generated wholesale from the workbook, so two
+            # runs that each regenerated it have no common ground to replay —
+            # a rebase here is a content conflict on a file nobody wrote by
+            # hand. Whatever workbook the tip now carries is the newer one,
+            # and importing it again is what makes this attempt current.
             echo "La rama se movió mientras corría. Reintento $intento de 3."
-            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git fetch --quiet origin "${GITHUB_REF_NAME}" \
+              && git reset --quiet --hard "origin/${GITHUB_REF_NAME}" \
+              && npm run data:import -- content/horarios.xlsx
           done
 
           {
             echo ""
-            echo "La planilla se leyó bien, pero **no se pudo publicar**: la rama cambió durante la importación."
-            echo "Vuelve a subir el archivo, o usa \"Re-run jobs\" en esta misma página."
+            echo "La planilla se leyó bien, pero **no se pudo publicar**: la rama siguió cambiando mientras corría."
+            echo "Vuelve a subir el archivo para que se intente otra vez."
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1
