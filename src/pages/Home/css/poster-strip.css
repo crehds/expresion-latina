@@ -97,45 +97,113 @@
 }
 
 /*
- * The WCAG 2.2.2 pause/resume control. border-box sizing is the default
- * here (unlike the dots above, which opt out of it on purpose), so 3.2rem of
- * width is already the whole button including its border — comfortably over
- * the 2.4rem minimum target, with no content-box arithmetic needed.
+ * The WCAG 2.2.2 pause/resume control, redrawn as a countdown ring rather
+ * than the dark filled button this started as: the product owner found a
+ * solid circle sitting among the dots "unnatural", so the button itself
+ * disappears visually and only the ring — filling over the six-second
+ * interval it is timing — reads as a control.
  *
- * Sized and coloured like the desktop arrows rather than the dots: it sits
- * in the same row as the dots on every breakpoint, including the phone
- * width the arrows are hidden on, so it needs to read as a control on its
- * own rather than blend into the indicator row.
+ * border-box sizing is the default here (unlike the dots above, which opt
+ * out of it on purpose), so 2.4rem of width is already the whole button:
+ * exactly the minimum target, with the ring itself drawn a little smaller
+ * inside it rather than touching the button's own edge.
  */
 .poster-strip__toggle {
+  position: relative;
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 3.2rem;
-  height: 3.2rem;
+  width: 2.4rem;
+  height: 2.4rem;
   margin-right: 0.4rem;
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-pill);
-  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  background: none;
+  padding: 0;
   color: var(--text-primary);
   cursor: pointer;
 }
 
-.poster-strip__toggle svg {
-  width: 1.4rem;
-  height: 1.4rem;
+.poster-strip__ring {
+  width: 2rem;
+  height: 2rem;
+  /* An SVG circle's own path starts at 3 o'clock; rotating the whole icon
+     is what puts the countdown's start at 12 instead. */
+  transform: rotate(-90deg);
+}
+
+.poster-strip__ring-track,
+.poster-strip__ring-progress {
+  fill: none;
+  stroke-width: 2;
+}
+
+.poster-strip__ring-track {
+  stroke: var(--text-muted);
+  opacity: 0.35;
+}
+
+/*
+ * pathLength="100" on both circles (set in the JSX) is what makes 100 a
+ * full lap regardless of the radius actually drawn, so the dash maths here
+ * never has to track that number a second time. The animation itself is
+ * driven by a JS-set custom property, --poster-strip-countdown, so
+ * AUTOPLAY_INTERVAL_MS in PosterStrip.jsx stays the one source of truth for
+ * how long a lap takes.
+ */
+.poster-strip__ring-progress {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: poster-strip-countdown var(--poster-strip-countdown, 6000ms) linear
+    forwards;
+}
+
+@keyframes poster-strip-countdown {
+  from {
+    stroke-dashoffset: 100;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/*
+ * data-running, not a CSS-only :hover/:focus readout, because "is autoplay
+ * actually ticking" already lives in JS as the same holds set the timer
+ * itself checks before it will (re)start — recomputing that here from
+ * pseudo-classes would be a second, and possibly diverging, source of truth
+ * for the same question. There is no case to add for reduced motion: the
+ * control is not rendered at all then, so this never has anything to freeze.
+ */
+.poster-strip__toggle[data-running="false"] .poster-strip__ring-progress {
+  animation-play-state: paused;
+}
+
+/* "Tap to resume", centred over the frozen ring — shown only while the
+   visitor themselves is the reason it is paused, not while it is merely
+   held by a hovering pointer, focus or a finger resting on the strip. */
+.poster-strip__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.8rem;
+  height: 0.8rem;
+  transform: translate(-50%, -50%);
+  fill: var(--text-primary);
 }
 
 /*
  * Only where a pointer can rest. A phone keeps :hover on whatever was last
- * tapped, so the button stayed violet after a pause, reading as pressed or
- * busy until the next tap somewhere else.
+ * tapped, so the ring's track stayed brightened after a pause, reading as
+ * pressed or busy until the next tap somewhere else.
  */
 @media (hover: hover) {
-  .poster-strip__toggle:hover {
-    background: var(--accent);
-    border-color: var(--accent);
+  .poster-strip__toggle:hover .poster-strip__ring-track {
+    stroke: var(--text-primary);
+    opacity: 0.6;
   }
 }
 
