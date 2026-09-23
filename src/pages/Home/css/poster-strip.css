@@ -43,6 +43,12 @@
  */
 .poster-strip__dots {
   display: flex;
+  /*
+   * The pause control is taller than a dot. Stretch, the default, leaves a
+   * fixed-height dot at the top of the row, and the dots then sat 0.4rem
+   * above the middle of the button beside them.
+   */
+  align-items: center;
   justify-content: center;
   gap: 0.4rem;
   margin-top: 1.2rem;
@@ -86,6 +92,54 @@
 }
 
 .poster-strip__dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * The WCAG 2.2.2 pause/resume control. border-box sizing is the default
+ * here (unlike the dots above, which opt out of it on purpose), so 3.2rem of
+ * width is already the whole button including its border — comfortably over
+ * the 2.4rem minimum target, with no content-box arithmetic needed.
+ *
+ * Sized and coloured like the desktop arrows rather than the dots: it sits
+ * in the same row as the dots on every breakpoint, including the phone
+ * width the arrows are hidden on, so it needs to read as a control on its
+ * own rather than blend into the indicator row.
+ */
+.poster-strip__toggle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  margin-right: 0.4rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.poster-strip__toggle svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+/*
+ * Only where a pointer can rest. A phone keeps :hover on whatever was last
+ * tapped, so the button stayed violet after a pause, reading as pressed or
+ * busy until the next tap somewhere else.
+ */
+@media (hover: hover) {
+  .poster-strip__toggle:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.poster-strip__toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

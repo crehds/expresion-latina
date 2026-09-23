@@ -1,4 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import {
+  act, fireEvent, render, screen,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import PosterStrip from './PosterStrip';
@@ -185,14 +187,27 @@ describe('autoplay', () => {
 
   const CAN_HOVER = '(hover: hover)';
 
-  /** Answers true for exactly the queries named, false for every other. */
+  /*
+   * Answers true for exactly the queries named, false for every other, and
+   * hands back a way to fire that query's own 'change' listener — the one
+   * PosterStrip registers on mount to react to the preference flipping mid
+   * visit, which a stub that swallows addEventListener could never exercise.
+   */
   function matchOnly(...queries) {
+    const changeListeners = new Map();
+
     window.matchMedia = (query) => ({
       matches: queries.includes(query),
       media: query,
-      addEventListener: () => {},
+      addEventListener: (type, listener) => {
+        if (type === 'change') changeListeners.set(query, listener);
+      },
       removeEventListener: () => {},
     });
+
+    return {
+      fireChange: (query, matches) => changeListeners.get(query)?.({ matches }),
+    };
   }
 
   const reduceMotion = () => matchOnly(REDUCED_MOTION);
@@ -367,5 +382,172 @@ describe('autoplay', () => {
     fireEvent.focusOut(strip);
 
     expect(vi.getTimerCount()).toBe(1);
+  });
+
+  /*
+   * WCAG 2.2.2 (Pause, Stop, Hide): anything that moves on its own for more
+   * than five seconds needs a way to stop it that does not depend on a
+   * pointer resting somewhere or a moment of focus, because a screen-reader
+   * user or a switch-access visitor has neither. This is that control.
+   */
+  describe('the pause and resume control', () => {
+    const pauseButton = () => screen.getByRole('button', { name: 'Pausar los afiches' });
+    const resumeButton = () => screen.getByRole('button', { name: 'Reanudar los afiches' });
+
+    it('is offered once autoplay can run', () => {
+      render(<PosterStrip posters={posters} />);
+
+      expect(pauseButton()).toBeInTheDocument();
+    });
+
+    it('stops autoplay when pressed, and its own label becomes the resume one', () => {
+      render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+
+      fireEvent.click(pauseButton());
+      vi.advanceTimersByTime(6000);
+      vi.advanceTimersByTime(6000);
+
+      expect(track().scrollTo).not.toHaveBeenCalled();
+      expect(resumeButton()).toBeInTheDocument();
+    });
+
+    /*
+     * The user's own pause is a distinct hold ('user'), sticky on top of the
+     * implicit ones. Hovering off, or focus leaving, only lifts the hold that
+     * gesture itself took — release() re-checks holds.size before restarting,
+     * so 'user' sitting underneath keeps autoplay stopped either way.
+     */
+    it('is not undone by the pointer resting on the strip and then leaving', () => {
+      withMouse();
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.click(pauseButton());
+      fireEvent.mouseOver(strip);
+      fireEvent.mouseOut(strip);
+      vi.advanceTimersByTime(6000);
+
+      expect(track().scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('is not undone by focus entering the strip and then leaving', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.click(pauseButton());
+      fireEvent.focusIn(strip);
+      fireEvent.focusOut(strip);
+      vi.advanceTimersByTime(6000);
+
+      expect(track().scrollTo).not.toHaveBeenCalled();
+    });
+
+    /*
+     * Resume is an explicit instruction, unlike the implicit holds. By the
+     * time this click is handled, the mouse already resting on the strip and
+     * the focus landing on this very button have both taken their own holds
+     * — so resuming has to clear 'pointer' and 'focus' along with 'user', or
+     * the slideshow would stay stopped for reasons the visitor never chose.
+     */
+    it('resumes immediately even though the pointer rests on the strip and focus is on the button itself', () => {
+      withMouse();
+      const { container } = render(<PosterStrip posters={posters} />);
+      const step = layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.mouseOver(strip);
+      fireEvent.focusIn(pauseButton());
+      fireEvent.click(pauseButton());
+
+      fireEvent.focusIn(resumeButton());
+      fireEvent.click(resumeButton());
+      vi.advanceTimersByTime(6000);
+
+      expect(track().scrollTo).toHaveBeenCalledWith({ left: step, behavior: 'smooth' });
+    });
+
+    it('still holds autoplay when a dot is focused again after a resume', () => {
+      render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+
+      fireEvent.click(pauseButton());
+      fireEvent.click(resumeButton());
+
+      const dot = screen.getByRole('button', { name: 'Ver el afiche 1 de 3' });
+      fireEvent.focusIn(dot);
+      vi.advanceTimersByTime(6000);
+
+      expect(track().scrollTo).not.toHaveBeenCalled();
+    });
+
+    // The label is the user's own choice, not a readout of every implicit
+    // hold — a mouse passing over the strip is not something they asked for.
+    it('does not change its label just because the pointer is hovering', () => {
+      withMouse();
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.mouseOver(strip);
+
+      expect(pauseButton()).toBeInTheDocument();
+    });
+
+    // Nothing autoplays under reduced motion, so there is nothing to offer a
+    // pause for.
+    it('is not rendered at all when the visitor prefers reduced motion', () => {
+      reduceMotion();
+      render(<PosterStrip posters={posters} />);
+
+      expect(screen.queryByRole('button', { name: 'Pausar los afiches' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Reanudar los afiches' })).not.toBeInTheDocument();
+    });
+
+    it('is not rendered with a single poster', () => {
+      render(<PosterStrip posters={[posters[0]]} />);
+
+      expect(screen.queryByRole('button', { name: 'Pausar los afiches' })).not.toBeInTheDocument();
+    });
+
+    /*
+     * The preference can flip mid-visit, same as autoplay itself already
+     * reacts to it. A user pause taken before the flip has to survive it: the
+     * control disappearing under reduced motion must not read as "resumed".
+     */
+    it('comes back still paused, labelled to resume, after reduced motion turns on and off again', () => {
+      const media = matchOnly();
+      render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+
+      fireEvent.click(pauseButton());
+
+      act(() => { media.fireChange(REDUCED_MOTION, true); });
+      expect(screen.queryByRole('button', { name: /los afiches$/ })).not.toBeInTheDocument();
+
+      act(() => { media.fireChange(REDUCED_MOTION, false); });
+      expect(resumeButton()).toBeInTheDocument();
+
+      vi.advanceTimersByTime(6000);
+      expect(track().scrollTo).not.toHaveBeenCalled();
+    });
+
+    // A device that cannot hover never takes the 'pointer' hold at all
+    // (holdPointer guards on hoverQuery.matches), so a tap has to rely purely
+    // on the sticky 'user' one to stay paused.
+    it('stays paused after a tap on a device that cannot hover', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.click(pauseButton());
+      fireEvent.mouseOver(strip);
+      fireEvent.mouseOut(strip);
+      vi.advanceTimersByTime(6000);
+
+      expect(track().scrollTo).not.toHaveBeenCalled();
+    });
   });
 });

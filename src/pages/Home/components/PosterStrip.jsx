@@ -49,6 +49,14 @@ class PosterStrip extends Component {
 
     this.state = {
       currentIndex: 0,
+      // Read once here for the first render; the change listener below keeps
+      // it current for the rest of the visit.
+      prefersReducedMotion: this.reducedMotionQuery.matches,
+      // Drives only the pause/resume button's own label. It is deliberately
+      // not read from this.holds: the implicit pointer/focus holds come and
+      // go on their own, and a label that echoed them would flip every time
+      // a mouse merely passed over the strip.
+      userPaused: false,
     };
   }
 
@@ -64,7 +72,11 @@ class PosterStrip extends Component {
 
   // A visitor can flip this preference mid-visit, not only before the page
   // loads, so autoplay has to react to it rather than check it once at mount.
+  // The state update is what lets the pause/resume button itself appear and
+  // disappear with the preference, on top of the timer reacting to it.
   handleReducedMotionChange = (event) => {
+    this.setState({ prefersReducedMotion: event.matches });
+
     if (event.matches) this.stopAutoplay();
     else this.startAutoplay();
   };
@@ -123,6 +135,43 @@ class PosterStrip extends Component {
     this.startAutoplay();
   };
 
+  /*
+   * The visitor's own pause/resume instruction, required by WCAG 2.2.2 as a
+   * way to stop the motion that does not depend on where a pointer happens
+   * to rest or which element happens to have focus — the two other holds
+   * this component already has, neither of which a screen-reader or
+   * switch-access visitor can produce on demand.
+   *
+   * Pausing is just another hold: 'user' sits alongside 'pointer' and
+   * 'focus' in the same set, so a mouse leaving or focus moving afterwards
+   * still finds holds.size > 0 and correctly refuses to restart the timer.
+   * That stickiness falls out of the existing hold/release machinery for
+   * free; nothing here has to know about the other two reasons.
+   *
+   * Resuming is different on purpose: it is an explicit instruction, not the
+   * absence of one, so it clears 'pointer' and 'focus' as well as 'user'
+   * before starting the timer. By the time this handler runs, the very
+   * gesture that reached the button — a pointer resting on the strip, focus
+   * landing on the button itself — has usually already taken those two
+   * holds; leaving them in place would make "resume" silently do nothing.
+   * They are taken again by the next genuine mouseenter or focus event, the
+   * same way they always were.
+   */
+  toggleUserPause = () => {
+    const { userPaused } = this.state;
+
+    if (userPaused) {
+      this.holds.delete('user');
+      this.holds.delete('pointer');
+      this.holds.delete('focus');
+      this.setState({ userPaused: false });
+      this.startAutoplay();
+    } else {
+      this.hold('user');
+      this.setState({ userPaused: true });
+    }
+  };
+
   stopAutoplay = () => {
     clearInterval(this.autoplayTimer);
     this.autoplayTimer = null;
@@ -162,7 +211,13 @@ class PosterStrip extends Component {
 
   render() {
     const { posters } = this.props;
-    const { currentIndex } = this.state;
+    const { currentIndex, prefersReducedMotion, userPaused } = this.state;
+
+    // Nothing to offer a pause for when autoplay itself will never run: a
+    // single poster has nowhere to advance to, and reduced motion already
+    // keeps the timer off. Matches startAutoplay's own guard, so the button
+    // never claims control over motion that was never going to happen.
+    const canAutoplay = posters.length > 1 && !prefersReducedMotion;
 
     return (
       <div
@@ -207,6 +262,26 @@ class PosterStrip extends Component {
         </button>
 
         <div className="poster-strip__dots">
+          {canAutoplay && (
+            <button
+              type="button"
+              className="poster-strip__toggle"
+              onClick={this.toggleUserPause}
+              aria-label={userPaused ? 'Reanudar los afiches' : 'Pausar los afiches'}
+            >
+              {userPaused ? (
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+                  <rect x="6" y="5" width="4" height="14" />
+                  <rect x="14" y="5" width="4" height="14" />
+                </svg>
+              )}
+            </button>
+          )}
+
           {posters.map((poster, index) => (
             <button
               key={poster.id}
