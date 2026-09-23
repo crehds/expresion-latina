@@ -109,28 +109,33 @@ async function main() {
     problems.push(cause.message);
   } finally {
     /*
-     * Before anything is closed. A crashed browser or a preview server that
-     * refuses to shut down would otherwise throw out of this block and skip
-     * the restore entirely, leaving the example's content sitting in the
-     * tracked academy.json — the one outcome a script that mutates tracked
-     * files on purpose cannot afford.
+     * The restore comes first, and the teardown runs whether or not it
+     * finished. A browser that crashed would otherwise throw before the
+     * restore and leave the example's content in the tracked academy.json;
+     * a restore that threw would otherwise leave a browser and a server
+     * holding port 4173, which is pinned, so the next run could not start.
+     * Neither is acceptable, and only nesting them covers both.
      */
-    writeFileSync(ACADEMY_JSON, originalAcademyJson);
-
-    readdirSync(PHOTOS_DIR).forEach((file) => {
-      const before = originalPhotos.get(file);
-
-      if (!before) unlinkSync(resolve(PHOTOS_DIR, file));
-      else writeFileSync(resolve(PHOTOS_DIR, file), before);
-    });
-
-    // Their own failures are not this script's verdict, and they must not
-    // take the restore above down with them either.
     try {
-      if (browser) await browser.close();
-      if (server) await server.close();
-    } catch (cause) {
-      console.error(`No pude cerrar el navegador o el servidor: ${cause.message}`);
+      writeFileSync(ACADEMY_JSON, originalAcademyJson);
+
+      // Both directions: a photograph that is here now and was not gets
+      // removed, and every one that was here goes back byte for byte —
+      // which also covers one the import renamed or deleted outright.
+      readdirSync(PHOTOS_DIR).forEach((file) => {
+        if (!originalPhotos.has(file)) unlinkSync(resolve(PHOTOS_DIR, file));
+      });
+      originalPhotos.forEach((bytes, file) => {
+        writeFileSync(resolve(PHOTOS_DIR, file), bytes);
+      });
+    } finally {
+      // Their own failures are not this script's verdict.
+      try {
+        if (browser) await browser.close();
+        if (server) await server.close();
+      } catch (cause) {
+        console.error(`No pude cerrar el navegador o el servidor: ${cause.message}`);
+      }
     }
   }
 

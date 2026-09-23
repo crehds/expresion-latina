@@ -92,8 +92,8 @@ Tres cosas que conviene saber sobre las fotos:
 
 **Dejar la celda vacía no borra la foto.** Una celda `Foto` vacía significa
 "esta planilla no dice nada sobre su foto", así que el profesor conserva la
-que ya tenía. Es lo que permite actualizar el horario sin volver a pegar las
-dieciséis fotos cada vez.
+que ya tenía. Es lo que permite actualizar el horario sin volver a pegar todas las
+fotos cada vez.
 
 Entonces:
 

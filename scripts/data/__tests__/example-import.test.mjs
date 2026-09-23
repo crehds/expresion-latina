@@ -34,8 +34,8 @@ import parseWorkbook from '../parse-workbook.mjs';
  *
  * The fixture is the worked example, not content/horarios.xlsx. That one is
  * the academy's real workbook and still fails import on purpose: it names a
- * photograph nobody uploaded, which is the defect the Imagen check exists to
- * catch, and content/README.md tells them how to fix it.
+ * photograph nobody uploaded, which is what resolveImageKey's Imagen branch
+ * in build-academy.mjs exists to catch.
  *
  * ejemplo-completo.xlsx is generated from academy.json by make-example.mjs,
  * so most of what it carries is already published; what makes it a useful
@@ -53,6 +53,7 @@ after(() => rmSync(workDir, { recursive: true, force: true }));
 let academy;
 let photosDir;
 let reportedPhotos;
+let sourceRows;
 
 before(async () => {
   const target = join(workDir, 'academy.json');
@@ -78,6 +79,10 @@ before(async () => {
    */
   const sheets = await parseWorkbook(FIXTURE);
   ({ photos: reportedPhotos } = buildAcademy(sheets, { sourceFileName: 'ejemplo-completo.xlsx' }));
+
+  // What the workbook itself says it holds, so "none were lost" can be
+  // asserted without a number written down anywhere.
+  sourceRows = { generos: sheets.generos.length, resenas: sheets.resenas.length };
 });
 
 function idsOf(collection) {
@@ -142,22 +147,27 @@ describe('the example workbook, imported fresh', () => {
   });
 
   /*
-   * How many there are is the fixture's business, not this suite's: it is
-   * regenerated from the published content, so a genre added to the academy
-   * would turn a hardcoded count red with nothing actually wrong. What has
-   * to hold is that none of them were lost on the way.
+   * Counted against the workbook rather than against a number written here.
+   * A literal would go red the day the academy adds a genre, with nothing
+   * wrong; "at least one" would stay green while fifteen of sixteen were
+   * dropped. The source says how many there should be, and it is the only
+   * thing that can.
    */
   describe('content this fixture adds beyond the committed file', () => {
-    it('carries the reviews across', () => {
-      assert.ok(academy.reviews.length > 0, 'the example should carry at least one review');
+    it('carries every review across', () => {
+      assert.ok(sourceRows.resenas > 0, 'the example should carry reviews to begin with');
+      assert.equal(academy.reviews.length, sourceRows.resenas);
+
       academy.reviews.forEach((review) => {
         assert.ok(review.text, `review "${review.id}" has no text`);
         assert.ok(review.author, `review "${review.id}" has no author`);
       });
     });
 
-    it('carries a description on every genre', () => {
-      assert.ok(academy.genres.length > 0, 'the example should carry genres');
+    it('carries every genre across, each with a description', () => {
+      assert.ok(sourceRows.generos > 0, 'the example should carry genres to begin with');
+      assert.equal(academy.genres.length, sourceRows.generos);
+
       academy.genres.forEach((genre) => {
         assert.ok(genre.description?.trim(), `genre "${genre.id}" has no description`);
       });
