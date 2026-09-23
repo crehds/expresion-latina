@@ -111,15 +111,47 @@ function readSheet(worksheet) {
 }
 
 /**
- * Reads the four sheets into raw rows keyed by normalised header.
+ * The photographs pasted into the Profesores sheet, keyed by the 1-based
+ * sheet row they float over.
+ *
+ * An Excel image is anchored to a cell rather than stored inside one:
+ * dragging it, or sorting the rows beneath it, can leave it floating over a
+ * different teacher than the one it was pasted for. The row is the anchor
+ * buildAcademy can trust; the column is the fragile axis, so it is
+ * deliberately never read here.
+ *
+ * @returns {{row: number, buffer: Buffer, extension: string}[]}
+ */
+function readImages(worksheet, media) {
+  if (!worksheet) return [];
+
+  return worksheet.getImages().map(({ imageId, range }) => {
+    const medium = media.find((item) => item.index === Number(imageId));
+
+    return {
+      row: range.tl.nativeRow + 1,
+      buffer: medium.buffer,
+      extension: medium.extension,
+    };
+  });
+}
+
+/**
+ * Reads the five sheets into raw rows keyed by normalised header, plus any
+ * photographs pasted into the Profesores sheet.
  *
  * A missing sheet comes back as null and a present but empty one as [], so a
  * caller can tell "this workbook says nothing about reviews" from "the academy
  * removed every review". Deciding whether either is fatal belongs to
- * validation, not to reading.
+ * validation, not to reading. A photograph carries no such distinction: no
+ * image pasted is simply an empty list.
  *
  * @param {string} filePath
- * @returns {Promise<Record<'horario'|'generos'|'profesores'|'estudio'|'resenas', object[]|null>>}
+ * @returns {Promise<{
+ *   horario: object[]|null, generos: object[]|null, profesores: object[]|null,
+ *   estudio: object[]|null, resenas: object[]|null,
+ *   profesoresImagenes: {row: number, buffer: Buffer, extension: string}[],
+ * }>}
  */
 export default async function parseWorkbook(filePath) {
   const workbook = new ExcelJS.Workbook();
@@ -128,11 +160,14 @@ export default async function parseWorkbook(filePath) {
   const byName = (wanted) => workbook.worksheets
     .find((sheet) => normalise(sheet.name) === wanted);
 
+  const profesoresSheet = byName('profesores');
+
   return {
     horario: readSheet(byName('horario')),
     generos: readSheet(byName('generos')),
-    profesores: readSheet(byName('profesores')),
+    profesores: readSheet(profesoresSheet),
     estudio: readSheet(byName('estudio')),
     resenas: readSheet(byName('resenas')),
+    profesoresImagenes: readImages(profesoresSheet, workbook.model.media),
   };
 }

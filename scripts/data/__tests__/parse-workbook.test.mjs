@@ -197,4 +197,63 @@ describe('parseWorkbook', () => {
 
     assert.deepEqual(sheets.resenas, []);
   });
+
+  /*
+   * A real, minimal PNG rather than arbitrary bytes: ExcelJS stores whatever
+   * buffer it is given without decoding it, but a fixture built from actual
+   * image bytes is the honest stand-in for what a person actually pastes.
+   */
+  const PHOTO = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
+
+  describe('photographs pasted into the Profesores sheet', () => {
+    it('reads a pasted photo back with the 1-based row it is anchored to', async () => {
+      const file = await writeWorkbook((workbook) => {
+        const sheet = workbook.addWorksheet('Profesores');
+        sheet.addRow(['Nombre', 'Imagen']);
+        sheet.addRow(['Kenneth Ocaña', '']);
+        sheet.addRow(['Mishel Fernández', '']);
+
+        const imageId = workbook.addImage({ buffer: PHOTO, extension: 'png' });
+        // Native row 2 is spreadsheet row 3 (Mishel's), and the column is a
+        // deliberately different number: a reader that swapped row for column
+        // would land on row 7, not row 3, so the mistake cannot hide.
+        sheet.addImage(imageId, {
+          tl: { nativeCol: 6, nativeRow: 2 },
+          ext: { width: 40, height: 40 },
+        });
+      });
+
+      const { profesoresImagenes } = await parseWorkbook(file);
+
+      assert.equal(profesoresImagenes.length, 1);
+      assert.equal(profesoresImagenes[0].row, 3);
+      assert.equal(profesoresImagenes[0].extension, 'png');
+      assert.deepEqual(profesoresImagenes[0].buffer, PHOTO);
+    });
+
+    it('returns an empty list when the sheet carries no images', async () => {
+      const file = await writeWorkbook((workbook) => {
+        const sheet = workbook.addWorksheet('Profesores');
+        sheet.addRow(['Nombre']);
+        sheet.addRow(['Kenneth Ocaña']);
+      });
+
+      const { profesoresImagenes } = await parseWorkbook(file);
+
+      assert.deepEqual(profesoresImagenes, []);
+    });
+
+    it('returns an empty list when there is no Profesores sheet at all', async () => {
+      const file = await writeWorkbook((workbook) => {
+        workbook.addWorksheet('Horario').addRow(['Dia']);
+      });
+
+      const { profesoresImagenes } = await parseWorkbook(file);
+
+      assert.deepEqual(profesoresImagenes, []);
+    });
+  });
 });
