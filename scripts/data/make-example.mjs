@@ -125,7 +125,10 @@ function buildHorario(workbook) {
       slot?.start,
       slot?.end,
       GENRE.get(session.genreId)?.name,
-      TEACHER.get(session.teacherId)?.name ?? 'Por confirmar',
+      // Empty, never a placeholder word: buildSchedule reads a non-empty
+      // Profesor cell as a teacher name and rejects one that names nobody, so
+      // "Por confirmar" here used to make the example fail its own import.
+      TEACHER.get(session.teacherId)?.name ?? '',
       session.level ?? 'All levels',
       session.room ?? 'Sala 1',
       session.note ?? 'Consultar por el pack de la semana.',
