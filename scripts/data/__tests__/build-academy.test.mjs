@@ -8,7 +8,7 @@ import { describe, it } from 'node:test';
 import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 
-import buildAcademy, { toSlug, normaliseWhatsapp } from '../build-academy.mjs';
+import buildAcademy, { toSlug, normaliseWhatsapp, IMAGE_EXTENSION } from '../build-academy.mjs';
 
 const schema = JSON.parse(readFileSync(new URL('../../../src/data/academy.schema.json', import.meta.url)));
 const NOW = new Date('2026-01-15T10:00:00.000Z');
@@ -127,6 +127,37 @@ describe('normaliseWhatsapp', () => {
       { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
       { sheet: 'Estudio', row: 2, column: 'Whatsapp' },
     );
+  });
+});
+
+/*
+ * The importer decides what a pasted photograph may be; src/data/assets.js
+ * decides what the site can actually resolve. They are separate lists in
+ * separate languages — the glob has to be a literal for Vite to read it at
+ * build time, so neither can import the other — and they drifted: the
+ * importer took a gif, wrote it, and the site then found nothing under that
+ * name. A teacher fell back to their initials with nothing anywhere saying
+ * why, which is the same silence the Imagen check exists to end.
+ *
+ * So this reads the glob out of the real file rather than restating it. A
+ * format added to one side and not the other fails here instead of on the
+ * published site.
+ */
+describe('the formats a pasted photograph may take', () => {
+  const assets = readFileSync(new URL('../../../src/data/assets.js', import.meta.url), 'utf8');
+  const [, pattern] = assets.match(/images\/teachers\/\*\.\{([^}]+)\}/);
+  const resolvable = pattern.split(',').map((extension) => extension.trim());
+
+  it('are all ones the site can resolve', () => {
+    const unresolvable = [...IMAGE_EXTENSION.values()]
+      .filter((extension) => !resolvable.includes(extension));
+
+    assert.deepEqual(unresolvable, [], `src/data/assets.js globs {${pattern}}`);
+  });
+
+  it('accept the two shapes a photograph normally arrives in', () => {
+    assert.equal(IMAGE_EXTENSION.get('jpg'), 'jpeg');
+    assert.equal(IMAGE_EXTENSION.get('png'), 'png');
   });
 });
 
@@ -580,7 +611,7 @@ describe('a photograph pasted into the Profesores sheet', () => {
 
   // jpg and jpeg must collapse to the same file, or re-pasting a photo saved
   // in the other shape would accumulate a second one instead of replacing it.
-  it('normalises the extension the way make-example.mjs does', () => {
+  it('collapses jpg and jpeg to the one canonical extension', () => {
     const imageKeyWith = (extension) => build({
       profesores: KENNETH,
       profesoresImagenes: [{ row: 2, buffer: PHOTO, extension }],
@@ -589,7 +620,24 @@ describe('a photograph pasted into the Profesores sheet', () => {
     assert.equal(imageKeyWith('jpg'), 'kenneth-ocana.jpeg');
     assert.equal(imageKeyWith('JPEG'), 'kenneth-ocana.jpeg');
     assert.equal(imageKeyWith('png'), 'kenneth-ocana.png');
-    assert.equal(imageKeyWith('gif'), 'kenneth-ocana.gif');
+  });
+
+  /*
+   * A workbook can carry a gif and the site cannot resolve one, so accepting
+   * it wrote a file nothing would ever find — the teacher falling back to
+   * their initials with nothing to say why. Refused at the door instead,
+   * where it can be said out loud.
+   */
+  it('refuses a gif, which a workbook carries but the site cannot resolve', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'gif' }],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].sheet, 'Profesores');
+    assert.equal(errors[0].row, 2);
   });
 
   // The defect this whole change exists to end: a filename with nothing

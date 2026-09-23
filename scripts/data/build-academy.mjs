@@ -253,17 +253,24 @@ const TEACHER_PHOTOS_DIR = resolve(
 );
 
 /**
- * What a pasted photograph's extension is allowed to become, mirroring
- * make-example.mjs's EMBEDDABLE map so the two never disagree about what a
- * workbook can carry. jpg and jpeg collapse to the one canonical value so
- * re-pasting a teacher's photo in either shape replaces the same file instead
- * of accumulating a second one.
+ * What a pasted photograph's extension is allowed to become.
+ *
+ * The intersection of two lists that have to agree: what ExcelJS can carry in
+ * a workbook at all (jpeg, png, gif) and what src/data/assets.js globs out of
+ * the teachers folder (jpg, jpeg, png, webp, avif). gif sits in the first and
+ * not the second, so accepting one wrote a file the site then could not
+ * resolve — a teacher falling back to their initials with nothing to say why,
+ * which is the same silence the Imagen check above exists to end. The test
+ * for this reads that glob rather than restating it.
+ *
+ * jpg and jpeg collapse to the one canonical value, so re-pasting a teacher's
+ * photo in either shape replaces the same file instead of accumulating a
+ * second one.
  */
-const IMAGE_EXTENSION = new Map([
+export const IMAGE_EXTENSION = new Map([
   ['jpg', 'jpeg'],
   ['jpeg', 'jpeg'],
   ['png', 'png'],
-  ['gif', 'gif'],
 ]);
 
 /**

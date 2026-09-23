@@ -163,7 +163,6 @@ const EMBEDDABLE = new Map([
   ['jpg', 'jpeg'],
   ['jpeg', 'jpeg'],
   ['png', 'png'],
-  ['gif', 'gif'],
 ]);
 
 /**
