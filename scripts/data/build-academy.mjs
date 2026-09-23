@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -343,18 +343,21 @@ function resolveImageKey(row, id, published, pastedImage, errors, photos) {
   const imagen = readText(row.imagen);
   if (imagen) {
     /*
-     * A bare filename, not a path. Resolving the cell and asking whether
-     * something is there answers yes to two shapes that mean nothing the site
-     * can use: an absolute path leaves this folder altogether, and a relative
-     * one that climbs out and back can land on a real photograph while the
-     * stored key keeps its separators — and src/data/assets.js indexes the
-     * folder by bare filename, so nothing is ever found under it. Both end as
-     * a teacher quietly drawn as initials, which is the silence this check
-     * exists to break.
+     * A bare filename naming a file, not a path and not a folder.
+     *
+     * Asking only whether something is there says yes to three shapes that
+     * mean nothing the site can use. An absolute path leaves this folder
+     * altogether. A relative one that climbs out and back can land on a real
+     * photograph, but the stored key keeps its separators, and
+     * src/data/assets.js indexes the folder by bare filename, so nothing is
+     * found under it. And a lone dot segment survives basename untouched
+     * while resolving to a directory, which exists. All three end the same
+     * way — a teacher quietly drawn as initials — which is the silence this
+     * check exists to break.
      */
-    const isFilename = basename(imagen) === imagen;
+    const target = statSync(resolve(TEACHER_PHOTOS_DIR, imagen), { throwIfNoEntry: false });
 
-    if (isFilename && existsSync(resolve(TEACHER_PHOTOS_DIR, imagen))) return imagen;
+    if (basename(imagen) === imagen && target?.isFile()) return imagen;
 
     errors.push(error(
       'Profesores',

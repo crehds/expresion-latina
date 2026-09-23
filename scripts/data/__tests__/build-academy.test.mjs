@@ -706,6 +706,47 @@ describe('a photograph pasted into the Profesores sheet', () => {
   });
 
   /*
+   * existsSync says yes to a directory, and basename leaves a lone dot
+   * segment untouched — so "." resolved to the teachers folder itself and was
+   * accepted as a photograph. The key stored would name a directory, nothing
+   * in src/data/assets.js could resolve it, and the teacher fell back to
+   * initials without a word: the same silence, reached by asking the wrong
+   * question about the path.
+   */
+  ['.', '..'].forEach((imagen) => {
+    it(`refuses ${JSON.stringify(imagen)} in Imagen, which is a folder`, () => {
+      const { academy, errors } = build({
+        profesores: sheet([{ nombre: 'Kenneth Ocaña', generos: 'Bachata', imagen }]),
+      });
+
+      assert.equal(academy, null);
+      assert.equal(errors.length, 1);
+      assert.equal(errors[0].column, 'Imagen');
+    });
+  });
+
+  /*
+   * Two anchors on one row are ambiguous whether or not the workbook could
+   * read them: the row still has to be refused, and for that reason rather
+   * than for the unreadable one, or the message sends the academy to delete
+   * and re-paste a photograph when the real problem is that there are two.
+   */
+  it('calls a row with one readable and one unreadable photograph ambiguous', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [
+        { row: 2, buffer: PHOTO, extension: 'png' },
+        { row: 2, unreadable: true },
+      ],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].column, 'Foto');
+    assert.match(errors[0].message, /dos fotos/);
+  });
+
+  /*
    * new Map(pairs) keeps the LAST value for a repeated key. Two photographs
    * anchored to one row therefore left one of them simply gone, with nothing
    * said — and nobody can tell which of the two the academy meant. This
