@@ -676,6 +676,75 @@ describe('a photograph pasted into the Profesores sheet', () => {
     assert.match(errors[0].message, /mishel_fernandez\.jpg/);
   });
 
+  /*
+   * The check resolves the cell against the teachers folder and asks whether
+   * something is there, which two shapes of value answer yes to while meaning
+   * nothing the site can use.
+   *
+   * An absolute path leaves the folder altogether — C:/Windows/win.ini
+   * resolves to itself and exists. A relative one that climbs out and back
+   * can land on a real photograph, but the stored key then carries
+   * separators, and src/data/assets.js indexes the folder by bare filename,
+   * so resolveTeacherImage finds nothing under it. Both end the same way: a
+   * teacher quietly drawn as initials, which is the silence this column's
+   * check was added to break.
+   */
+  [
+    'C:/Windows/win.ini',
+    'otra-carpeta/../bachata_izquierdo.jpg',
+    '../../../package.json',
+  ].forEach((imagen) => {
+    it(`refuses ${JSON.stringify(imagen)} in Imagen, a path rather than a filename`, () => {
+      const { academy, errors } = build({
+        profesores: sheet([{ nombre: 'Kenneth Ocaña', generos: 'Bachata', imagen }]),
+      });
+
+      assert.equal(academy, null);
+      assert.equal(errors.length, 1);
+      assert.equal(errors[0].column, 'Imagen');
+    });
+  });
+
+  /*
+   * new Map(pairs) keeps the LAST value for a repeated key. Two photographs
+   * anchored to one row therefore left one of them simply gone, with nothing
+   * said — and nobody can tell which of the two the academy meant. This
+   * repository already carries that warning in src/data/index.js's uniqueById
+   * and the trap was walked into again here.
+   */
+  it('refuses two photographs anchored to the same row rather than keeping one', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [
+        { row: 2, buffer: PHOTO, extension: 'png' },
+        { row: 2, buffer: PHOTO, extension: 'jpg' },
+      ],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].row, 2);
+    assert.equal(errors[0].column, 'Foto');
+  });
+
+  /*
+   * parse-workbook drops an anchor whose image is missing from the workbook's
+   * media so the rest can still be read. Saying nothing about it meant a
+   * green import, the old photograph still published, and the person who
+   * pasted a new one never learning it was thrown away.
+   */
+  it('refuses a pasted photograph the workbook could not actually read', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, unreadable: true }],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].row, 2);
+    assert.equal(errors[0].column, 'Foto');
+  });
+
   it('keeps the photograph a teacher already had when the row pastes none and names none', () => {
     const previous = { teachers: [{ id: 'kenneth-ocana', imageKey: 'kenneth_old.jpg' }] };
 

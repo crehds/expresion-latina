@@ -133,11 +133,14 @@ export function readImages(worksheet, media) {
      * editors and with a file that did not survive a copy. Reading straight
      * through it threw a TypeError that the command reported as "no pude leer
      * el archivo, revisá que no esté abierto en Excel" — which sends whoever
-     * uploaded it to close a spreadsheet that was never open. Dropping the
-     * anchor lets the rest of the workbook import; the teacher on that row
-     * simply keeps the photograph they already had.
+     * uploaded it to close a spreadsheet that was never open.
+     *
+     * Reported rather than dropped. Saying nothing meant a green import, the
+     * old photograph still published, and whoever pasted a new one never
+     * learning it had been thrown away. Which row it was on is the one thing
+     * that can be known, and it is what buildAcademy needs to name the cell.
      */
-    if (!medium) return [];
+    if (!medium) return [{ row: range.tl.nativeRow + 1, unreadable: true }];
 
     return [{
       row: range.tl.nativeRow + 1,

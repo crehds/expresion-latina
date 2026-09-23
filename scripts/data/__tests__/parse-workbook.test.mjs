@@ -243,11 +243,16 @@ describe('parseWorkbook', () => {
      * as "no pude leer el archivo, revisá que no esté abierto en Excel" —
      * sending whoever uploaded it to close a spreadsheet that was never open.
      *
+     * It comes back flagged rather than dropped: buildAcademy turns that into
+     * an error naming the row, because silently discarding it published the
+     * old photograph and told the person who pasted a new one nothing at all.
+     * The rest of the sheet still has to arrive.
+     *
      * Stubbed rather than written out to a real file: ExcelJS refuses to save
      * a workbook whose anchor names media it does not hold, so the only way
      * to hand this reader the shape it has to survive is to build it here.
      */
-    it('drops an anchor whose image is not in the workbook, keeping the others', () => {
+    it('flags an anchor whose image is not in the workbook, keeping the others', () => {
       const worksheet = {
         getImages: () => [
           { imageId: '0', range: { tl: { nativeCol: 1, nativeRow: 1 } } },
@@ -256,11 +261,12 @@ describe('parseWorkbook', () => {
       };
       const media = [{ index: 0, buffer: PHOTO, extension: 'png' }];
 
-      const images = readImages(worksheet, media);
+      const [readable, unreadable] = readImages(worksheet, media);
 
-      assert.equal(images.length, 1);
-      assert.equal(images[0].row, 2);
-      assert.deepEqual(images[0].buffer, PHOTO);
+      assert.equal(readable.row, 2);
+      assert.deepEqual(readable.buffer, PHOTO);
+
+      assert.deepEqual(unreadable, { row: 3, unreadable: true });
     });
 
     it('returns an empty list when the sheet carries no images', async () => {

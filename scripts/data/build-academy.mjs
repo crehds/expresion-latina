@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { normalise, readText, readTime } from './parse-workbook.mjs';
@@ -302,7 +302,27 @@ const ACCEPTED_FORMATS = (() => {
  * re-uploading one replaces it rather than accumulating files.
  */
 function resolveImageKey(row, id, published, pastedImage, errors, photos) {
-  if (pastedImage) {
+  if (pastedImage?.ambiguous) {
+    errors.push(error(
+      'Profesores',
+      row.rowNumber,
+      'Foto',
+      'Hay dos fotos pegadas en esta fila y no se puede saber cuál usar. Deja solo una.',
+    ));
+  } else if (pastedImage?.unreadable) {
+    /*
+     * parse-workbook drops an anchor whose image is not in the workbook's
+     * media so the rest of the file can still be read. Saying nothing about
+     * it meant a green import, the old photograph still published, and
+     * whoever pasted a new one never learning it had been thrown away.
+     */
+    errors.push(error(
+      'Profesores',
+      row.rowNumber,
+      'Foto',
+      'No se pudo leer la foto pegada en esta fila. Bórrala y pégala de nuevo.',
+    ));
+  } else if (pastedImage) {
     const extension = IMAGE_EXTENSION.get(pastedImage.extension.toLowerCase());
 
     if (!extension) {
@@ -322,13 +342,26 @@ function resolveImageKey(row, id, published, pastedImage, errors, photos) {
 
   const imagen = readText(row.imagen);
   if (imagen) {
-    if (existsSync(resolve(TEACHER_PHOTOS_DIR, imagen))) return imagen;
+    /*
+     * A bare filename, not a path. Resolving the cell and asking whether
+     * something is there answers yes to two shapes that mean nothing the site
+     * can use: an absolute path leaves this folder altogether, and a relative
+     * one that climbs out and back can land on a real photograph while the
+     * stored key keeps its separators — and src/data/assets.js indexes the
+     * folder by bare filename, so nothing is ever found under it. Both end as
+     * a teacher quietly drawn as initials, which is the silence this check
+     * exists to break.
+     */
+    const isFilename = basename(imagen) === imagen;
+
+    if (isFilename && existsSync(resolve(TEACHER_PHOTOS_DIR, imagen))) return imagen;
 
     errors.push(error(
       'Profesores',
       row.rowNumber,
       'Imagen',
       `"${imagen}" no existe en src/assets/images/teachers. `
+      + 'Escribe solo el nombre del archivo, sin carpetas. '
       + 'Sube el archivo con ese nombre exacto o pega la foto directamente en la celda.',
     ));
   }
@@ -343,7 +376,21 @@ function buildTeachers(rows, genresById, errors, previousTeachers = [], images =
   const byName = new Map();
 
   const published = new Map(previousTeachers.map((teacher) => [teacher.id, teacher]));
-  const imagesByRow = new Map(images.map((image) => [image.row, image]));
+  /*
+   * Built by hand, because new Map(pairs) keeps the LAST value for a repeated
+   * key. Two photographs anchored to one row left one of them simply gone
+   * with nothing said, and nobody can tell which of the two was meant — so
+   * the row is refused rather than guessed at. This repository already
+   * carries that warning on uniqueById in src/data/index.js; the trap was
+   * walked into again here.
+   */
+  const imagesByRow = new Map();
+  const rowsWithTwoPhotos = new Set();
+
+  images.forEach((image) => {
+    if (imagesByRow.has(image.row)) rowsWithTwoPhotos.add(image.row);
+    else imagesByRow.set(image.row, image);
+  });
   // Every row whose name was actually readable, whether or not it went on to
   // become a teacher — a duplicate name still had one. Anything left over
   // once every row has been visited pasted a photo nothing can claim.
@@ -408,7 +455,16 @@ function buildTeachers(rows, genresById, errors, previousTeachers = [], images =
       shortName: readText(row.nombrecorto) ?? name.split(' ')[0],
       // The academy does not always have a photograph, and teaching here
       // cannot depend on whether we do.
-      imageKey: resolveImageKey(row, id, published, imagesByRow.get(row.rowNumber), errors, photos),
+      imageKey: resolveImageKey(
+        row,
+        id,
+        published,
+        rowsWithTwoPhotos.has(row.rowNumber)
+          ? { ambiguous: true }
+          : imagesByRow.get(row.rowNumber),
+        errors,
+        photos,
+      ),
       genreIds,
       bio: readText(row.bio) ?? '',
       social,
