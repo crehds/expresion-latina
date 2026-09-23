@@ -21,12 +21,19 @@ function renderAt(route) {
 }
 
 describe('an address the site does not have', () => {
+  /*
+   * Named, not merely present. Asserting that some level-1 heading exists
+   * passes on any page that has one — including whichever route might catch
+   * these addresses instead — so it proved the site rendered something, not
+   * that it rendered this.
+   */
   it.each(['/reviews', '/cualquier-cosa', '/teachers/nadie/extra'])(
     'says so at %s rather than rendering nothing',
     async (route) => {
       renderAt(route);
 
-      expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 1, name: /no encontramos/i }))
+        .toBeInTheDocument();
     },
   );
 
@@ -34,12 +41,13 @@ describe('an address the site does not have', () => {
    * Scoped to the page itself. The header's logo is also a link home, so an
    * unscoped query passes on a page that offers nothing of its own.
    */
-  it('offers the way back on the page, not only in the header', async () => {
+  it('offers both ways out on the page, not only in the header', async () => {
     renderAt('/reviews');
 
     const page = within(await screen.findByRole('main'));
 
     expect(page.getByRole('link', { name: /inicio/i })).toHaveAttribute('href', '/');
+    expect(page.getByRole('link', { name: /horarios/i })).toHaveAttribute('href', '/schedules');
   });
 
   /*
