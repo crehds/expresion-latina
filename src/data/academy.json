@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-23T18:32:20.178Z",
+  "generatedAt": "2026-09-23T20:06:37.202Z",
   "generatedFrom": "horarios.xlsx",
   "studio": {
     "name": "Expresión Latina",
@@ -148,7 +148,9 @@
       "kind": "class",
       "description": "",
       "accentColor": null,
-      "videoIds": ["ladies-latinas"]
+      "videoIds": [
+        "ladies-latinas"
+      ]
     },
     {
       "id": "ballet",
@@ -256,7 +258,9 @@
       "name": "Izquierdo",
       "shortName": "Izquierdo",
       "imageKey": "bachata_izquierdo.jpg",
-      "genreIds": ["bachata"],
+      "genreIds": [
+        "bachata"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -268,7 +272,9 @@
       "name": "Joan",
       "shortName": "Joan",
       "imageKey": "mambo_joan.jpg",
-      "genreIds": ["mambo"],
+      "genreIds": [
+        "mambo"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -280,7 +286,9 @@
       "name": "Martinez",
       "shortName": "Martinez",
       "imageKey": "ballet_martinez.jpg",
-      "genreIds": ["ballet"],
+      "genreIds": [
+        "ballet"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -292,7 +300,9 @@
       "name": "Kike",
       "shortName": "Kike",
       "imageKey": "body_kike.jpg",
-      "genreIds": ["body-movement"],
+      "genreIds": [
+        "body-movement"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -316,7 +326,9 @@
       "name": "Stefanie",
       "shortName": "Stefanie",
       "imageKey": "jazz_stephany.jpg",
-      "genreIds": ["jazz"],
+      "genreIds": [
+        "jazz"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -328,7 +340,9 @@
       "name": "Mary",
       "shortName": "Mary",
       "imageKey": "ladies_mary.jpg",
-      "genreIds": ["ladies"],
+      "genreIds": [
+        "ladies"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -340,7 +354,9 @@
       "name": "Estrella",
       "shortName": "Estrella",
       "imageKey": "latin_estrella.jpg",
-      "genreIds": ["latin-urban"],
+      "genreIds": [
+        "latin-urban"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -352,7 +368,10 @@
       "name": "Mishel Fernández",
       "shortName": "Mishel",
       "imageKey": null,
-      "genreIds": ["salsa", "bachata"],
+      "genreIds": [
+        "salsa",
+        "bachata"
+      ],
       "bio": "",
       "social": {},
       "birthDate": "1997",
@@ -369,7 +388,9 @@
       "name": "Giusmary Sosa",
       "shortName": "Giusmary",
       "imageKey": null,
-      "genreIds": ["urban-dance"],
+      "genreIds": [
+        "urban-dance"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -381,7 +402,9 @@
       "name": "Vannia Valdivia",
       "shortName": "Vannia",
       "imageKey": null,
-      "genreIds": ["sexy-power"],
+      "genreIds": [
+        "sexy-power"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -393,7 +416,9 @@
       "name": "Edson Cabanillas",
       "shortName": "Edson",
       "imageKey": null,
-      "genreIds": ["heels"],
+      "genreIds": [
+        "heels"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -405,7 +430,9 @@
       "name": "Kenneth Ocaña",
       "shortName": "Kenneth",
       "imageKey": null,
-      "genreIds": ["bachata"],
+      "genreIds": [
+        "bachata"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -417,7 +444,9 @@
       "name": "Omar López",
       "shortName": "Omar",
       "imageKey": null,
-      "genreIds": ["salsa"],
+      "genreIds": [
+        "salsa"
+      ],
       "bio": "",
       "social": {},
       "birthDate": "1994-06-12",
@@ -438,7 +467,9 @@
       "name": "Anthony Sevillano",
       "shortName": "Anthony",
       "imageKey": null,
-      "genreIds": ["reggaeton"],
+      "genreIds": [
+        "reggaeton"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -450,7 +481,9 @@
       "name": "Gonzalo Povis",
       "shortName": "Gonzalo",
       "imageKey": "urban_povis.jpg",
-      "genreIds": ["comercial-dance"],
+      "genreIds": [
+        "comercial-dance"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
@@ -462,7 +495,9 @@
       "name": "Por confirmar",
       "shortName": "Por confirmar",
       "imageKey": null,
-      "genreIds": ["sexy-style"],
+      "genreIds": [
+        "sexy-style"
+      ],
       "bio": "",
       "social": {},
       "birthDate": null,
