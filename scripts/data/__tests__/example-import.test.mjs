@@ -32,10 +32,10 @@ import parseWorkbook from '../parse-workbook.mjs';
  * runs the equivalent of academy.test.js's assertions against that fresh
  * output. It writes nothing under src/.
  *
- * The fixture is the worked example, not content/horarios.xlsx. That one is
- * the academy's real workbook and still fails import on purpose: it names a
- * photograph nobody uploaded, which is what resolveImageKey's Imagen branch
- * in build-academy.mjs exists to catch.
+ * The fixture is the worked example rather than content/horarios.xlsx, which
+ * is the academy's own workbook and changes whenever they upload a new one.
+ * A suite pinned to it would be asserting things about content they are free
+ * to edit; this one asserts things about the importer.
  *
  * ejemplo-completo.xlsx is generated from academy.json by make-example.mjs,
  * so most of what it carries is already published; what makes it a useful
@@ -149,9 +149,9 @@ describe('the example workbook, imported fresh', () => {
   /*
    * Counted against the workbook rather than against a number written here.
    * A literal would go red the day the academy adds a genre, with nothing
-   * wrong; "at least one" would stay green while fifteen of sixteen were
-   * dropped. The source says how many there should be, and it is the only
-   * thing that can.
+   * wrong; "at least one" would stay green while all but one were dropped.
+   * The source says how many there should be, and it is the only thing that
+   * can.
    */
   describe('content this fixture adds beyond the committed file', () => {
     it('carries every review across', () => {

@@ -34,8 +34,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Full history: the publish step rebases when the branch has moved, and
-      # a shallow clone has nothing to rebase onto.
+      # Full history: when the branch moves under it, the publish step resets
+      # onto the new tip, and a shallow clone may not have it.
       - name: Traer el repositorio
         uses: actions/checkout@v4
         with:
@@ -84,13 +84,21 @@ jobs:
       # Staged first because a photograph pasted into the sheet arrives as a
       # new file, and a plain diff does not see one of those.
       #
-      # The push retries, rebuilding rather than rebasing. The concurrency
-      # group above only keeps two runs from overlapping — it does not hold
-      # the branch still. A second upload queued behind the first checks out
-      # its own triggering commit, which by then has the first run's commit
-      # sitting on top of it, and a plain push of that is refused as
-      # non-fast-forward. The job would go red having already told the academy
-      # their spreadsheet was fine.
+      # The push retries, and the retry rebuilds rather than rebases: it
+      # resets to the branch's new tip and runs the import again there.
+      #
+      # The concurrency group above only keeps two runs from overlapping — it
+      # does not hold the branch still. A second upload queued behind the
+      # first checks out its own triggering commit, which by then has the
+      # first run's commit sitting on top of it, and a plain push of that is
+      # refused as non-fast-forward. The job would go red having already told
+      # the academy their spreadsheet was fine.
+      #
+      # Rebasing cannot fix that here. academy.json is generated wholesale
+      # from the workbook, so two runs that each regenerated it share no
+      # common ground to replay, and the rebase is a content conflict on a
+      # file nobody wrote by hand. Importing the tip's own workbook again is
+      # what makes the attempt current.
       #
       # If the site ever stops updating while this job stays green, look here
       # first: GitHub does not start push-triggered *workflows* for a push made
@@ -134,14 +142,7 @@ jobs:
 
             [ "$intento" = 3 ] && break
 
-            # Rebuilt from the branch's new tip rather than rebased onto it.
-            # academy.json is generated wholesale from the workbook, so two
-            # runs that each regenerated it have no common ground to replay —
-            # a rebase here is a content conflict on a file nobody wrote by
-            # hand. Whatever workbook the tip now carries is the newer one,
-            # and importing it again is what makes this attempt current.
-            #
-            # Its result is checked rather than assumed. Left unchecked, a
+            # The result is checked rather than assumed. Left unchecked, a
             # failed reset leaves the unpushed commit as HEAD, the next pass
             # stages nothing, and "nothing to publish" is reported with a
             # green tick over a publish that never happened — the silent
