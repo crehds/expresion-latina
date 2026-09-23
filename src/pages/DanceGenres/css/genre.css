@@ -5,10 +5,16 @@
 .dance-genre__link {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  /*
+   * Top-aligned, not bottom. Grid stretches every card in a row to the tallest
+   * of them, so bottom-aligning put the name of a card that has a teacher line
+   * higher than the name of one that does not, and a two-column phone read as
+   * fifteen boxes whose titles never lined up.
+   */
+  justify-content: flex-start;
   min-height: 8rem;
   height: 100%;
-  padding: 1.6rem;
+  padding: var(--space-sm);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
@@ -39,6 +45,6 @@
  * which to open.
  */
 .dance-genre__meta {
-  margin: 0.4rem 0 0;
+  margin: var(--space-3xs) 0 0;
   color: var(--text-secondary);
 }

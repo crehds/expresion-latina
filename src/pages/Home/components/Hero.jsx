@@ -1,8 +1,20 @@
 import { Link } from 'react-router-dom';
 
-import { classGenres, studio } from '../../../data';
+import { classGenres, studio, whatsappLink } from '../../../data';
+import { groupGenresBySchedule } from '../../../data/selectors';
 
 import '../css/hero.css';
+
+/*
+ * The eight the landing page advertises, running classes first.
+ *
+ * Eight of sixteen fit, so which eight is a real choice: slicing the
+ * spreadsheet's own order put styles with no hour on the front page while
+ * styles running twice a week were cut. A visitor who arrives for one of those
+ * finds no class. Falls through to the unscheduled ones only to fill the row.
+ */
+const { scheduled, upcoming } = groupGenresBySchedule(classGenres);
+const featuredGenres = [...scheduled, ...upcoming].slice(0, 8);
 
 /**
  * The first screen: what this place is, where it is, and the two things a
@@ -16,8 +28,7 @@ function Hero() {
   // optional in the same way. Dereferencing either unconditionally would turn
   // a missing field into a TypeError during render, and because this is the
   // first thing on the landing page it would take the whole route down rather
-  // than dropping one button.
-  const whatsappNumber = studio.whatsapp ? studio.whatsapp.replace(/\D/g, '') : null;
+  // than dropping one button. whatsappLink carries that guard for every caller.
   const location = [studio.address, studio.city].filter(Boolean).join(' · ');
 
   return (
@@ -36,10 +47,10 @@ function Hero() {
           <Link className="hero__cta hero__cta--primary" to="/schedules">
             Ver horarios
           </Link>
-          {whatsappNumber && (
+          {whatsappLink && (
             <a
               className="hero__cta hero__cta--secondary"
-              href={`https://wa.me/${whatsappNumber}`}
+              href={whatsappLink}
               target="_blank"
               rel="noreferrer"
             >
@@ -49,7 +60,7 @@ function Hero() {
         </div>
 
         <ul className="hero__genres">
-          {classGenres.slice(0, 8).map((genre) => (
+          {featuredGenres.map((genre) => (
             <li className="text-sm hero__genre" key={genre.id}>
               {genre.name}
             </li>

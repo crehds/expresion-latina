@@ -1,8 +1,13 @@
-.contact {
-  padding: 2rem 0.8rem 0;
+/*
+ * The frame comes from .page. What is left is the pair of tabs, which sit in
+ * their own row so the page can stay a column and they can stay a grid.
+ *
+ * The gap closes the two buttons into one control rather than two: they are
+ * the same switch, and a space between them reads as two separate things.
+ */
+.contact__tabs {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: 3rem auto;
   text-align: center;
 }
 
@@ -10,8 +15,13 @@
  * These are tabs. A button with no background declared falls back to the
  * browser's light grey, which is where the two pale slabs on the dark page
  * came from.
+ *
+ * A tab is a tap target before it is a label: 4.4rem is the floor the platform
+ * guidance puts on anything a thumb has to hit, and the text inside did not
+ * reach that on its own.
  */
 .contact__option {
+  min-height: 4.4rem;
   background: var(--surface-raised);
   border: 1px solid var(--surface-border);
   border-bottom: none;

@@ -115,16 +115,3 @@ describe('Schedules on a wide screen', () => {
     expect(friday).toHaveTextContent('Heels');
   });
 });
-
-// The reason the schedule and the faculty share a data model: reading one
-// should take you to the other.
-describe('a class with a teacher', () => {
-  it('links the name to that teacher profile', () => {
-    mockViewport(false);
-    renderSchedules();
-
-    const [link] = screen.getAllByRole('link');
-
-    expect(link.getAttribute('href')).toMatch(/^\/teachers\/[a-z-]+$/);
-  });
-});

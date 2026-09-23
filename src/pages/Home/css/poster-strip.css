@@ -23,11 +23,12 @@
 }
 
 /*
- * 84% rather than 100%: the next poster peeks past the right edge, which is
- * what tells a thumb there is more without an arrow or a row of dots.
+ * Full width at every breakpoint: one poster on screen at a time, not a peek
+ * of the next one. The peek used to be what told a thumb there was more; the
+ * dots below the track carry that signal now, so dropping it loses nothing.
  */
 .poster-strip__item {
-  flex: 0 0 84%;
+  flex: 0 0 100%;
   scroll-snap-align: center;
 }
 
@@ -36,11 +37,182 @@
   display: none;
 }
 
-@media (min-width: 1024px) {
-  .poster-strip__item {
-    flex-basis: 100%;
+/*
+ * The mobile replacement for the peek: which poster is showing, and a direct
+ * way to jump to another one without swiping through everything between.
+ */
+.poster-strip__dots {
+  display: flex;
+  /*
+   * The pause control is taller than a dot. Stretch, the default, leaves a
+   * fixed-height dot at the top of the row, and the dots then sat 0.4rem
+   * above the middle of the button beside them.
+   */
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 1.2rem;
+}
+
+/*
+ * Padding beyond the visible circle, clipped off with background-clip: the
+ * dot itself stays small enough to read as one of several, but the button
+ * under it is a comfortable tap target.
+ *
+ * A muted text colour rather than a border one: measured against the page
+ * behind it, --surface-border-strong reached 1.54:1, well under the 3:1 WCAG
+ * asks of a non-text control. These dots are the only thing left telling a
+ * phone there are more posters, so one nobody can see is the whole signal
+ * gone.
+ */
+.poster-strip__dot {
+  /*
+   * content-box on purpose. This project sets border-box globally, which makes
+   * width the OUTER size: 0.8rem of width against 0.6rem of padding a side
+   * collapsed the content box to 0x0, and background-clip then painted that
+   * nothing. The dots were invisible on screen while getComputedStyle still
+   * reported a colour, so only a pixel read caught it.
+   *
+   * 0.8rem of dot inside 0.8rem of padding leaves a 2.4rem button, which is
+   * the smallest target WCAG accepts.
+   */
+  box-sizing: content-box;
+  width: 0.8rem;
+  height: 0.8rem;
+  padding: 0.8rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background-color: var(--text-muted);
+  background-clip: content-box;
+  cursor: pointer;
+}
+
+.poster-strip__dot[aria-current="true"] {
+  background-color: var(--accent);
+}
+
+.poster-strip__dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * The WCAG 2.2.2 pause/resume control, redrawn as a countdown ring rather
+ * than the dark filled button this started as: the product owner found a
+ * solid circle sitting among the dots "unnatural", so the button itself
+ * disappears visually and only the ring — filling over the six-second
+ * interval it is timing — reads as a control.
+ *
+ * border-box sizing is the default here (unlike the dots above, which opt
+ * out of it on purpose), so 2.4rem of width is already the whole button:
+ * exactly the minimum target, with the ring itself drawn a little smaller
+ * inside it rather than touching the button's own edge.
+ */
+.poster-strip__toggle {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin-right: 0.4rem;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.poster-strip__ring {
+  width: 2rem;
+  height: 2rem;
+  /* An SVG circle's own path starts at 3 o'clock; rotating the whole icon
+     is what puts the countdown's start at 12 instead. */
+  transform: rotate(-90deg);
+}
+
+.poster-strip__ring-track,
+.poster-strip__ring-progress {
+  fill: none;
+  stroke-width: 2;
+}
+
+.poster-strip__ring-track {
+  stroke: var(--text-muted);
+  opacity: 0.35;
+}
+
+/*
+ * pathLength="100" on both circles (set in the JSX) is what makes 100 a
+ * full lap regardless of the radius actually drawn, so the dash maths here
+ * never has to track that number a second time. The animation itself is
+ * driven by a JS-set custom property, --poster-strip-countdown, so
+ * AUTOPLAY_INTERVAL_MS in PosterStrip.jsx stays the one source of truth for
+ * how long a lap takes.
+ */
+.poster-strip__ring-progress {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: poster-strip-countdown var(--poster-strip-countdown, 6000ms) linear
+    forwards;
+}
+
+@keyframes poster-strip-countdown {
+  from {
+    stroke-dashoffset: 100;
   }
 
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/*
+ * data-running, not a CSS-only :hover/:focus readout, because "is autoplay
+ * actually ticking" already lives in JS as the same holds set the timer
+ * itself checks before it will (re)start — recomputing that here from
+ * pseudo-classes would be a second, and possibly diverging, source of truth
+ * for the same question. There is no case to add for reduced motion: the
+ * control is not rendered at all then, so this never has anything to freeze.
+ */
+.poster-strip__toggle[data-running="false"] .poster-strip__ring-progress {
+  animation-play-state: paused;
+}
+
+/* "Tap to resume", centred over the frozen ring — shown only while the
+   visitor themselves is the reason it is paused, not while it is merely
+   held by a hovering pointer, focus or a finger resting on the strip. */
+.poster-strip__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.8rem;
+  height: 0.8rem;
+  transform: translate(-50%, -50%);
+  fill: var(--text-primary);
+}
+
+/*
+ * Only where a pointer can rest. A phone keeps :hover on whatever was last
+ * tapped, so the ring's track stayed brightened after a pause, reading as
+ * pressed or busy until the next tap somewhere else.
+ */
+@media (hover: hover) {
+  .poster-strip__toggle:hover .poster-strip__ring-track {
+    stroke: var(--text-primary);
+    opacity: 0.6;
+  }
+}
+
+.poster-strip__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
   .poster-strip__arrow {
     position: absolute;
     top: 50%;

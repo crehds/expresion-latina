@@ -1,0 +1,52 @@
+/*
+ * One gutter, one measure, one vertical rhythm, for every content page.
+ *
+ * minmax(0, …) on the shell column lets a page be narrower than a child that
+ * scrolls sideways on purpose; the same guard belongs here, because a strip
+ * inside a page must not be able to widen the page around it.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+  width: 100%;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--page-block-start) var(--page-gutter) var(--page-block-end);
+}
+
+.page__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.page__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.page__title {
+  margin: 0;
+  color: var(--text-primary);
+  /*
+   * Balanced wrapping keeps a two-word title from dropping a single word onto
+   * its own line at 360px, which is where most of these will be read.
+   */
+  text-wrap: balance;
+}
+
+.page__lead {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-secondary);
+}
+
+@media (min-width: 768px) {
+  .page {
+    gap: var(--space-lg);
+  }
+}

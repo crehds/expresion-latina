@@ -19,6 +19,7 @@ import * as academy from './index';
 export function createSelectors(data) {
   const {
     days, timeSlots, sessions, getDayById, getTimeSlotById, getGenreById, getTeacherById,
+    getTeachersByGenreId,
   } = data;
 
   const byStart = (a, b) => a.slot.start.localeCompare(b.slot.start);
@@ -149,14 +150,63 @@ export function createSelectors(data) {
     return allEnriched().length > 0;
   }
 
+  /**
+   * The teachers of a genre who are actually teaching it this month.
+   *
+   * A teacher keeps their genreIds after they stop appearing in the schedule,
+   * so the plain lookup answers "who has ever been linked to this style". The
+   * faculty page shows only who is dictating now, and the class pages saying
+   * something different is the site contradicting itself.
+   */
+  function getActiveTeachersByGenreId(genreId) {
+    const active = getActiveTeacherIds();
+
+    return getTeachersByGenreId(genreId).filter((teacher) => active.has(teacher.id));
+  }
+
+  /** The genres with at least one class on the published schedule. */
+  function getScheduledGenreIds() {
+    return new Set(allEnriched().map((session) => session.genre.id));
+  }
+
+  /** Whether this genre is being dictated at all right now. */
+  function isGenreScheduled(genreId) {
+    return getScheduledGenreIds().has(genreId);
+  }
+
+  /**
+   * Genres split into the ones on the schedule and the ones not yet on it.
+   *
+   * A style with no hour is not a mistake: the academy lists one before it can
+   * staff it, so nothing is hidden and nothing is invented. But a visitor
+   * scanning the page is looking for something they can attend this week, and
+   * putting the running classes first answers that without taking anything
+   * away from the rest.
+   *
+   * The order inside each group is the caller's, which is the spreadsheet's —
+   * this decides the grouping, never the sequence within it.
+   */
+  function groupGenresBySchedule(list) {
+    const scheduled = getScheduledGenreIds();
+
+    return {
+      scheduled: list.filter((genre) => scheduled.has(genre.id)),
+      upcoming: list.filter((genre) => !scheduled.has(genre.id)),
+    };
+  }
+
   return {
     getSessionsForWeekday,
     getNextOpenDay,
     getActiveTeacherIds,
+    getActiveTeachersByGenreId,
     getActiveDays,
     getActiveTimeSlots,
     buildWeekMatrix,
     hasPublishedSchedule,
+    getScheduledGenreIds,
+    isGenreScheduled,
+    groupGenresBySchedule,
   };
 }
 
@@ -166,8 +216,12 @@ export const {
   getSessionsForWeekday,
   getNextOpenDay,
   getActiveTeacherIds,
+  getActiveTeachersByGenreId,
   getActiveDays,
   getActiveTimeSlots,
   buildWeekMatrix,
   hasPublishedSchedule,
+  getScheduledGenreIds,
+  isGenreScheduled,
+  groupGenresBySchedule,
 } = selectors;

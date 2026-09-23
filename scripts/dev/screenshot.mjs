@@ -13,9 +13,10 @@ import path from 'node:path';
 const url = process.argv[2] ?? 'http://localhost:3000/schedules';
 const outDir = process.argv[3] ?? 'screenshots';
 
-// The root element each page renders. Waiting on one of these proves a
-// lazy route actually mounted.
-const PAGE_ROOTS = '.home, .teachers, .dance-genres, .dance-videos, .schedules, .contact';
+// The root element each page renders: the landing page, or the shared Page
+// frame every other route sits in. Waiting on one of these proves a lazy
+// route actually mounted.
+const PAGE_ROOTS = '.home, .page';
 
 const KNOWN_THIRD_PARTY_WARNINGS = [
   /Support for defaultProps will be removed/,
@@ -88,13 +89,35 @@ for (const { name, width, height } of VIEWPORTS) {
         + ` (${Math.round(box.left)}..${Math.round(box.right)} of ${limit})`)
       .slice(0, 4);
 
+    /*
+     * The page root is a grid item of a 1fr row, so it stretches to the window
+     * and its own bottom says nothing about where the content ends. Measure the
+     * last thing inside it instead.
+     */
+    const pageRoot = document.querySelector(roots);
+    const lastChildBottom = pageRoot?.lastElementChild
+      ? Math.round(pageRoot.lastElementChild.getBoundingClientRect().bottom)
+      : null;
+
+    /*
+     * The page frame declares its own bottom padding, which is breathing room
+     * the design asked for rather than a hole to fall through. Counting it as
+     * dead space failed every page by exactly that padding.
+     */
+    const surface = document.querySelector('.App > *:nth-child(2)');
+    const surfacePadding = surface
+      ? parseFloat(getComputedStyle(surface).paddingBottom) || 0
+      : 0;
+
     return {
       overflowing,
       scrollsSideways: document.documentElement.scrollWidth
         > document.documentElement.clientWidth,
       contentBottom: bottomOf('.week-columns') ?? bottomOf('.day-agenda')
-        ?? bottomOf(roots),
-      surfaceBottom: bottomOf('.App > *:nth-child(2)'),
+        ?? lastChildBottom,
+      surfaceBottom: surface
+        ? Math.round(surface.getBoundingClientRect().bottom - surfacePadding)
+        : null,
       /*
        * The page footer by its class, not by its tag. A <footer> is legitimate
        * inside an <article> or a <blockquote> — a review card carries one for

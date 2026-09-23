@@ -26,6 +26,9 @@ function selectorsForFixture(data = fixture) {
     getTimeSlotById: byId(data.timeSlots),
     getGenreById: byId(data.genres),
     getTeacherById: byId(data.teachers),
+    getTeachersByGenreId: (genreId) => data.teachers.filter(
+      (teacher) => (teacher.genreIds ?? []).includes(genreId),
+    ),
   });
 }
 
@@ -235,5 +238,117 @@ describe('schedule selectors', () => {
 
       expect(selectorsForFixture(broken).getSessionsForWeekday(1)).toHaveLength(3);
     });
+  });
+});
+
+/*
+ * A teacher keeps their genreIds after they stop appearing in the schedule,
+ * so a class page reading the links alone names people the faculty page no
+ * longer shows.
+ *
+ * The pair below is the whole point: one teacher linked to salsa and in the
+ * schedule, one linked to salsa and absent from it. An earlier version of
+ * these tests asserted against the committed dataset, which the importer
+ * regenerates — a month where every linked teacher happened to be scheduled
+ * would have turned them red with no code change.
+ */
+describe('getActiveTeachersByGenreId', () => {
+  const LINKED_AND_SCHEDULED = { id: 'mishel', name: 'Mishel', genreIds: ['salsa'] };
+  const LINKED_AND_GONE = { id: 'retirada', name: 'Retirada', genreIds: ['salsa'] };
+
+  function withBothKinds() {
+    return selectorsForFixture({
+      ...fixture,
+      teachers: [LINKED_AND_SCHEDULED, LINKED_AND_GONE],
+    });
+  }
+
+  it('keeps the teacher the schedule still names', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('salsa').map((t) => t.id))
+      .toEqual(['mishel']);
+  });
+
+  it('drops the teacher who kept the genre but left the schedule', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('salsa').map((t) => t.id))
+      .not.toContain('retirada');
+  });
+
+  it('empties a genre whose only teacher has left', () => {
+    const selectors = selectorsForFixture({
+      ...fixture,
+      teachers: [LINKED_AND_GONE],
+    });
+
+    expect(selectors.getActiveTeachersByGenreId('salsa')).toEqual([]);
+  });
+
+  it('returns nothing for a genre nobody is linked to', () => {
+    expect(withBothKinds().getActiveTeachersByGenreId('bachata')).toEqual([]);
+  });
+});
+
+describe('groupGenresBySchedule', () => {
+  const JAZZ = {
+    id: 'jazz', name: 'Jazz', slug: 'jazz', kind: 'class', videoIds: [],
+  };
+
+  /** The fixture plus a style the academy lists but has not staffed yet. */
+  function withUnscheduledGenre() {
+    return selectorsForFixture({ ...fixture, genres: [...fixture.genres, JAZZ] });
+  }
+
+  it('puts the genres that have classes first', () => {
+    const { scheduled } = withUnscheduledGenre().groupGenresBySchedule(
+      [JAZZ, ...fixture.genres],
+    );
+
+    expect(scheduled.map((genre) => genre.id)).toEqual(['salsa', 'bachata']);
+  });
+
+  it('keeps the unscheduled ones rather than dropping them', () => {
+    const { upcoming } = withUnscheduledGenre().groupGenresBySchedule(
+      [JAZZ, ...fixture.genres],
+    );
+
+    expect(upcoming.map((genre) => genre.id)).toEqual(['jazz']);
+  });
+
+  it('loses no genre between the two groups', () => {
+    const list = [JAZZ, ...fixture.genres];
+    const { scheduled, upcoming } = withUnscheduledGenre().groupGenresBySchedule(list);
+
+    expect([...scheduled, ...upcoming]).toHaveLength(list.length);
+  });
+
+  it('preserves the spreadsheet order inside each group', () => {
+    const reversed = [...fixture.genres].reverse();
+    const { scheduled } = withUnscheduledGenre().groupGenresBySchedule(reversed);
+
+    expect(scheduled.map((genre) => genre.id)).toEqual(reversed.map((genre) => genre.id));
+  });
+
+  it('leaves upcoming empty when every genre is running', () => {
+    const { scheduled, upcoming } = selectorsForFixture().groupGenresBySchedule(fixture.genres);
+
+    expect(scheduled).toHaveLength(fixture.genres.length);
+    expect(upcoming).toEqual([]);
+  });
+
+  it('treats a genre with no published class as upcoming, not as missing', () => {
+    const selectors = selectorsForFixture({ ...fixture, sessions: [] });
+    const { scheduled, upcoming } = selectors.groupGenresBySchedule(fixture.genres);
+
+    expect(scheduled).toEqual([]);
+    expect(upcoming).toHaveLength(fixture.genres.length);
+  });
+});
+
+describe('isGenreScheduled', () => {
+  it('is true for a genre with classes on the schedule', () => {
+    expect(selectorsForFixture().isGenreScheduled('salsa')).toBe(true);
+  });
+
+  it('is false for a genre the academy lists but does not dictate', () => {
+    expect(selectorsForFixture().isGenreScheduled('jazz')).toBe(false);
   });
 });

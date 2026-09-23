@@ -8,20 +8,15 @@
 }
 
 /*
- * Stacked on a phone, two columns from the desktop breakpoint: what is on
- * today beside what the academy is announcing. Reading the schedule used to
- * mean scrolling past a full-height poster to reach it.
- *
- * The classes column is the wider of the two because it holds the information;
- * the posters are the advertisement beside it.
+ * Full width, right after the hero: Novedades used to be the narrower of two
+ * columns beside the schedule, subordinate to it. The owner wants it noticed
+ * first, so it gets a row of its own with more room to breathe than the band
+ * below it.
  */
-.home__band {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 3.2rem;
+.home__posters {
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: 3.2rem var(--page-gutter) 4.8rem;
+  padding: var(--space-xl) var(--page-gutter) var(--space-2xl);
 }
 
 .home__posters-heading {
@@ -30,10 +25,26 @@
 }
 
 @media (min-width: 1024px) {
+  .home__posters {
+    padding-top: var(--space-2xl);
+  }
+}
+
+/*
+ * What is on today, alone in a single column now that the posters above have
+ * moved out to their own full-width row. There is no second column left to
+ * size against.
+ */
+.home__band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 3.2rem var(--page-gutter) 4.8rem;
+}
+
+@media (min-width: 1024px) {
   .home__band {
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-    gap: 4.8rem;
-    align-items: start;
     padding-top: 4.8rem;
   }
 }

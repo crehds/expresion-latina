@@ -1,60 +1,39 @@
-.teachers-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 2.4rem;
-  width: 100%;
-  max-width: 120rem;
-  margin: 0 auto;
-  padding: 1.5rem;
-}
-
-.teachers-grid__heading {
-  margin-bottom: 0.8rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--surface-border);
-  color: var(--text-secondary);
-}
-
-.teachers-grid__section--current .teachers-grid__heading {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent);
-}
-
 /*
- * Cards size themselves to the screen rather than the screen being paged to
- * fit four: at 1280 this shows the whole faculty, and it adds columns rather
- * than cards as the window grows.
+ * The gutter and the measure come from .page; this owns only the grid.
+ *
+ * 14rem, not 16rem: at 360px the page keeps 32.8rem of room, and a 16rem
+ * floor leaves the second column 0.4rem short of fitting, so a phone drops
+ * to one card per row and the faculty becomes a very long scroll.
  */
 .teachers-grid__list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: 1.2rem;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-xs);
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
-/* Still here, no longer teaching: present but visibly secondary. */
-.teachers-grid__section--past .teachers-grid__list {
-  opacity: 0.55;
+.teachers-grid__empty {
+  max-width: 44ch;
+  color: var(--text-secondary);
 }
 
-.teachers-grid__section--past .teacher:hover,
-.teachers-grid__section--past .teacher:focus-within {
-  opacity: 1;
-}
-
-/* The carousel gives its cards a fixed minimum; here they flex. */
-.teachers-grid .teacher {
+/* The card gives itself a fixed minimum elsewhere; in the grid it flexes. */
+.teachers-grid__list .teacher {
   min-width: 0;
   min-height: 0;
   width: 100%;
 }
 
-.teachers-grid .teacher__image,
-.teachers-grid .teacher__placeholder {
+.teachers-grid__list .teacher__image,
+.teachers-grid__list .teacher__placeholder {
   aspect-ratio: 1;
   object-fit: contain;
 }
 
-.teachers-grid .teacher__placeholder {
+.teachers-grid__list .teacher__placeholder {
   font-size: 3rem;
 }

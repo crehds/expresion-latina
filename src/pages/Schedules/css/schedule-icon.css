@@ -1,9 +1,0 @@
-.schedule-icon {
-  color: var(--text-secondary);
-  border-right: 2px solid var(--text-secondary);
-  border-bottom: 2px solid var(--text-secondary);
-}
-
-.schedule-icon__i {
-  font-size: 2.5rem;
-}
