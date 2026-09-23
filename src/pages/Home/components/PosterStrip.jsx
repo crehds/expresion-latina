@@ -47,6 +47,13 @@ class PosterStrip extends Component {
      */
     this.holds = new Set();
 
+    // Guards every setState the countdown ring schedules from outside a
+    // direct render-time call: componentWillUnmount tears the timer down
+    // through stopAutoplay, which is the same place that marks the ring as
+    // no longer running, so unmounting mid-play is itself a route to a
+    // setState call on an instance that is already on its way out.
+    this.mounted = false;
+
     this.state = {
       currentIndex: 0,
       // Read once here for the first render; the change listener below keeps
@@ -57,18 +64,32 @@ class PosterStrip extends Component {
       // go on their own, and a label that echoed them would flip every time
       // a mouse merely passed over the strip.
       userPaused: false,
+      // Whether the timer is actually ticking, independent of why it might
+      // not be: the ring freezes on this rather than re-deriving "paused"
+      // from holds a second time in CSS.
+      running: false,
+      // Bumped every time a fresh six seconds begins — on the timer
+      // (re)starting and on every tick — and used as the progress circle's
+      // key so it remounts and its fill animation restarts from empty.
+      cycle: 0,
     };
   }
 
   componentDidMount() {
+    this.mounted = true;
     this.reducedMotionQuery.addEventListener('change', this.handleReducedMotionChange);
     this.startAutoplay();
   }
 
   componentWillUnmount() {
+    this.mounted = false;
     this.reducedMotionQuery.removeEventListener('change', this.handleReducedMotionChange);
     this.stopAutoplay();
   }
+
+  safeSetState = (update) => {
+    if (this.mounted) this.setState(update);
+  };
 
   // A visitor can flip this preference mid-visit, not only before the page
   // loads, so autoplay has to react to it rather than check it once at mount.
@@ -118,6 +139,10 @@ class PosterStrip extends Component {
     if (this.autoplayTimer || this.holds.size || this.reducedMotionQuery.matches) return;
 
     this.autoplayTimer = setInterval(this.advance, AUTOPLAY_INTERVAL_MS);
+    // A fresh interval is a fresh six seconds: bumping cycle remounts the
+    // progress circle so its fill animation restarts from empty instead of
+    // picking up wherever a stale node's animation happened to be.
+    this.safeSetState((state) => ({ running: true, cycle: state.cycle + 1 }));
   };
 
   hold = (reason) => {
@@ -128,6 +153,19 @@ class PosterStrip extends Component {
   // The hold a touch screen would never lift again, so it is never taken.
   holdPointer = () => {
     if (this.hoverQuery.matches) this.hold('pointer');
+  };
+
+  /*
+   * A swipe ends in pointercancel the moment the browser takes the gesture
+   * over for scrolling, so that hold lifts on its own and a fresh cycle
+   * begins for whichever poster the swipe lands on — nothing left to pause
+   * for. A long press that never turns into a swipe stays a pointerdown with
+   * no matching up or cancel yet, which is exactly a visitor holding still
+   * to read the poster under their finger, the touch equivalent of a mouse
+   * resting on the strip.
+   */
+  holdTouch = (event) => {
+    if (event.pointerType !== 'mouse') this.hold('touch');
   };
 
   release = (reason) => {
@@ -142,20 +180,22 @@ class PosterStrip extends Component {
    * this component already has, neither of which a screen-reader or
    * switch-access visitor can produce on demand.
    *
-   * Pausing is just another hold: 'user' sits alongside 'pointer' and
-   * 'focus' in the same set, so a mouse leaving or focus moving afterwards
-   * still finds holds.size > 0 and correctly refuses to restart the timer.
-   * That stickiness falls out of the existing hold/release machinery for
-   * free; nothing here has to know about the other two reasons.
+   * Pausing is just another hold: 'user' sits alongside 'pointer', 'focus'
+   * and 'touch' in the same set, so a mouse leaving, focus moving or a
+   * finger lifting afterwards still finds holds.size > 0 and correctly
+   * refuses to restart the timer. That stickiness falls out of the existing
+   * hold/release machinery for free; nothing here has to know about the
+   * other three reasons.
    *
    * Resuming is different on purpose: it is an explicit instruction, not the
-   * absence of one, so it clears 'pointer' and 'focus' as well as 'user'
-   * before starting the timer. By the time this handler runs, the very
-   * gesture that reached the button — a pointer resting on the strip, focus
-   * landing on the button itself — has usually already taken those two
-   * holds; leaving them in place would make "resume" silently do nothing.
-   * They are taken again by the next genuine mouseenter or focus event, the
-   * same way they always were.
+   * absence of one, so it clears 'pointer', 'focus' and 'touch' as well as
+   * 'user' before starting the timer. By the time this handler runs, the
+   * very gesture that reached the button — a pointer resting on the strip,
+   * focus landing on the button itself, a finger tapping it — has usually
+   * already taken one of those three holds; leaving it in place would make
+   * "resume" silently do nothing on the exact device it needs to work on.
+   * They are taken again by the next genuine mouseenter, focus or
+   * pointerdown event, the same way they always were.
    */
   toggleUserPause = () => {
     const { userPaused } = this.state;
@@ -164,6 +204,7 @@ class PosterStrip extends Component {
       this.holds.delete('user');
       this.holds.delete('pointer');
       this.holds.delete('focus');
+      this.holds.delete('touch');
       this.setState({ userPaused: false });
       this.startAutoplay();
     } else {
@@ -175,6 +216,7 @@ class PosterStrip extends Component {
   stopAutoplay = () => {
     clearInterval(this.autoplayTimer);
     this.autoplayTimer = null;
+    this.safeSetState({ running: false });
   };
 
   // Reuses scrollToIndex rather than a second distance calculation, and
@@ -184,6 +226,9 @@ class PosterStrip extends Component {
     const { currentIndex } = this.state;
 
     this.scrollToIndex((currentIndex + 1) % posters.length);
+    // Every tick is also the start of the next six seconds, so the ring has
+    // to restart here too, not only when the timer itself is (re)created.
+    this.safeSetState((state) => ({ cycle: state.cycle + 1 }));
   };
 
   scrollBy = (direction) => {
@@ -211,7 +256,9 @@ class PosterStrip extends Component {
 
   render() {
     const { posters } = this.props;
-    const { currentIndex, prefersReducedMotion, userPaused } = this.state;
+    const {
+      currentIndex, prefersReducedMotion, userPaused, running, cycle,
+    } = this.state;
 
     // Nothing to offer a pause for when autoplay itself will never run: a
     // single poster has nowhere to advance to, and reduced motion already
@@ -226,6 +273,9 @@ class PosterStrip extends Component {
         onMouseLeave={() => this.release('pointer')}
         onFocus={() => this.hold('focus')}
         onBlur={() => this.release('focus')}
+        onPointerDown={this.holdTouch}
+        onPointerUp={() => this.release('touch')}
+        onPointerCancel={() => this.release('touch')}
       >
         <button
           type="button"
@@ -268,15 +318,23 @@ class PosterStrip extends Component {
               className="poster-strip__toggle"
               onClick={this.toggleUserPause}
               aria-label={userPaused ? 'Reanudar los afiches' : 'Pausar los afiches'}
+              data-running={running ? 'true' : 'false'}
+              style={{ '--poster-strip-countdown': `${AUTOPLAY_INTERVAL_MS}ms` }}
             >
-              {userPaused ? (
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+              <svg className="poster-strip__ring" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle className="poster-strip__ring-track" cx="12" cy="12" r="10" pathLength="100" />
+                <circle
+                  key={cycle}
+                  className="poster-strip__ring-progress"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  pathLength="100"
+                />
+              </svg>
+              {userPaused && (
+                <svg className="poster-strip__play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
                   <path d="M8 5v14l11-7z" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-                  <rect x="6" y="5" width="4" height="14" />
-                  <rect x="14" y="5" width="4" height="14" />
                 </svg>
               )}
             </button>

@@ -219,11 +219,27 @@ describe('autoplay', () => {
    */
   const withMouse = () => matchOnly(CAN_HOVER);
 
+  // Shared by both the pause/resume behaviour tests and the countdown ring
+  // and touch-hold tests below: all three groups need to find the control
+  // by whichever label it currently carries.
+  const pauseButton = () => screen.getByRole('button', { name: 'Pausar los afiches' });
+  const resumeButton = () => screen.getByRole('button', { name: 'Reanudar los afiches' });
+
+  /*
+   * vi.advanceTimersByTime alone does not flush the state update React 18
+   * schedules from inside a plain setInterval callback — advance() now also
+   * bumps `cycle` for the countdown ring, and that update is batched into a
+   * microtask the fake-timer clock does not drain by itself. Wrapping every
+   * tick in act() is what makes it land before the assertion right after it,
+   * the same guarantee fireEvent already gives for its own events.
+   */
+  const tick = (ms) => act(() => { vi.advanceTimersByTime(ms); });
+
   it('advances to the next poster once the interval elapses', () => {
     render(<PosterStrip posters={posters} />);
     const step = layOut({ width: 300, gap: 20 });
 
-    vi.advanceTimersByTime(6000);
+    tick(6000);
 
     expect(track().scrollTo).toHaveBeenCalledWith({ left: step, behavior: 'smooth' });
   });
@@ -240,7 +256,7 @@ describe('autoplay', () => {
     Object.defineProperty(track(), 'scrollLeft', { value: step * 2, configurable: true });
     fireEvent.scroll(track());
 
-    vi.advanceTimersByTime(6000);
+    tick(6000);
 
     expect(track().scrollTo).toHaveBeenCalledWith({ left: 0, behavior: 'smooth' });
   });
@@ -256,11 +272,11 @@ describe('autoplay', () => {
     layOut({ width: 300, gap: 20 });
 
     fireEvent.mouseOver(track());
-    vi.advanceTimersByTime(6000);
+    tick(6000);
     expect(track().scrollTo).not.toHaveBeenCalled();
 
     fireEvent.mouseOut(track());
-    vi.advanceTimersByTime(6000);
+    tick(6000);
     expect(track().scrollTo).toHaveBeenCalled();
   });
 
@@ -275,11 +291,11 @@ describe('autoplay', () => {
     const dot = screen.getByRole('button', { name: 'Ver el afiche 1 de 3' });
 
     fireEvent.focusIn(dot);
-    vi.advanceTimersByTime(6000);
+    tick(6000);
     expect(track().scrollTo).not.toHaveBeenCalled();
 
     fireEvent.focusOut(dot);
-    vi.advanceTimersByTime(6000);
+    tick(6000);
     expect(track().scrollTo).toHaveBeenCalled();
   });
 
@@ -300,7 +316,7 @@ describe('autoplay', () => {
     render(<PosterStrip posters={posters} />);
     layOut({ width: 300, gap: 20 });
 
-    vi.advanceTimersByTime(6000);
+    tick(6000);
 
     expect(track().scrollTo).not.toHaveBeenCalled();
   });
@@ -357,7 +373,7 @@ describe('autoplay', () => {
     const strip = container.querySelector('.poster-strip');
 
     fireEvent.mouseOver(strip);
-    vi.advanceTimersByTime(6000);
+    tick(6000);
 
     expect(track().scrollTo).toHaveBeenCalled();
   });
@@ -391,9 +407,6 @@ describe('autoplay', () => {
    * user or a switch-access visitor has neither. This is that control.
    */
   describe('the pause and resume control', () => {
-    const pauseButton = () => screen.getByRole('button', { name: 'Pausar los afiches' });
-    const resumeButton = () => screen.getByRole('button', { name: 'Reanudar los afiches' });
-
     it('is offered once autoplay can run', () => {
       render(<PosterStrip posters={posters} />);
 
@@ -405,8 +418,8 @@ describe('autoplay', () => {
       layOut({ width: 300, gap: 20 });
 
       fireEvent.click(pauseButton());
-      vi.advanceTimersByTime(6000);
-      vi.advanceTimersByTime(6000);
+      tick(6000);
+      tick(6000);
 
       expect(track().scrollTo).not.toHaveBeenCalled();
       expect(resumeButton()).toBeInTheDocument();
@@ -427,7 +440,7 @@ describe('autoplay', () => {
       fireEvent.click(pauseButton());
       fireEvent.mouseOver(strip);
       fireEvent.mouseOut(strip);
-      vi.advanceTimersByTime(6000);
+      tick(6000);
 
       expect(track().scrollTo).not.toHaveBeenCalled();
     });
@@ -440,7 +453,7 @@ describe('autoplay', () => {
       fireEvent.click(pauseButton());
       fireEvent.focusIn(strip);
       fireEvent.focusOut(strip);
-      vi.advanceTimersByTime(6000);
+      tick(6000);
 
       expect(track().scrollTo).not.toHaveBeenCalled();
     });
@@ -464,7 +477,7 @@ describe('autoplay', () => {
 
       fireEvent.focusIn(resumeButton());
       fireEvent.click(resumeButton());
-      vi.advanceTimersByTime(6000);
+      tick(6000);
 
       expect(track().scrollTo).toHaveBeenCalledWith({ left: step, behavior: 'smooth' });
     });
@@ -478,7 +491,7 @@ describe('autoplay', () => {
 
       const dot = screen.getByRole('button', { name: 'Ver el afiche 1 de 3' });
       fireEvent.focusIn(dot);
-      vi.advanceTimersByTime(6000);
+      tick(6000);
 
       expect(track().scrollTo).not.toHaveBeenCalled();
     });
@@ -530,7 +543,7 @@ describe('autoplay', () => {
       act(() => { media.fireChange(REDUCED_MOTION, false); });
       expect(resumeButton()).toBeInTheDocument();
 
-      vi.advanceTimersByTime(6000);
+      tick(6000);
       expect(track().scrollTo).not.toHaveBeenCalled();
     });
 
@@ -545,9 +558,198 @@ describe('autoplay', () => {
       fireEvent.click(pauseButton());
       fireEvent.mouseOver(strip);
       fireEvent.mouseOut(strip);
-      vi.advanceTimersByTime(6000);
+      tick(6000);
 
       expect(track().scrollTo).not.toHaveBeenCalled();
+    });
+  });
+
+  /*
+   * The product owner found the dark filled button "unnatural" sitting among
+   * the dots: this redraws the same control (same element, same labels, same
+   * toggleUserPause logic — none of the tests above changed) as a thin ring
+   * that fills over the six-second interval instead. data-running is what
+   * lets the CSS freeze that fill on the same holds the timer itself already
+   * checks, rather than recomputing "is it paused" a second way in CSS.
+   */
+  describe('the countdown ring', () => {
+    const ring = (container) => container.querySelector('.poster-strip__ring-progress');
+
+    it('restarts on every tick, not only when the timer first starts', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const ringBefore = ring(container);
+
+      tick(6000);
+
+      expect(ring(container)).not.toBe(ringBefore);
+    });
+
+    it('is marked running once autoplay starts', () => {
+      render(<PosterStrip posters={posters} />);
+
+      expect(pauseButton()).toHaveAttribute('data-running', 'true');
+    });
+
+    it('is marked not running while the pointer hovers, and running again once it leaves', () => {
+      withMouse();
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.mouseOver(strip);
+      expect(pauseButton()).toHaveAttribute('data-running', 'false');
+
+      fireEvent.mouseOut(strip);
+      expect(pauseButton()).toHaveAttribute('data-running', 'true');
+    });
+
+    it('is marked not running while focus is inside, and running again once it leaves', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.focusIn(strip);
+      expect(pauseButton()).toHaveAttribute('data-running', 'false');
+
+      fireEvent.focusOut(strip);
+      expect(pauseButton()).toHaveAttribute('data-running', 'true');
+    });
+
+    it('is marked not running while a finger is down, and running again once it lifts', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.pointerDown(strip, { pointerType: 'touch' });
+      expect(pauseButton()).toHaveAttribute('data-running', 'false');
+
+      fireEvent.pointerUp(strip, { pointerType: 'touch' });
+      expect(pauseButton()).toHaveAttribute('data-running', 'true');
+    });
+
+    it('is marked not running after a user pause, and running again after resume', () => {
+      render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+
+      fireEvent.click(pauseButton());
+      expect(resumeButton()).toHaveAttribute('data-running', 'false');
+
+      fireEvent.click(resumeButton());
+      expect(pauseButton()).toHaveAttribute('data-running', 'true');
+    });
+
+    // "Tap to resume" only makes sense once the visitor is the reason it is
+    // paused — a mouse merely resting on the strip is not a choice to show a
+    // glyph for, and the ring alone already says the timer is held.
+    it('shows the play glyph only when paused by the user, not merely by a hovering pointer', () => {
+      withMouse();
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.mouseOver(strip);
+      expect(container.querySelector('.poster-strip__play')).not.toBeInTheDocument();
+
+      fireEvent.mouseOut(strip);
+      fireEvent.click(pauseButton());
+      expect(container.querySelector('.poster-strip__play')).toBeInTheDocument();
+    });
+
+    /*
+     * componentWillUnmount tears the timer down via stopAutoplay, which is
+     * also what marks the ring as no longer running — so unmounting mid-play
+     * is itself a path to a setState call, and the one place a stray update
+     * on a gone component could slip in.
+     */
+    it('does not warn about updating state after unmount', () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { unmount } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+
+      unmount();
+
+      expect(consoleError).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+  });
+
+  /*
+   * WCAG 2.2.2 needs a way to stop the motion that does not depend on a
+   * pointer that can hover, and a touch screen is exactly that visitor: it
+   * has no hover to hold on, only a finger that is either down or not.
+   */
+  describe('holding the strip with a finger or pen', () => {
+    it('stops advancing while a touch pointer is down, and resumes once it lifts', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      const step = layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.pointerDown(strip, { pointerType: 'touch' });
+      tick(6000);
+      expect(track().scrollTo).not.toHaveBeenCalled();
+
+      fireEvent.pointerUp(strip, { pointerType: 'touch' });
+      tick(6000);
+      expect(track().scrollTo).toHaveBeenCalledWith({ left: step, behavior: 'smooth' });
+    });
+
+    /*
+     * A swipe never reaches pointerup on the element it started on — the
+     * browser takes the gesture over for scrolling and fires pointercancel
+     * instead — so the hold has to lift on cancel too, or every swipe would
+     * silently stop autoplay for the rest of the visit.
+     */
+    it('also resumes on pointercancel, the event a swipe actually ends in', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      const step = layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.pointerDown(strip, { pointerType: 'touch' });
+      fireEvent.pointerCancel(strip, { pointerType: 'touch' });
+      tick(6000);
+
+      expect(track().scrollTo).toHaveBeenCalledWith({ left: step, behavior: 'smooth' });
+    });
+
+    it('does not hold for a mouse pointer, even on a device that cannot hover', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      const step = layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.pointerDown(strip, { pointerType: 'mouse' });
+      tick(6000);
+
+      expect(track().scrollTo).toHaveBeenCalledWith({ left: step, behavior: 'smooth' });
+    });
+
+    it('does not resume a sticky user pause', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.click(pauseButton());
+      fireEvent.pointerDown(strip, { pointerType: 'touch' });
+      fireEvent.pointerUp(strip, { pointerType: 'touch' });
+      tick(6000);
+
+      expect(track().scrollTo).not.toHaveBeenCalled();
+    });
+
+    // The same implicit-holds-taken-by-this-very-gesture problem the pointer
+    // and focus holds already had on resume: a tap on the resume button
+    // lands a pointerdown on the strip before the click is handled.
+    it('resumes immediately even though a finger is still down when the resume button is tapped', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
+      const step = layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.click(pauseButton());
+      fireEvent.pointerDown(strip, { pointerType: 'touch' });
+      fireEvent.click(resumeButton());
+      tick(6000);
+
+      expect(track().scrollTo).toHaveBeenCalledWith({ left: step, behavior: 'smooth' });
     });
   });
 });
