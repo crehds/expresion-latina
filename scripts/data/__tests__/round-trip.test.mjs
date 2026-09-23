@@ -607,3 +607,85 @@ describe('a carried schedule against a sheet that was edited', () => {
     assert.deepEqual(validateAcademy(academy), []);
   });
 });
+
+/** A template generated from `academy`, read back from disk. */
+async function templateOf(academy) {
+  const source = join(workDir, `drop-${Date.now()}-${Math.random()}.json`);
+  writeFileSync(source, JSON.stringify(academy));
+
+  const target = join(workDir, `drop-${Date.now()}-${Math.random()}.xlsx`);
+  await makeTemplate(target, { source });
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(target);
+  return workbook;
+}
+
+/*
+ * What a cell's dropdown offers, read the way Excel reads it: a quoted list is
+ * its own values, and a range is whatever those cells hold right now.
+ */
+function offered(workbook, sheetName, address) {
+  const { formulae = [] } = workbook.getWorksheet(sheetName).getCell(address).dataValidation ?? {};
+  const [formula = ''] = formulae;
+
+  if (formula.startsWith('"')) return formula.slice(1, -1).split(',');
+
+  const range = formula.match(/^'?([^'!]+)'?!\$?([A-Z]+)\$?(\d+):\$?\2\$?(\d+)$/);
+  assert.ok(range, `a dropdown Excel cannot read: ${formula}`);
+
+  const [, source, column, first, last] = range;
+  const sheet = workbook.getWorksheet(source);
+  const values = [];
+  for (let row = Number(first); row <= Number(last); row += 1) {
+    const { value } = sheet.getCell(`${column}${row}`);
+    if (value) values.push(String(value));
+  }
+  return values;
+}
+
+/*
+ * Where a person types the next name: the first row with nothing in column A.
+ * Not rowCount + 1 — a row whose only content is a dropdown still counts, and
+ * the Generos sheet has one on every row of its Tipo column.
+ */
+function firstEmptyRow(sheet) {
+  let row = 2;
+  while (sheet.getCell(`A${row}`).value) row += 1;
+  return row;
+}
+
+/*
+ * The dropdowns were once a copy of the names taken when the template was
+ * made. A teacher the academy added afterwards could not be chosen for a
+ * class at all — Excel refuses what the list does not hold — and past 250
+ * characters the copy was cut, halfway through a name if need be.
+ */
+describe('the dropdowns of the Horario sheet', () => {
+  it('offer a teacher added to the Profesores sheet after the template was made', async () => {
+    const workbook = await templateOf(academyWith([]));
+    const profesores = workbook.getWorksheet('Profesores');
+    profesores.getCell(`A${firstEmptyRow(profesores)}`).value = 'Ana Torres';
+
+    assert.ok(offered(workbook, 'Horario', 'E2').includes('Ana Torres'));
+  });
+
+  it('offer a genre added to the Generos sheet after the template was made', async () => {
+    const workbook = await templateOf(academyWith([]));
+    const generos = workbook.getWorksheet('Generos');
+    generos.getCell(`A${firstEmptyRow(generos)}`).value = 'Kizomba';
+
+    assert.ok(offered(workbook, 'Horario', 'D2').includes('Kizomba'));
+  });
+
+  it('offer every teacher whole, however many there are', async () => {
+    const teachers = Array.from({ length: 20 }, (_, index) => ({
+      ...MISHEL,
+      id: `profesora-${index}`,
+      name: `Profesora ${index} con un apellido largo`,
+    }));
+    const workbook = await templateOf({ ...academyWith([]), teachers });
+
+    assert.deepEqual(offered(workbook, 'Horario', 'E2'), teachers.map((teacher) => teacher.name));
+  });
+});
