@@ -73,11 +73,12 @@ class PosterStrip extends Component {
     this.startAutoplay();
   }
 
-  // stopAutoplay sets state on its way out, which React 18 simply drops for
-  // a component being unmounted.
+  // The timer is cleared directly rather than through stopAutoplay, which
+  // also marks the ring as stopped: a component on its way out has nothing
+  // left to render, so it has no state worth setting either.
   componentWillUnmount() {
     this.reducedMotionQuery.removeEventListener('change', this.handleReducedMotionChange);
-    this.stopAutoplay();
+    clearInterval(this.autoplayTimer);
   }
 
   // A visitor can flip this preference mid-visit, not only before the page
