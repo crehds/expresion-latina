@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 
 import ExcelJS from 'exceljs';
 
+import { IMAGE_EXTENSION } from './build-academy.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
 const academy = JSON.parse(readFileSync(resolve(repoRoot, 'src/data/academy.json'), 'utf8'));
@@ -150,20 +152,16 @@ function buildGeneros(workbook) {
 }
 
 /*
- * What addImage will actually accept, mapped from what the folder calls them.
+ * The importer's own list, not a copy of it.
  *
  * The extension is written straight into the workbook's content types, so
  * passing through the file suffix put ContentType="image/jpg" in there —
  * image/jpg is not a media type, image/jpeg is, and every photograph on file
- * here ends in .jpg. Anything not on this list has no content type ExcelJS
- * can declare at all, so it is skipped rather than embedded as something the
- * spreadsheet cannot open.
+ * here ends in .jpg. The example has to embed exactly what the importer will
+ * later accept back, and a second literal beside the first is how these two
+ * drifted apart the last time.
  */
-const EMBEDDABLE = new Map([
-  ['jpg', 'jpeg'],
-  ['jpeg', 'jpeg'],
-  ['png', 'png'],
-]);
+const EMBEDDABLE = IMAGE_EXTENSION;
 
 /**
  * @returns {{buffer: Buffer, extension: string}|null} the teacher's photograph,

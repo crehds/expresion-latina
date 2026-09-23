@@ -273,6 +273,19 @@ export const IMAGE_EXTENSION = new Map([
   ['png', 'png'],
 ]);
 
+/*
+ * Read off the map rather than written out beside it.
+ *
+ * The rejection used to name gif, which the map had stopped accepting, so
+ * somebody who did what the message said pasted a gif and was refused again
+ * in the same words. The only exit from that loop is guessing. A list built
+ * from the map cannot say a format the map will not take.
+ */
+const ACCEPTED_FORMATS = (() => {
+  const names = [...IMAGE_EXTENSION.keys()];
+  return `${names.slice(0, -1).join(', ')} o ${names.at(-1)}`;
+})();
+
 /**
  * Decides one teacher's imageKey, in the precedence the owner chose: a pasted
  * photograph first, since a pasted image cannot be wrong about itself; then
@@ -294,7 +307,7 @@ function resolveImageKey(row, id, published, pastedImage, errors, photos) {
         row.rowNumber,
         'Foto',
         `La foto pegada tiene un formato que no se puede usar (.${pastedImage.extension}). `
-        + 'Usa jpg, png o gif.',
+        + `Usa ${ACCEPTED_FORMATS}.`,
       ));
     } else {
       const filename = `${id}.${extension}`;

@@ -125,14 +125,25 @@ function readSheet(worksheet) {
 function readImages(worksheet, media) {
   if (!worksheet) return [];
 
-  return worksheet.getImages().map(({ imageId, range }) => {
+  return worksheet.getImages().flatMap(({ imageId, range }) => {
     const medium = media.find((item) => item.index === Number(imageId));
 
-    return {
+    /*
+     * An anchor whose image is not in the workbook's media happens with some
+     * editors and with a file that did not survive a copy. Reading straight
+     * through it threw a TypeError that the command reported as "no pude leer
+     * el archivo, revisá que no esté abierto en Excel" — which sends whoever
+     * uploaded it to close a spreadsheet that was never open. Dropping the
+     * anchor lets the rest of the workbook import; the teacher on that row
+     * simply keeps the photograph they already had.
+     */
+    if (!medium) return [];
+
+    return [{
       row: range.tl.nativeRow + 1,
       buffer: medium.buffer,
       extension: medium.extension,
-    };
+    }];
   });
 }
 

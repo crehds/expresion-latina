@@ -640,6 +640,24 @@ describe('a photograph pasted into the Profesores sheet', () => {
     assert.equal(errors[0].row, 2);
   });
 
+  /*
+   * The rejection named gif after the map had stopped taking it, so doing
+   * what the message said got you refused again in the same words, with no
+   * way out but guessing. Whatever it offers has to be something that works.
+   */
+  it('offers only formats it will actually accept when it refuses one', () => {
+    const { errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'bmp' }],
+    });
+
+    const offered = errors[0].message.match(/Usa (.+)\./)[1]
+      .split(/,| o /)
+      .map((name) => name.trim());
+
+    assert.deepEqual(offered, [...IMAGE_EXTENSION.keys()]);
+  });
+
   // The defect this whole change exists to end: a filename with nothing
   // behind it must never reach the published file again.
   it('refuses an Imagen filename that does not exist, naming the sheet, row and column', () => {
