@@ -25,8 +25,11 @@ const GENEROS = sheet([
   { nombre: 'Ensayo Elenco', tipo: 'Ensayo' },
 ]);
 
+// A real file under src/assets/images/teachers, so the existence check the
+// Imagen column now has to pass does not turn every test in this file that
+// merely reuses this fixture into an assertion about a missing photograph.
 const PROFESORES = sheet([
-  { nombre: 'Mishel Fernández', generos: 'Salsa, Bachata', imagen: 'mishel_fernandez.jpg' },
+  { nombre: 'Mishel Fernández', generos: 'Salsa, Bachata', imagen: 'bachata_izquierdo.jpg' },
   { nombre: 'Kenneth Ocaña', generos: 'Bachata' },
 ]);
 
@@ -536,6 +539,117 @@ describe('a teacher with a video', () => {
 
     assert.deepEqual(academy.videos, []);
     assert.deepEqual(academy.teachers[0].videoIds, []);
+  });
+});
+
+/*
+ * Naming a file nobody uploaded is how the published data ended up pointing at
+ * a photograph that does not exist. A pasted photograph cannot be wrong about
+ * itself, so it now wins over the filename column, which still has to name a
+ * file that is actually on disk.
+ */
+describe('a photograph pasted into the Profesores sheet', () => {
+  // Opaque to buildAcademy, which never decodes it — only ExcelJS and the
+  // browser ever look inside.
+  const PHOTO = Buffer.from('a pretend photograph, opaque to buildAcademy');
+
+  const KENNETH = sheet([{ nombre: 'Kenneth Ocaña', generos: 'Bachata' }]);
+
+  it("becomes the teacher's imageKey, named from their own id, and is queued to be written", () => {
+    const { academy, errors, photos } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'jpg' }],
+    });
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.teachers[0].imageKey, 'kenneth-ocana.jpeg');
+    assert.deepEqual(photos, [{ filename: 'kenneth-ocana.jpeg', buffer: PHOTO }]);
+  });
+
+  it('beats an Imagen filename on the same row', () => {
+    const { academy, errors } = build({
+      profesores: sheet([{
+        nombre: 'Kenneth Ocaña', generos: 'Bachata', imagen: 'bachata_izquierdo.jpg',
+      }]),
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'png' }],
+    });
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.teachers[0].imageKey, 'kenneth-ocana.png');
+  });
+
+  // jpg and jpeg must collapse to the same file, or re-pasting a photo saved
+  // in the other shape would accumulate a second one instead of replacing it.
+  it('normalises the extension the way make-example.mjs does', () => {
+    const imageKeyWith = (extension) => build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension }],
+    }).academy.teachers[0].imageKey;
+
+    assert.equal(imageKeyWith('jpg'), 'kenneth-ocana.jpeg');
+    assert.equal(imageKeyWith('JPEG'), 'kenneth-ocana.jpeg');
+    assert.equal(imageKeyWith('png'), 'kenneth-ocana.png');
+    assert.equal(imageKeyWith('gif'), 'kenneth-ocana.gif');
+  });
+
+  // The defect this whole change exists to end: a filename with nothing
+  // behind it must never reach the published file again.
+  it('refuses an Imagen filename that does not exist, naming the sheet, row and column', () => {
+    const { academy, errors } = build({
+      profesores: sheet([{
+        nombre: 'Kenneth Ocaña', generos: 'Bachata', imagen: 'mishel_fernandez.jpg',
+      }]),
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.deepEqual(
+      { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
+      { sheet: 'Profesores', row: 2, column: 'Imagen' },
+    );
+    assert.match(errors[0].message, /mishel_fernandez\.jpg/);
+  });
+
+  it('keeps the photograph a teacher already had when the row pastes none and names none', () => {
+    const previous = { teachers: [{ id: 'kenneth-ocana', imageKey: 'kenneth_old.jpg' }] };
+
+    const { academy, errors } = build({ profesores: KENNETH }, { previous });
+
+    assert.deepEqual(errors, []);
+    assert.equal(academy.teachers[0].imageKey, 'kenneth_old.jpg');
+  });
+
+  // Dragging an image, or sorting the rows beneath it, can leave it floating
+  // over nothing typed at all — the row never reaches the teachers array, so
+  // the loop that would otherwise claim the photo never visits it.
+  it('refuses a photo anchored to a row with no teacher name', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      // Row 5 has no entry at all: nothing was ever typed there, only pasted.
+      profesoresImagenes: [{ row: 5, buffer: PHOTO, extension: 'jpg' }],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.deepEqual(
+      { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
+      { sheet: 'Profesores', row: 5, column: 'Foto' },
+    );
+  });
+
+  it('refuses a pasted photo in a format that cannot be used', () => {
+    const { academy, errors } = build({
+      profesores: KENNETH,
+      profesoresImagenes: [{ row: 2, buffer: PHOTO, extension: 'bmp' }],
+    });
+
+    assert.equal(academy, null);
+    assert.equal(errors.length, 1);
+    assert.deepEqual(
+      { sheet: errors[0].sheet, row: errors[0].row, column: errors[0].column },
+      { sheet: 'Profesores', row: 2, column: 'Foto' },
+    );
+    assert.match(errors[0].message, /bmp/);
   });
 });
 

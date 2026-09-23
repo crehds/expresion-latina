@@ -1,3 +1,7 @@
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { normalise, readText, readTime } from './parse-workbook.mjs';
 
 /** The week is universal, so it is not something the spreadsheet declares. */
@@ -242,12 +246,84 @@ function buildTeacherVideo(teacherId, teacherName, value) {
   };
 }
 
-function buildTeachers(rows, genresById, errors, previousTeachers = []) {
+/** Where the Imagen column's filename has to already live to be usable. */
+const TEACHER_PHOTOS_DIR = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../src/assets/images/teachers',
+);
+
+/**
+ * What a pasted photograph's extension is allowed to become, mirroring
+ * make-example.mjs's EMBEDDABLE map so the two never disagree about what a
+ * workbook can carry. jpg and jpeg collapse to the one canonical value so
+ * re-pasting a teacher's photo in either shape replaces the same file instead
+ * of accumulating a second one.
+ */
+const IMAGE_EXTENSION = new Map([
+  ['jpg', 'jpeg'],
+  ['jpeg', 'jpeg'],
+  ['png', 'png'],
+  ['gif', 'gif'],
+]);
+
+/**
+ * Decides one teacher's imageKey, in the precedence the owner chose: a pasted
+ * photograph first, since a pasted image cannot be wrong about itself; then
+ * the legacy Imagen filename, but only when that file actually exists —
+ * naming one that was never uploaded is the defect this precedence exists to
+ * end; otherwise whatever was already published survives untouched.
+ *
+ * A photograph that wins is pushed onto `photos` for import.mjs to write
+ * alongside the academy, named deterministically from the teacher's own id so
+ * re-uploading one replaces it rather than accumulating files.
+ */
+function resolveImageKey(row, id, published, pastedImage, errors, photos) {
+  if (pastedImage) {
+    const extension = IMAGE_EXTENSION.get(pastedImage.extension.toLowerCase());
+
+    if (!extension) {
+      errors.push(error(
+        'Profesores',
+        row.rowNumber,
+        'Foto',
+        `La foto pegada tiene un formato que no se puede usar (.${pastedImage.extension}). `
+        + 'Usa jpg, png o gif.',
+      ));
+    } else {
+      const filename = `${id}.${extension}`;
+      photos.push({ filename, buffer: pastedImage.buffer });
+      return filename;
+    }
+  }
+
+  const imagen = readText(row.imagen);
+  if (imagen) {
+    if (existsSync(resolve(TEACHER_PHOTOS_DIR, imagen))) return imagen;
+
+    errors.push(error(
+      'Profesores',
+      row.rowNumber,
+      'Imagen',
+      `"${imagen}" no existe en src/assets/images/teachers. `
+      + 'Sube el archivo con ese nombre exacto o pega la foto directamente en la celda.',
+    ));
+  }
+
+  return published.get(id)?.imageKey ?? null;
+}
+
+function buildTeachers(rows, genresById, errors, previousTeachers = [], images = []) {
   const teachers = [];
   const videos = [];
+  const photos = [];
   const byName = new Map();
 
   const published = new Map(previousTeachers.map((teacher) => [teacher.id, teacher]));
+  const imagesByRow = new Map(images.map((image) => [image.row, image]));
+  // Every row whose name was actually readable, whether or not it went on to
+  // become a teacher — a duplicate name still had one. Anything left over
+  // once every row has been visited pasted a photo nothing can claim.
+  const namedRows = new Set();
 
   /*
    * Whether the sheet carries a Video column at all, asked once of the sheet
@@ -278,6 +354,7 @@ function buildTeachers(rows, genresById, errors, previousTeachers = []) {
       errors.push(error('Profesores', row.rowNumber, 'Nombre', 'Falta el nombre del profesor.'));
       return;
     }
+    namedRows.add(row.rowNumber);
 
     const id = toSlug(name);
     if (byName.has(id)) {
@@ -307,7 +384,7 @@ function buildTeachers(rows, genresById, errors, previousTeachers = []) {
       shortName: readText(row.nombrecorto) ?? name.split(' ')[0],
       // The academy does not always have a photograph, and teaching here
       // cannot depend on whether we do.
-      imageKey: readText(row.imagen),
+      imageKey: resolveImageKey(row, id, published, imagesByRow.get(row.rowNumber), errors, photos),
       genreIds,
       bio: readText(row.bio) ?? '',
       social,
@@ -359,8 +436,22 @@ function buildTeachers(rows, genresById, errors, previousTeachers = []) {
     byName.set(id, { ...teacher, rowNumber: row.rowNumber });
   });
 
+  // A photo anchored to a row no teacher claimed: the row had no readable
+  // name, so the loop above returned before it could ever be looked up.
+  images.forEach((image) => {
+    if (namedRows.has(image.row)) return;
+
+    errors.push(error(
+      'Profesores',
+      image.row,
+      'Foto',
+      'Hay una foto pegada en una fila sin nombre de profesor. '
+      + 'Escribe el nombre en la columna Nombre o quita la foto.',
+    ));
+  });
+
   return {
-    teachers, teacherVideos: videos, teachersById: byName, hasVideoColumn,
+    teachers, teacherVideos: videos, teachersById: byName, hasVideoColumn, photos,
   };
 }
 
@@ -631,15 +722,23 @@ export default function buildAcademy(sheets, {
 
   const carriedTeachers = carry?.teachers ?? [];
   const {
-    teachers, teacherVideos, teachersById, hasVideoColumn,
+    teachers, teacherVideos, teachersById, hasVideoColumn, photos,
   } = sheets.profesores
-    ? buildTeachers(sheets.profesores, genresById, errors, previous?.teachers ?? [])
+    ? buildTeachers(
+      sheets.profesores,
+      genresById,
+      errors,
+      previous?.teachers ?? [],
+      sheets.profesoresImagenes ?? [],
+    )
     : {
       teachers: carriedTeachers,
       teacherVideos: [],
       teachersById: indexById(carriedTeachers),
       // The sheet describes no video, so mergeVideos may delete none.
       hasVideoColumn: false,
+      // No Profesores sheet means no photograph pasted into one either.
+      photos: [],
     };
 
   const studio = sheets.estudio
@@ -654,7 +753,9 @@ export default function buildAcademy(sheets, {
     ? buildSchedule(sheets.horario, genresById, teachersById, errors)
     : { timeSlots: carry?.timeSlots ?? [], sessions: carry?.sessions ?? [] };
 
-  if (errors.length) return { academy: null, errors };
+  // Nothing gets published when there are problems, so nothing gets written
+  // either: nobody's photograph belongs on disk pointing at a rejected import.
+  if (errors.length) return { academy: null, errors, photos: [] };
 
   return {
     academy: {
@@ -671,5 +772,8 @@ export default function buildAcademy(sheets, {
       sessions,
     },
     errors,
+    // Never inside `academy`: that object is serialised to JSON, and a photo's
+    // bytes are not data the site publishes as JSON.
+    photos,
   };
 }
