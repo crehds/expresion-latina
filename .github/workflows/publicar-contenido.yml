@@ -139,10 +139,20 @@ jobs:
             # a rebase here is a content conflict on a file nobody wrote by
             # hand. Whatever workbook the tip now carries is the newer one,
             # and importing it again is what makes this attempt current.
-            echo "La rama se movió mientras corría. Reintento $intento de 3."
-            git fetch --quiet origin "${GITHUB_REF_NAME}" \
-              && git reset --quiet --hard "origin/${GITHUB_REF_NAME}" \
-              && npm run data:import -- content/horarios.xlsx
+            #
+            # Its result is checked rather than assumed. Left unchecked, a
+            # failed reset leaves the unpushed commit as HEAD, the next pass
+            # stages nothing, and "nothing to publish" is reported with a
+            # green tick over a publish that never happened — the silent
+            # failure this whole workflow exists to stop.
+            echo "La rama se movió mientras corría. Reintento $intento de 2."
+
+            if ! { git fetch --quiet origin "${GITHUB_REF_NAME}" \
+                   && git reset --quiet --hard "origin/${GITHUB_REF_NAME}" \
+                   && npm run data:import -- content/horarios.xlsx; }; then
+              echo "No se pudo rehacer la importación sobre la rama actualizada."
+              break
+            fi
           done
 
           {

@@ -11,9 +11,10 @@
  * the workbook and the screen.
  *
  * This mutates tracked files on purpose — the real src/data/academy.json and
- * whatever photograph the import writes into src/assets/images/teachers — so
- * it restores both, in a finally that runs whether the checks below pass or
- * throw. It is deliberately not part of `npm test` or `npm run test:data`:
+ * whatever photographs the import writes into src/assets/images/teachers — so
+ * it puts back the bytes it found, in a finally that runs whether the checks
+ * below pass or throw, and before anything is closed so a failing teardown
+ * cannot skip it. It is deliberately not part of `npm test` or `test:data`:
  * a build and a real browser make it far slower than either, and it is meant
  * to be run on demand, not on every save.
  *
@@ -46,7 +47,14 @@ const PORT = 4173;
 
 async function main() {
   const originalAcademyJson = readFileSync(ACADEMY_JSON);
-  const originalPhotos = new Set(readdirSync(PHOTOS_DIR));
+
+  // Their bytes, not just their names. The import writes a photograph per
+  // teacher under a name it derives, so one of them landing on a name already
+  // in here overwrites a tracked file, and a cleanup that only removed names
+  // it had not seen before would leave that one changed.
+  const originalPhotos = new Map(
+    readdirSync(PHOTOS_DIR).map((file) => [file, readFileSync(resolve(PHOTOS_DIR, file))]),
+  );
 
   let server = null;
   let browser = null;
@@ -100,18 +108,30 @@ async function main() {
   } catch (cause) {
     problems.push(cause.message);
   } finally {
-    if (browser) await browser.close();
-    if (server) await server.close();
-
-    // Restored unconditionally: this script mutates tracked content on
-    // purpose, and a failing run must leave the tree exactly as clean as a
-    // passing one. git would restore academy.json on its own since it is
-    // tracked, but a photograph the import newly wrote is untracked and git
-    // would never touch it.
+    /*
+     * Before anything is closed. A crashed browser or a preview server that
+     * refuses to shut down would otherwise throw out of this block and skip
+     * the restore entirely, leaving the example's content sitting in the
+     * tracked academy.json — the one outcome a script that mutates tracked
+     * files on purpose cannot afford.
+     */
     writeFileSync(ACADEMY_JSON, originalAcademyJson);
+
     readdirSync(PHOTOS_DIR).forEach((file) => {
-      if (!originalPhotos.has(file)) unlinkSync(resolve(PHOTOS_DIR, file));
+      const before = originalPhotos.get(file);
+
+      if (!before) unlinkSync(resolve(PHOTOS_DIR, file));
+      else writeFileSync(resolve(PHOTOS_DIR, file), before);
     });
+
+    // Their own failures are not this script's verdict, and they must not
+    // take the restore above down with them either.
+    try {
+      if (browser) await browser.close();
+      if (server) await server.close();
+    } catch (cause) {
+      console.error(`No pude cerrar el navegador o el servidor: ${cause.message}`);
+    }
   }
 
   if (problems.length) {

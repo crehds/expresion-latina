@@ -87,11 +87,24 @@ Tres cosas que conviene saber sobre las fotos:
 - Sirven **jpg y png**. Otros formatos se rechazan con un aviso.
 - La foto queda **anclada a la fila** donde la pegas. Si la arrastras a otro
   lado, puede terminar asignada a otro profesor.
-- Si un profesor no tiene foto, el sitio muestra sus iniciales. No es un
-  error: se puede dejar vacío.
+- Un profesor puede no tener foto: el sitio muestra sus iniciales. No es un
+  error.
 
-Si dejas la celda `Foto` vacía, el profesor **conserva la foto que ya tenía**.
-Solo se reemplaza cuando pegas una nueva.
+**Dejar la celda vacía no borra la foto.** Una celda `Foto` vacía significa
+"esta planilla no dice nada sobre su foto", así que el profesor conserva la
+que ya tenía. Es lo que permite actualizar el horario sin volver a pegar las
+dieciséis fotos cada vez.
+
+Entonces:
+
+| Quieres…                 | Qué haces                              |
+| ------------------------ | -------------------------------------- |
+| poner o cambiar una foto | pegas la nueva en su celda `Foto`      |
+| dejar la que ya tiene    | no tocas la celda                      |
+| que no tenga ninguna     | avisas a quien mantiene el repositorio |
+
+Quitar una foto es el único caso que todavía no se puede hacer desde la
+planilla.
 
 `Nacimiento` acepta una fecha (`1994-06-12`) o solo el año (`1997`). De ahí
 sale la edad que aparece en su ficha, así que no hay que actualizarla cada
@@ -127,7 +140,7 @@ El archivo tiene 2 problema(s). No se cambió nada.
   HOJA        FILA   COLUMNA  DETALLE
   ----------  -----  -------  -------
   Horario     7      Genero   "Salza" no está en la hoja Generos.
-  Profesores  10     Imagen   "mishel_fernandez.jpg" no existe en src/assets/images/teachers.
+  Profesores  10     Foto     La foto pegada tiene un formato que no se puede usar (.bmp). Usa jpg, jpeg o png.
 ```
 
 Se corrigen esas celdas y se vuelve a subir el archivo. El proceso se repite
