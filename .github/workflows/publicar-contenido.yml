@@ -1,0 +1,97 @@
+# Rebuilds the site's content from the workbook the academy uploads.
+#
+# Without this, uploading a spreadsheet through the GitHub web interface did
+# nothing at all: the file landed in the repository and no one ran the
+# importer, so academy.json never changed and the site never moved. This is
+# the step that was missing between "the academy uploaded a file" and "the
+# site shows it".
+name: Publicar el contenido de la planilla
+
+on:
+  push:
+    branches: [develop, main]
+    # Only the workbook. This is also what stops the job from triggering
+    # itself: the commit it pushes touches src/, never content/.
+    paths:
+      - content/horarios.xlsx
+  # So the import can be re-run from the Actions tab after fixing a photograph
+  # or an asset, without having to touch the workbook again.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Two uploads in quick succession would otherwise race to commit the same
+# file. The second waits rather than being dropped, since it carries the
+# newer content.
+concurrency:
+  group: contenido-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    name: Importar la planilla y publicar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Traer el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # The exit code is kept rather than failing here, so the summary below
+      # still runs and the academy sees the table of what is wrong instead of
+      # a red cross and a log to dig through.
+      - name: Leer la planilla
+        id: importar
+        run: |
+          set +e
+          npm run data:import -- content/horarios.xlsx 2>&1 | tee importacion.log
+          echo "codigo=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Contar qué pasó
+        if: always()
+        run: |
+          {
+            if [ "${{ steps.importar.outputs.codigo }}" = "0" ]; then
+              echo "## La planilla se leyó bien"
+            else
+              echo "## La planilla tiene problemas y no se publicó nada"
+              echo ""
+              echo "Corrige las celdas que aparecen abajo en \`content/horarios.xlsx\`, vuelve a subir el archivo y esto se repite solo."
+            fi
+            echo ""
+            echo '```'
+            cat importacion.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Detenerse si la planilla tiene problemas
+        if: steps.importar.outputs.codigo != '0'
+        run: exit 1
+
+      # Staged first because a photograph pasted into the sheet arrives as a
+      # new file, and a plain diff does not see one of those.
+      - name: Publicar los cambios
+        run: |
+          git add src/data/academy.json src/assets/images/teachers
+
+          if git diff --cached --quiet; then
+            echo "La planilla no cambió nada publicable." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(content): publicar la planilla'
+          git push
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "El sitio se está publicando con el contenido nuevo." >> "$GITHUB_STEP_SUMMARY"
