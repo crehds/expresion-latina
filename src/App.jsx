@@ -16,6 +16,7 @@ const Teachers = lazy(() => import('./pages/Teachers/Teachers'));
 const DanceGenres = lazy(() => import('./pages/DanceGenres/DanceGenres'));
 const Schedules = lazy(() => import('./pages/Schedules/Schedules'));
 const Contact = lazy(() => import('./pages/Contact/Contact'));
+const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 export default function App() {
   return (
@@ -29,6 +30,13 @@ export default function App() {
           <Route path="/dances/*" element={<DanceGenres />} />
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/contact" element={<Contact />} />
+          {/*
+            * Last, and matching whatever the ones above did not. Without it an
+            * address nobody recognises rendered the nav and the footer with
+            * nothing between them, which reads as a broken site rather than a
+            * wrong turn.
+            */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
       <Footer />

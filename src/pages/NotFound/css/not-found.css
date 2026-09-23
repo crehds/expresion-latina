@@ -1,0 +1,32 @@
+/*
+ * Two ways out, stacked on a phone and side by side once there is room. The
+ * page has almost nothing on it by definition, so the links carry the weight
+ * rather than sitting as small text under an apology.
+ */
+.not-found__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.not-found__link {
+  display: inline-block;
+  padding: 1.2rem 2rem;
+  border: 1px solid var(--surface-border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.not-found__link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.not-found__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
