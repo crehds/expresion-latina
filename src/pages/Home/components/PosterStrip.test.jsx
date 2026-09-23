@@ -657,20 +657,32 @@ describe('autoplay', () => {
     });
 
     /*
-     * componentWillUnmount tears the timer down via stopAutoplay, which is
-     * also what marks the ring as no longer running — so unmounting mid-play
-     * is itself a path to a setState call, and the one place a stray update
-     * on a gone component could slip in.
+     * A timer that restarts runs a full six seconds, so the ring has to start
+     * from empty with it. Left frozen part-way, it would finish early and sit
+     * full while the posters stayed put.
      */
-    it('does not warn about updating state after unmount', () => {
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const { unmount } = render(<PosterStrip posters={posters} />);
+    it('restarts from empty once a hold lifts, not only on a tick', () => {
+      withMouse();
+      const { container } = render(<PosterStrip posters={posters} />);
+      layOut({ width: 300, gap: 20 });
+      const strip = container.querySelector('.poster-strip');
+
+      fireEvent.mouseOver(strip);
+      const ringWhileHeld = ring(container);
+      fireEvent.mouseOut(strip);
+
+      expect(ring(container)).not.toBe(ringWhileHeld);
+    });
+
+    it('restarts from empty on resume', () => {
+      const { container } = render(<PosterStrip posters={posters} />);
       layOut({ width: 300, gap: 20 });
 
-      unmount();
+      fireEvent.click(pauseButton());
+      const ringWhilePaused = ring(container);
+      fireEvent.click(resumeButton());
 
-      expect(consoleError).not.toHaveBeenCalled();
-      consoleError.mockRestore();
+      expect(ring(container)).not.toBe(ringWhilePaused);
     });
   });
 

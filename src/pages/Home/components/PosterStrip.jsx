@@ -47,13 +47,6 @@ class PosterStrip extends Component {
      */
     this.holds = new Set();
 
-    // Guards every setState the countdown ring schedules from outside a
-    // direct render-time call: componentWillUnmount tears the timer down
-    // through stopAutoplay, which is the same place that marks the ring as
-    // no longer running, so unmounting mid-play is itself a route to a
-    // setState call on an instance that is already on its way out.
-    this.mounted = false;
-
     this.state = {
       currentIndex: 0,
       // Read once here for the first render; the change listener below keeps
@@ -76,20 +69,16 @@ class PosterStrip extends Component {
   }
 
   componentDidMount() {
-    this.mounted = true;
     this.reducedMotionQuery.addEventListener('change', this.handleReducedMotionChange);
     this.startAutoplay();
   }
 
+  // stopAutoplay sets state on its way out, which React 18 simply drops for
+  // a component being unmounted.
   componentWillUnmount() {
-    this.mounted = false;
     this.reducedMotionQuery.removeEventListener('change', this.handleReducedMotionChange);
     this.stopAutoplay();
   }
-
-  safeSetState = (update) => {
-    if (this.mounted) this.setState(update);
-  };
 
   // A visitor can flip this preference mid-visit, not only before the page
   // loads, so autoplay has to react to it rather than check it once at mount.
@@ -142,7 +131,7 @@ class PosterStrip extends Component {
     // A fresh interval is a fresh six seconds: bumping cycle remounts the
     // progress circle so its fill animation restarts from empty instead of
     // picking up wherever a stale node's animation happened to be.
-    this.safeSetState((state) => ({ running: true, cycle: state.cycle + 1 }));
+    this.setState((state) => ({ running: true, cycle: state.cycle + 1 }));
   };
 
   hold = (reason) => {
@@ -216,7 +205,7 @@ class PosterStrip extends Component {
   stopAutoplay = () => {
     clearInterval(this.autoplayTimer);
     this.autoplayTimer = null;
-    this.safeSetState({ running: false });
+    this.setState({ running: false });
   };
 
   // Reuses scrollToIndex rather than a second distance calculation, and
@@ -228,7 +217,7 @@ class PosterStrip extends Component {
     this.scrollToIndex((currentIndex + 1) % posters.length);
     // Every tick is also the start of the next six seconds, so the ring has
     // to restart here too, not only when the timer itself is (re)created.
-    this.safeSetState((state) => ({ cycle: state.cycle + 1 }));
+    this.setState((state) => ({ cycle: state.cycle + 1 }));
   };
 
   scrollBy = (direction) => {
