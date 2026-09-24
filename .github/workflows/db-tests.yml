@@ -1,0 +1,52 @@
+# Runs the pgTAP suite against the local Supabase stack for every change
+# that touches supabase/. This is the only place the Database Security
+# Contract (RLS, grants, the catalog privilege guard) gets proven: Vitest
+# only mocks the Supabase client and cannot exercise real Postgres RLS.
+name: DB tests
+
+on:
+  pull_request:
+    paths:
+      - supabase/**
+      - .github/workflows/db-tests.yml
+  push:
+    branches: [develop, main]
+    paths:
+      - supabase/**
+      - .github/workflows/db-tests.yml
+
+# Least privilege: this job only reads the repository and talks to the
+# Supabase CLI's own Docker containers, so it needs no write access at all.
+permissions:
+  contents: read
+
+jobs:
+  pgtap:
+    name: pgTAP (supabase test db)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Traer el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Pinned to the exact same CLI build `npm run test:db` uses locally,
+      # so a pgTAP failure reproduces identically in both places.
+      - name: Preparar Supabase CLI
+        uses: supabase/setup-cli@v3.0.1
+        with:
+          version: 2.117.0
+
+      - name: Iniciar la base de datos local
+        run: supabase db start
+
+      - name: Correr el suite pgTAP
+        run: supabase test db
