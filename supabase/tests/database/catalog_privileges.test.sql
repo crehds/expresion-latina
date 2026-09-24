@@ -74,10 +74,16 @@ $fn$;
 -- 1. The private schema exists at all.
 select has_schema('private', 'the private schema exists');
 
--- 2-4. Nobody but the schema owner has USAGE on `private`. The Data API
--- never exposes it anyway (config.toml `api.schemas` lists only `public`
--- and `graphql_public`), but this is belt-and-suspenders: `private` must
--- stay unreachable even if a future config change adds it by mistake.
+-- 2-4. `private` stays unreachable through the Data API regardless
+-- (config.toml `api.schemas` lists only `public` and `graphql_public`),
+-- but PUBLIC and anon must never gain USAGE even if a future config
+-- change adds `private` to the exposed schemas by mistake. `authenticated`
+-- is the one explicit, allowlisted exception (from PR1b onward): the RLS
+-- policies on `public.profiles` call `private.is_admin()` and
+-- `private.has_consent()` as the invoking role, which needs USAGE on the
+-- schema to resolve those calls at all -- the functions themselves stay
+-- unreachable on their own, since EXECUTE is granted only per function
+-- (check 6), never at the schema level.
 select is(
   has_schema_privilege('public', 'private', 'USAGE'),
   false,
@@ -92,20 +98,21 @@ select is(
 
 select is(
   has_schema_privilege('authenticated', 'private', 'USAGE'),
-  false,
-  'authenticated has no USAGE on the private schema'
+  true,
+  'authenticated has USAGE on the private schema (needed to call the RLS policy helpers)'
 );
 
 -- 5. Table/view privileges granted to anon, authenticated or PUBLIC, for
 -- every table this project creates in `public` or `private`, must appear
--- in an explicit allowlist. The allowlist starts empty; each later slice
--- extends it with exactly the grants its own Database Security Contract
--- row requires.
+-- in an explicit allowlist. Each slice extends it with exactly the grants
+-- its own Database Security Contract row requires. `profiles` UPDATE is
+-- column-scoped (`full_name` only, PR1b) and never appears here: column
+-- grants live in pg_attribute.attacl, which this table-level ACL scan
+-- does not read -- only the table-wide SELECT grant shows up.
 select is(
   (
     with allowlist(schema_name, table_name, grantee, privilege) as (
-      values (null::text, null::text, null::text, null::text)
-      limit 0
+      values ('public', 'profiles', 'authenticated', 'SELECT')
     )
     select count(*)::int
     from pg_temp.__catalog_table_grants() g
@@ -166,8 +173,10 @@ drop table public.__catalog_guard_fixture;
 select is(
   (
     with allowlist(schema_name, function_name, grantee) as (
-      values (null::text, null::text, null::text)
-      limit 0
+      values
+        ('public', 'record_consent', 'authenticated'),
+        ('private', 'is_admin', 'authenticated'),
+        ('private', 'has_consent', 'authenticated')
     )
     select count(*)::int
     from pg_proc p
