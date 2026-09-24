@@ -23,18 +23,18 @@ Verified on Node 24.21.0 and npm 11.
 
 ## Scripts
 
-| Script                  | What it does                                                                 |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| `npm run dev`           | Dev server on http://localhost:3000                                          |
-| `npm run build`         | Production bundle into `build/`                                              |
-| `npm run preview`       | Serves the built bundle locally                                              |
-| `npm test`              | App tests, once                                                              |
-| `npm run test:watch`    | App tests in watch mode                                                      |
-| `npm run test:data`     | Importer tests, on node's own test runner                                    |
-| `npm run test:db`       | Database tests on the local Supabase stack (needs Docker; erases local data) |
-| `npm run test:scripts`  | Tests for the helper scripts in `scripts/db`                                 |
-| `npm run data:template` | Writes the spreadsheet to edit                                               |
-| `npm run data:import`   | Applies an edited spreadsheet                                                |
+| Script                    | What it does                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `npm run dev`             | Dev server on http://localhost:3000                                          |
+| `npm run build`           | Production bundle into `build/`                                              |
+| `npm run preview`         | Serves the built bundle locally                                              |
+| `npm test`                | App tests, once                                                              |
+| `npm run test:watch`      | App tests in watch mode                                                      |
+| `npm run test:data`       | Importer tests, on node's own test runner                                    |
+| `npm run test:db`         | Database tests on the local Supabase stack (needs Docker; erases local data) |
+| `npm run test:db-scripts` | Tests for the helper scripts in `scripts/db`                                 |
+| `npm run data:template`   | Writes the spreadsheet to edit                                               |
+| `npm run data:import`     | Applies an edited spreadsheet                                                |
 
 ## Seeing the layout
 

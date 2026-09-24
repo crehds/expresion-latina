@@ -38,6 +38,19 @@ jobs:
       - name: Traer el repositorio
         uses: actions/checkout@v4
 
+      # Only for the helper-script unit tests below: they import node:assert
+      # and node:test directly and have no dependency on the installed
+      # packages, so this step runs no `npm ci` -- verified by reading
+      # scripts/db/__tests__/*.test.mjs, which imports only node builtins
+      # and sibling files under scripts/db/.
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Correr los tests de scripts/db
+        run: node --test scripts/db/__tests__/*.test.mjs
+
       # Pinned to the exact same CLI build `npm run test:db` uses locally
       # (scripts/db/test-db.mjs), so a pgTAP failure reproduces identically
       # in both places. Bump the version in both places together.

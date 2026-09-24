@@ -5,7 +5,7 @@ import {
   RESET_WARNING,
   exitCodeFor,
   spawnFailureMessage,
-} from '../test-db.mjs';
+} from '../test-db-lib.mjs';
 
 describe('spawnFailureMessage', () => {
   it('reports nothing when the child process actually ran', () => {
