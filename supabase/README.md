@@ -14,7 +14,8 @@ them are implemented.
 - Docker running -- the CLI needs it to start the local Postgres, Auth and
   storage stack
 - No separate CLI install: everything runs through `npx`, pinned to the
-  same version as CI (see the header comment in `scripts/db/test-db.mjs`)
+  same version as CI (see the `SUPABASE_CLI` comment in
+  `scripts/db/test-db-lib.mjs`)
 
 ## Bootstrapping
 
@@ -51,8 +52,33 @@ npx --yes supabase@2.117.0 stop
 
 `supabase/seed.sql` is synthetic local-only data: one privacy notice
 version and one fake member, on the RFC 6761 reserved `example.test`
-domain. It never contains real personal data, and `supabase db reset`
-(including `npm run test:db`) is the only thing that runs it.
+domain. It never contains real personal data. It runs whenever migrations
+are applied to a fresh or reset local database -- `supabase db reset`
+(including `npm run test:db`), or `supabase db start` the first time it
+initializes a brand new local Docker volume (the path CI relies on, since
+it never resets).
+
+## Email sign-up requires a consent version
+
+`private.handle_new_user` (the `auth.users` trigger, see
+`supabase/migrations/20260924130000_profiles_and_consent.sql`) rejects any
+`provider = 'email'` account whose sign-up metadata has no
+`consent_version` naming a row in `privacy_notice_versions`. A user
+created directly in the Supabase Studio dashboard, or invited by email,
+never sets that metadata, so the insert into `auth.users` is rejected and
+no account is created. This is intentional and the trigger is not an
+exception for it: consent has to be given in the app's own sign-up UI
+before an account can exist (Design D5).
+
+This means the **first admin has to sign up through the app** like any
+other member -- the sign-up form sends `consent_version` on their behalf
+-- and is then promoted with SQL, in the Supabase Studio SQL editor:
+
+```sql
+update public.profiles set is_admin = true where id = (
+  select id from auth.users where email = 'owner@example.com'
+);
+```
 
 ## What's here
 

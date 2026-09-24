@@ -1,7 +1,11 @@
 -- Synthetic local-only seed data. Never real personal data, and never
--- meant to run against a hosted/linked project: `supabase db reset`
--- (which `npm run test:db` and `supabase db start` on a fresh volume both
--- trigger) is the only thing that runs this file.
+-- meant to run against a hosted/linked project. It runs whenever
+-- migrations are applied to a fresh or reset local database: explicitly
+-- via `supabase db reset` (which `npm run test:db` always calls), or
+-- implicitly the first time `supabase db start` initializes a brand new
+-- local Docker volume (no prior migrations to have run) -- CI relies on
+-- this second path, since its stack is always freshly started, never
+-- reset.
 
 -- The migration that creates privacy_notice_versions already seeds this
 -- row (a valid version has to exist in every environment for sign-up to
