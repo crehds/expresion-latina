@@ -23,9 +23,30 @@ revoke all on public.privacy_notice_versions from public, anon, authenticated;
 -- at all -- it is part of the schema's contract, not sample data.
 insert into public.privacy_notice_versions (version) values ('2026-01-01');
 
+-- Single named source for the full_name length limit (PR1b review
+-- follow-up): the table CHECK, handle_new_user and record_consent all
+-- used the literal 120 independently before this, which is exactly the
+-- kind of duplication that drifts. Immutable so it is safe inside a CHECK
+-- constraint; pinned search_path and schema-qualification are cheap
+-- insurance even though the body never looks anything up.
+create function private.full_name_max_length()
+returns integer
+language sql
+immutable
+set search_path = ''
+as $$
+  select 120;
+$$;
+
+revoke execute on function private.full_name_max_length () from public, anon, authenticated;
+-- Needed by `authenticated`: a member's own full_name UPDATE (see
+-- profiles_update_full_name below) runs this CHECK as the calling role,
+-- not through a SECURITY DEFINER function, so it needs its own grant.
+grant execute on function private.full_name_max_length () to authenticated;
+
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
-  full_name text not null default '' check (char_length(full_name) <= 120),
+  full_name text not null default '' check (char_length(full_name) <= private.full_name_max_length ()),
   consent_version text references public.privacy_notice_versions (version),
   consent_at timestamptz,
   is_admin boolean not null default false
@@ -82,21 +103,26 @@ grant execute on function private.has_consent (uuid) to authenticated;
 revoke execute on function private.is_admin () from public, anon, authenticated;
 grant execute on function private.is_admin () to authenticated;
 
+-- Every function call in these policies is wrapped in its own `(select
+-- ...)` (PR1b review follow-up, Supabase RLS performance guidance): a bare
+-- call is re-evaluated per row, while wrapping it lets the planner treat
+-- it as an InitPlan evaluated once per statement. Purely a performance
+-- change -- the existing pgTAP suite is the behavior safety net.
 create policy profiles_select on public.profiles for select to authenticated using (
   id = (select auth.uid ())
-  or private.is_admin ()
+  or (select private.is_admin ())
 );
 
 create policy profiles_update_full_name on public.profiles
 for update
   to authenticated using (
     id = (select auth.uid ())
-    and private.has_consent ((select auth.uid ()))
+    and (select private.has_consent ((select auth.uid ())))
   )
 with
   check (
     id = (select auth.uid ())
-    and private.has_consent ((select auth.uid ()))
+    and (select private.has_consent ((select auth.uid ())))
   );
 
 -- Consent is given in the UI before any sign-in or sign-up starts (Design
@@ -129,8 +155,8 @@ begin
     end if;
 
     v_full_name := btrim(coalesce(new.raw_user_meta_data ->> 'full_name', ''));
-    if char_length(v_full_name) < 1 or char_length(v_full_name) > 120 then
-      raise exception 'full_name must be between 1 and 120 characters' using errcode = '22023';
+    if char_length(v_full_name) < 1 or char_length(v_full_name) > private.full_name_max_length () then
+      raise exception 'full_name must be between 1 and % characters', private.full_name_max_length () using errcode = '22023';
     end if;
 
     insert into public.profiles (id, full_name, consent_version, consent_at)
@@ -170,6 +196,7 @@ set search_path = ''
 as $$
 declare
   v_full_name text;
+  v_updated_rows int;
 begin
   if not exists (select 1 from public.privacy_notice_versions v where v.version = p_version) then
     raise exception 'unknown privacy notice version: %', p_version using errcode = '22023';
@@ -187,10 +214,19 @@ begin
     consent_version = p_version,
     consent_at = now(),
     full_name = case
-      when p.consent_at is null and coalesce(v_full_name, '') <> '' then left(v_full_name, 120)
+      when p.consent_at is null and coalesce(v_full_name, '') <> '' then left(v_full_name, private.full_name_max_length ())
       else p.full_name
     end
   where p.id = auth.uid ();
+
+  -- PR1b review follow-up (Finding 3): a caller with no profile row --
+  -- e.g. an auth user created before this migration existed -- must not
+  -- silently "succeed". The UPDATE above would otherwise just match zero
+  -- rows and return void as if consent had been recorded.
+  get diagnostics v_updated_rows = row_count;
+  if v_updated_rows = 0 then
+    raise exception 'no profile found for the current user' using errcode = 'P0002';
+  end if;
 end;
 $$;
 

@@ -1,29 +1,34 @@
 -- Catalog-wide privilege guard (Design: Database Security Contract, F6).
 --
 -- Runs unchanged in every later slice, over an explicit allowlist each
--- slice extends. At PR1a there are no tables and no SECURITY DEFINER
--- functions this project owns, so checks 5-7 hold against an empty
--- allowlist by default (check 7 enforces a fixed rule -- owner `postgres`,
--- `search_path` pinned empty -- and carries no allowlist of its own).
--- Checks 5b, 7-pos and 7b fixture a real case each, assert the guard's
--- own queries classify it correctly, then drop the fixture explicitly (a
--- SAVEPOINT/ROLLBACK here would also roll back pgTAP's own bookkeeping of
--- the test that just ran, which is exactly what a live run confirmed:
--- explicit DROP does not have that problem, and the outer `rollback;`
--- below still guarantees nothing this file creates survives it).
+-- slice extends. At PR1a the allowlists started empty (no tables and no
+-- SECURITY DEFINER functions this project owned yet); PR1b added real
+-- objects (`profiles`, `record_consent`, `private.is_admin`,
+-- `private.has_consent`, `private.full_name_max_length`), so checks 5, 6
+-- and 8 now hold against a non-empty allowlist (check 7 enforces a fixed
+-- rule -- owner `postgres`, `search_path` pinned empty -- and carries no
+-- allowlist of its own). Checks 5b, 6b, 7-pos, 7b, 8-pos and 8b fixture a
+-- real case each, assert the guard's own queries classify it correctly,
+-- then drop the fixture explicitly (a SAVEPOINT/ROLLBACK here would also
+-- roll back pgTAP's own bookkeeping of the test that just ran, which is
+-- exactly what a live run confirmed: explicit DROP does not have that
+-- problem, and the outer `rollback;` below still guarantees nothing this
+-- file creates survives it).
 begin;
 
-select plan(10);
+select plan(14);
 
 -- Shared guard queries, defined ONCE and reused by both the real checks
--- and their fixture checks below, so the two can never drift apart. Both
--- read ACLs from the catalogs (pg_class.relacl / pg_proc.proacl via
+-- and their fixture checks below, so the two can never drift apart. The
+-- ACL scans (tables/views, columns, functions) read straight from the
+-- catalogs (pg_class.relacl, pg_attribute.attacl, pg_proc.proacl via
 -- aclexplode) instead of information_schema, which only lists grants
 -- involving roles enabled for the current session and can miss grants
--- made by other grantors. aclexplode's grantee 0 is the PUBLIC pseudo-role.
--- Objects owned by an extension (pg_depend deptype = 'e') are excluded:
--- this project's own tables/functions are what the guard polices, not
--- whatever a future extension installs into these schemas.
+-- made by other grantors. aclexplode's grantee 0 is the PUBLIC
+-- pseudo-role. Objects owned by an extension (pg_depend deptype = 'e')
+-- are excluded from every scan here, ACL and definer-ownership alike:
+-- this project's own tables/functions/columns are what the guard
+-- polices, not whatever a future extension installs into these schemas.
 create function pg_temp.__catalog_table_grants()
 returns table (schema_name text, table_name text, grantee text, privilege text)
 language sql
@@ -40,6 +45,55 @@ as $fn$
     and (a.grantee = 0 or a.grantee::regrole::text in ('anon', 'authenticated'))
     and not exists (
       select 1 from pg_depend d where d.objid = c.oid and d.deptype = 'e'
+    )
+$fn$;
+
+-- Column-scoped grants (e.g. `grant update (full_name) ...`) live in
+-- pg_attribute.attacl, not pg_class.relacl -- the table-level scan above
+-- cannot see them at all. Any column grant to anon, authenticated or
+-- PUBLIC must appear in an explicit allowlist too (PR1b review
+-- follow-up, Finding 2): `profiles.full_name` UPDATE for `authenticated`
+-- is the only entry the Database Security Contract allows.
+create function pg_temp.__catalog_column_grants()
+returns table (schema_name text, table_name text, column_name text, grantee text, privilege text)
+language sql
+stable
+as $fn$
+  select n.nspname::text, c.relname::text, a.attname::text,
+         case when g.grantee = 0 then 'PUBLIC' else g.grantee::regrole::text end,
+         g.privilege_type::text
+  from pg_attribute a
+  join pg_class c on c.oid = a.attrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  cross join lateral aclexplode(a.attacl) as g
+  where n.nspname in ('public', 'private')
+    and a.attnum > 0
+    and not a.attisdropped
+    and a.attacl is not null
+    and (g.grantee = 0 or g.grantee::regrole::text in ('anon', 'authenticated'))
+    and not exists (
+      select 1 from pg_depend d where d.objid = c.oid and d.deptype = 'e'
+    )
+$fn$;
+
+-- Function EXECUTE grants held by anon or authenticated, for every
+-- function this project creates in `public` or `private`, must appear in
+-- an explicit allowlist. PUBLIC is covered implicitly: an EXECUTE grant
+-- to PUBLIC makes has_function_privilege true for every non-superuser
+-- role, including anon and authenticated, so it is caught here too.
+create function pg_temp.__catalog_function_grants()
+returns table (schema_name text, function_name text, grantee text)
+language sql
+stable
+as $fn$
+  select n.nspname::text, p.proname::text, roles.rolename::text
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  cross join (values ('anon'), ('authenticated')) as roles(rolename)
+  where n.nspname in ('public', 'private')
+    and has_function_privilege(roles.rolename, p.oid, 'EXECUTE')
+    and not exists (
+      select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e'
     )
 $fn$;
 
@@ -61,6 +115,9 @@ as $fn$
   join pg_roles o on o.oid = p.proowner
   where n.nspname in ('public', 'private')
     and p.prosecdef
+    and not exists (
+      select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e'
+    )
     and (
       o.rolname <> 'postgres'
       or not exists (
@@ -108,7 +165,7 @@ select is(
 -- its own Database Security Contract row requires. `profiles` UPDATE is
 -- column-scoped (`full_name` only, PR1b) and never appears here: column
 -- grants live in pg_attribute.attacl, which this table-level ACL scan
--- does not read -- only the table-wide SELECT grant shows up.
+-- does not read -- check 8 below reads those separately.
 select is(
   (
     with allowlist(schema_name, table_name, grantee, privilege) as (
@@ -164,36 +221,65 @@ drop table public.__catalog_guard_fixture;
 
 -- 6. EXECUTE privileges on functions in `public` or `private`, held by
 -- anon or authenticated, must appear in the same kind of explicit
--- allowlist. PUBLIC is covered implicitly: an EXECUTE grant to PUBLIC
--- makes has_function_privilege true for every non-superuser role,
--- including anon and authenticated, so it is caught here too.
--- Triangulation skipped: this is the same allowlist-membership shape as
--- check 5, already proven above against a real violation; no function
--- exists yet to fixture one without adding scope beyond this slice.
+-- allowlist. Reads through the shared pg_temp function above, which
+-- excludes extension-owned functions (pg_depend deptype = 'e') the same
+-- way check 5 does (PR1b review follow-up: an earlier revision of this
+-- file claimed the inline query already excluded them, which was false --
+-- it never read pg_depend at all). 6b fixtures a real violation the way
+-- 5b does.
 select is(
   (
     with allowlist(schema_name, function_name, grantee) as (
       values
         ('public', 'record_consent', 'authenticated'),
         ('private', 'is_admin', 'authenticated'),
-        ('private', 'has_consent', 'authenticated')
+        ('private', 'has_consent', 'authenticated'),
+        ('private', 'full_name_max_length', 'authenticated')
     )
     select count(*)::int
-    from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace
-    cross join (values ('anon'), ('authenticated')) as roles(rolename)
-    where n.nspname in ('public', 'private')
-      and has_function_privilege(roles.rolename, p.oid, 'EXECUTE')
-      and not exists (
-        select 1 from allowlist a
-        where a.schema_name = n.nspname
-          and a.function_name = p.proname
-          and a.grantee = roles.rolename
-      )
+    from pg_temp.__catalog_function_grants() g
+    where not exists (
+      select 1 from allowlist a
+      where a.schema_name = g.schema_name
+        and a.function_name = g.function_name
+        and a.grantee = g.grantee
+    )
   ),
   0,
   'no function EXECUTE grant to anon or authenticated falls outside the explicit allowlist'
 );
+
+-- 6b. Negative triangulation for check 6: a function granted EXECUTE
+-- outside the allowlist must be flagged.
+create function public.__catalog_guard_fixture_fn()
+returns void
+language sql
+as $fn$
+  select null::void;
+$fn$;
+grant execute on function public.__catalog_guard_fixture_fn () to anon;
+
+select is(
+  (
+    with allowlist(schema_name, function_name, grantee) as (
+      values (null::text, null::text, null::text)
+      limit 0
+    )
+    select count(*)::int
+    from pg_temp.__catalog_function_grants() g
+    where g.function_name = '__catalog_guard_fixture_fn'
+      and not exists (
+        select 1 from allowlist a
+        where a.schema_name = g.schema_name
+          and a.function_name = g.function_name
+          and a.grantee = g.grantee
+      )
+  ) > 0,
+  true,
+  'the guard flags a function EXECUTE grant that falls outside the allowlist'
+);
+
+drop function public.__catalog_guard_fixture_fn ();
 
 -- 7. Every SECURITY DEFINER function in `public` or `private` must be
 -- owned by postgres and pin search_path to empty (fixed rule, no
@@ -256,6 +342,87 @@ select is(
 );
 
 drop function private.__catalog_guard_bad_definer();
+
+-- 8. Column-level grants (pg_attribute.attacl), for every table this
+-- project creates in `public` or `private`, must appear in an explicit
+-- allowlist too. Check 5 only reads pg_class.relacl and cannot see these
+-- (PR1b review follow-up, Finding 2).
+select is(
+  (
+    with allowlist(schema_name, table_name, column_name, grantee, privilege) as (
+      values ('public', 'profiles', 'full_name', 'authenticated', 'UPDATE')
+    )
+    select count(*)::int
+    from pg_temp.__catalog_column_grants() g
+    where not exists (
+      select 1 from allowlist a
+      where a.schema_name = g.schema_name
+        and a.table_name = g.table_name
+        and a.column_name = g.column_name
+        and a.grantee = g.grantee
+        and a.privilege = g.privilege
+    )
+  ),
+  0,
+  'no column-level grant to anon, authenticated or PUBLIC falls outside the explicit allowlist'
+);
+
+-- 8-pos. Positive triangulation for check 8: a column grant that matches
+-- its own allowlist entry exactly must NOT be flagged.
+create table public.__catalog_guard_column_fixture_pos (id int, secret text);
+grant update (secret) on public.__catalog_guard_column_fixture_pos to authenticated;
+
+select is(
+  (
+    with allowlist(schema_name, table_name, column_name, grantee, privilege) as (
+      values ('public', '__catalog_guard_column_fixture_pos', 'secret', 'authenticated', 'UPDATE')
+    )
+    select count(*)::int
+    from pg_temp.__catalog_column_grants() g
+    where g.table_name = '__catalog_guard_column_fixture_pos'
+      and not exists (
+        select 1 from allowlist a
+        where a.schema_name = g.schema_name
+          and a.table_name = g.table_name
+          and a.column_name = g.column_name
+          and a.grantee = g.grantee
+          and a.privilege = g.privilege
+      )
+  ),
+  0,
+  'the guard does not flag a column grant that matches its own allowlist entry'
+);
+
+drop table public.__catalog_guard_column_fixture_pos;
+
+-- 8b. Negative triangulation for check 8: a widened column grant that is
+-- NOT in the allowlist must be flagged.
+create table public.__catalog_guard_column_fixture_neg (id int, secret text);
+grant update (secret) on public.__catalog_guard_column_fixture_neg to anon;
+
+select is(
+  (
+    with allowlist(schema_name, table_name, column_name, grantee, privilege) as (
+      values (null::text, null::text, null::text, null::text, null::text)
+      limit 0
+    )
+    select count(*)::int
+    from pg_temp.__catalog_column_grants() g
+    where g.table_name = '__catalog_guard_column_fixture_neg'
+      and not exists (
+        select 1 from allowlist a
+        where a.schema_name = g.schema_name
+          and a.table_name = g.table_name
+          and a.column_name = g.column_name
+          and a.grantee = g.grantee
+          and a.privilege = g.privilege
+      )
+  ) > 0,
+  true,
+  'the guard flags a column grant that falls outside the allowlist'
+);
+
+drop table public.__catalog_guard_column_fixture_neg;
 
 select * from finish();
 

@@ -15,10 +15,8 @@
 -- in the same transaction to switch identity between scenarios.
 begin;
 
-select plan(22);
+select plan(34);
 
--- The version the migration seeds (Design D5.1: "A migration seeds
--- privacy_notice_versions, no personal data").
 -- Member A signs up by email with consent given at sign-up; member B
 -- signs up through Google, so its profile starts PENDING.
 insert into auth.users (
@@ -109,6 +107,35 @@ select throws_ok(
   '22023',
   null,
   'sign-up through an unrecognized provider is rejected'
+);
+
+-- PR1b review follow-up (whole-branch review): the full_name bounds
+-- (1-120 chars after trimming, private.full_name_max_length()) are
+-- enforced on email sign-up too, not just the table CHECK.
+select throws_ok(
+  $$insert into auth.users (
+      id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+    ) values (
+      gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+      'blank-name@example.com', '{"provider":"email","providers":["email"]}',
+      '{"full_name":"   ","consent_version":"2026-01-01"}', now(), now()
+    )$$,
+  '22023',
+  null,
+  'email sign-up with a full_name that is blank after trimming is rejected'
+);
+
+select throws_ok(
+  $$insert into auth.users (
+      id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+    ) values (
+      gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+      'long-name@example.com', '{"provider":"email","providers":["email"]}',
+      ('{"full_name":"' || repeat('x', 121) || '","consent_version":"2026-01-01"}')::jsonb, now(), now()
+    )$$,
+  '22023',
+  null,
+  'email sign-up with a full_name over 120 characters is rejected'
 );
 
 -- private.has_consent() reads member B's still-pending state directly
@@ -216,20 +243,143 @@ select is(
   'has_consent turns true once record_consent has run'
 );
 select ok(
-  (select now() - consent_at < interval '10 seconds' from public.profiles where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+  (select consent_at = now() from public.profiles where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
   'record_consent stamps consent_at with the server clock'
 );
 
+-- A DIFFERENT value than what record_consent already copied in, so a
+-- blocked UPDATE (bug) would leave the old value and fail this assertion
+-- instead of passing vacuously (PR1b review follow-up, Finding 1).
 update public.profiles
 set
-  full_name = 'Member B'
+  full_name = 'Member B Updated'
 where
   id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 
 select is(
   (select full_name from public.profiles where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
-  'Member B',
+  'Member B Updated',
   'updating full_name succeeds once consent is recorded'
+);
+
+-- PR1b review follow-up (Finding 2): the column-scoped grant
+-- (`grant update (full_name) ... to authenticated`) is the only UPDATE
+-- privilege a member has on their own row -- is_admin, consent_version
+-- and consent_at all raise insufficient_privilege before RLS even runs.
+select throws_ok(
+  $$update public.profiles set is_admin = true where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'$$,
+  '42501',
+  null,
+  'a consented member cannot update is_admin on their own row'
+);
+select throws_ok(
+  $$update public.profiles set consent_version = '2026-01-01' where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'$$,
+  '42501',
+  null,
+  'a consented member cannot update consent_version on their own row'
+);
+select throws_ok(
+  $$update public.profiles set consent_at = now() where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'$$,
+  '42501',
+  null,
+  'a consented member cannot update consent_at on their own row'
+);
+
+reset role;
+
+-- PR1b review follow-up (Finding 3): record_consent must not silently
+-- succeed when it has no profile row to update -- e.g. an auth user
+-- created before this migration existed. Simulate that by deleting the
+-- profile a normal sign-up just created, then calling record_consent as
+-- that user.
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'member-e@example.com',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Member E","consent_version":"2026-01-01"}', now(), now()
+);
+
+delete from public.profiles where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee","role":"authenticated"}';
+
+select throws_ok(
+  $$select public.record_consent('2026-01-01')$$,
+  'P0002',
+  null,
+  'record_consent raises when the caller has no profile row'
+);
+
+reset role;
+
+-- PR1b review follow-up (Finding 4a): admin branch of profiles_select
+-- (Design Database Security Contract, F2). private.is_admin() requires a
+-- recorded consent, so an admin flag alone is not enough.
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'ffffffff-ffff-ffff-ffff-ffffffffffff', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'pending-admin@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{"full_name":"Pending Admin"}', now(), now()
+);
+update public.profiles set is_admin = true where id = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"ffffffff-ffff-ffff-ffff-ffffffffffff","role":"authenticated"}';
+
+select is(
+  (select count(*)::int from public.profiles where id <> 'ffffffff-ffff-ffff-ffff-ffffffffffff'),
+  0,
+  'an admin without recorded consent cannot see other members'' rows'
+);
+
+reset role;
+
+update public.profiles set is_admin = true where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}';
+
+select is(
+  (select count(*)::int from public.profiles where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+  1,
+  'a consented admin can see another member''s profile row'
+);
+
+reset role;
+
+update public.profiles set is_admin = false where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+-- PR1b review follow-up (Finding 4b): re-consent (Design D5.6) updates
+-- consent_version and consent_at, and keeps the full_name the member
+-- already has -- record_consent only fills the name in from auth.users
+-- the first time (profile still pending).
+insert into public.privacy_notice_versions (version) values ('2026-06-01');
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}';
+
+select lives_ok(
+  $$select public.record_consent('2026-06-01')$$,
+  're-consenting to a newer notice version succeeds'
+);
+select is(
+  (select consent_version from public.profiles where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+  '2026-06-01',
+  're-consent updates consent_version to the newer notice version'
+);
+select ok(
+  (select consent_at = now() from public.profiles where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+  're-consent stamps consent_at again with the server clock'
+);
+select is(
+  (select full_name from public.profiles where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+  'Member C',
+  're-consent does not overwrite an already-set full_name'
 );
 
 reset role;
