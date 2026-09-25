@@ -13,7 +13,7 @@
 -- guarantees nothing this file creates survives it.
 begin;
 
-select plan(37);
+select plan(41);
 
 -- Admin (flipped after insert, same as profiles_consent.test.sql), plus six
 -- members: member_x carries the CRUD and self-write-rejected scenarios;
@@ -251,6 +251,35 @@ select throws_ok(
   '23514',
   null,
   'a period one day over 5 years is rejected'
+);
+
+-- Reversed range rejected (paid_periods_ordered CHECK): before this
+-- constraint existed, a reversed range only failed inside daterange()
+-- when the EXCLUDE constraint below built its index entry, with a
+-- generic data_exception (22000) instead of a clear check_violation.
+select throws_ok(
+  $$insert into public.paid_periods (member_id, starts_on, ends_on) values ('a0000000-0000-0000-0000-000000000005', '2035-06-20', '2035-06-10')$$,
+  '23514',
+  null,
+  'inserting a period with ends_on before starts_on is rejected'
+);
+
+select lives_ok(
+  $$insert into public.paid_periods (member_id, starts_on, ends_on) values ('a0000000-0000-0000-0000-000000000005', '2035-06-10', '2035-06-10')$$,
+  'a one-day period (ends_on = starts_on) is accepted'
+);
+
+select throws_ok(
+  $$update public.paid_periods set ends_on = '2035-06-09' where member_id = 'a0000000-0000-0000-0000-000000000005' and starts_on = '2035-06-10'$$,
+  '23514',
+  null,
+  'correcting a period to move ends_on before starts_on is rejected'
+);
+
+select is(
+  (select ends_on from public.paid_periods where member_id = 'a0000000-0000-0000-0000-000000000005' and starts_on = '2035-06-10'),
+  '2035-06-10'::date,
+  'the rejected correction leaves ends_on unchanged'
 );
 
 reset role;

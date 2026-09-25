@@ -15,7 +15,7 @@
 -- in the same transaction to switch identity between scenarios.
 begin;
 
-select plan(39);
+select plan(41);
 
 -- Member A signs up by email with consent given at sign-up; member B
 -- signs up through Google, so its profile starts PENDING.
@@ -260,6 +260,26 @@ select is(
   (select full_name from public.profiles where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
   'Member B Updated',
   'updating full_name succeeds once consent is recorded'
+);
+
+-- Blank-after-trim is rejected on self-update too: sign-up already
+-- enforces the same 1-character floor via handle_new_user, but nothing
+-- previously stopped a consented member from blanking their own name
+-- here. The table CHECK stays untouched on purpose -- a pending Google
+-- profile legitimately holds '', and record_consent keeps '' when
+-- Google's own metadata has no name, so a table-level floor would break
+-- consent.
+select throws_ok(
+  $$update public.profiles set full_name = '   ' where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'$$,
+  '42501',
+  null,
+  'a consented member cannot blank their own full_name on self-update'
+);
+
+select is(
+  (select full_name from public.profiles where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+  'Member B Updated',
+  'the rejected blank-name update leaves full_name unchanged'
 );
 
 -- PR1b review follow-up (Finding 2): the column-scoped grant

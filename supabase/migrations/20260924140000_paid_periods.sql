@@ -6,9 +6,10 @@
 -- Every table and SECURITY DEFINER function created here ends with an
 -- explicit `revoke ... from public, anon, authenticated`, then grants only
 -- what the Database Security Contract lists (see
--- 20260924130000_profiles_and_consent.sql for why the revoke is needed
--- even though Supabase never granted anything through this project's own
--- migrations before).
+-- 20260924130000_profiles_and_consent.sql: Supabase's own default
+-- privileges already hand anon/authenticated/service_role full DML and
+-- EXECUTE on anything a migration creates, so skipping the revoke would
+-- silently over-grant).
 
 -- daterange's own GiST opclass already handles the `&&` overlap operator;
 -- btree_gist adds a GiST opclass for `=` on scalar types (here, `member_id
@@ -43,6 +44,14 @@ create table public.paid_periods (
   member_id uuid not null references public.profiles (id) on delete cascade,
   starts_on date not null,
   ends_on date not null,
+  -- A reversed range (ends_on before starts_on) used to reach no explicit
+  -- CHECK at all: it only failed inside daterange() when the EXCLUDE
+  -- constraint below built its index entry, with a generic data_exception
+  -- (22000) instead of a clear, catchable check_violation. CHECK
+  -- constraints are evaluated before a row ever reaches index insertion,
+  -- so this always fires first, with the standard 23514 code; a one-day
+  -- period (ends_on = starts_on) is still allowed.
+  constraint paid_periods_ordered check (ends_on >= starts_on),
   -- Catches typos (a stray extra digit turning a month into decades), not a
   -- product limit (Design D3). A literal interval, not a named function:
   -- Postgres checks EXECUTE on any function a CHECK constraint calls, for
@@ -89,9 +98,10 @@ create policy paid_periods_select on public.paid_periods for select to authentic
 
 -- An admin can only record a period for a member who has accepted the
 -- privacy notice. Without this check, a payment could be attached to a
--- pending account that gets deleted automatically about 23 hours after
--- creation, before the person ever confirms they want an account at
--- all -- a payment can never exist for an account that cannot hold one.
+-- pending account that the pending-consent purge (PR3) deletes
+-- automatically if the person never accepts, before they ever confirm
+-- they want an account at all -- a payment can never exist for an
+-- account that cannot hold one.
 -- private.has_consent(member_id) is called directly, not wrapped in a
 -- `(select ...)` InitPlan: it depends on the row being inserted, not on
 -- a value fixed for the whole statement, so it must be evaluated per

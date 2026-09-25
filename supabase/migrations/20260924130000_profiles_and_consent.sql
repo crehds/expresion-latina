@@ -124,6 +124,14 @@ with
   check (
     id = (select auth.uid ())
     and (select private.has_consent ((select auth.uid ())))
+    -- Blank-after-trim is rejected on self-update too: sign-up already
+    -- enforces the same 1-character floor via handle_new_user, but
+    -- nothing previously stopped a consented member from blanking their
+    -- own name here. The table CHECK stays untouched on purpose -- a
+    -- pending Google profile legitimately holds '', and record_consent
+    -- keeps '' when Google's own metadata has no name, so a table-level
+    -- floor would break consent.
+    and char_length(btrim(full_name)) >= 1
   );
 
 -- Consent is given in the UI before any sign-in or sign-up starts (Design
