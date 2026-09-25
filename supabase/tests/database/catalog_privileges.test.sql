@@ -169,7 +169,10 @@ select is(
 select is(
   (
     with allowlist(schema_name, table_name, grantee, privilege) as (
-      values ('public', 'profiles', 'authenticated', 'SELECT')
+      values
+        ('public', 'profiles', 'authenticated', 'SELECT'),
+        ('public', 'paid_periods', 'authenticated', 'SELECT'),
+        ('public', 'paid_periods', 'authenticated', 'DELETE')
     )
     select count(*)::int
     from pg_temp.__catalog_table_grants() g
@@ -232,6 +235,7 @@ select is(
     with allowlist(schema_name, function_name, grantee) as (
       values
         ('public', 'record_consent', 'authenticated'),
+        ('public', 'admin_search_members', 'authenticated'),
         ('private', 'is_admin', 'authenticated'),
         ('private', 'has_consent', 'authenticated')
     )
@@ -349,7 +353,13 @@ drop function private.__catalog_guard_bad_definer();
 select is(
   (
     with allowlist(schema_name, table_name, column_name, grantee, privilege) as (
-      values ('public', 'profiles', 'full_name', 'authenticated', 'UPDATE')
+      values
+        ('public', 'profiles', 'full_name', 'authenticated', 'UPDATE'),
+        ('public', 'paid_periods', 'member_id', 'authenticated', 'INSERT'),
+        ('public', 'paid_periods', 'starts_on', 'authenticated', 'INSERT'),
+        ('public', 'paid_periods', 'ends_on', 'authenticated', 'INSERT'),
+        ('public', 'paid_periods', 'starts_on', 'authenticated', 'UPDATE'),
+        ('public', 'paid_periods', 'ends_on', 'authenticated', 'UPDATE')
     )
     select count(*)::int
     from pg_temp.__catalog_column_grants() g
