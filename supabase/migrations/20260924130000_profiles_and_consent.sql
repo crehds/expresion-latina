@@ -23,12 +23,11 @@ revoke all on public.privacy_notice_versions from public, anon, authenticated;
 -- at all -- it is part of the schema's contract, not sample data.
 insert into public.privacy_notice_versions (version) values ('2026-01-01');
 
--- Single named source for the full_name length limit (PR1b review
--- follow-up): the table CHECK, handle_new_user and record_consent all
--- used the literal 120 independently before this, which is exactly the
--- kind of duplication that drifts. Immutable so it is safe inside a CHECK
--- constraint; pinned search_path and schema-qualification are cheap
--- insurance even though the body never looks anything up.
+-- Single named source for the full_name length limit, called by
+-- handle_new_user and record_consent below. The table CHECK on
+-- public.profiles uses a literal instead of calling this function (see
+-- the comment there); pinned search_path and schema-qualification are
+-- cheap insurance even though the body never looks anything up.
 create function private.full_name_max_length()
 returns integer
 language sql
@@ -39,14 +38,16 @@ as $$
 $$;
 
 revoke execute on function private.full_name_max_length () from public, anon, authenticated;
--- Needed by `authenticated`: a member's own full_name UPDATE (see
--- profiles_update_full_name below) runs this CHECK as the calling role,
--- not through a SECURITY DEFINER function, so it needs its own grant.
-grant execute on function private.full_name_max_length () to authenticated;
 
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
-  full_name text not null default '' check (char_length(full_name) <= private.full_name_max_length ()),
+  -- Literal, not private.full_name_max_length (): Postgres checks EXECUTE
+  -- on any function a CHECK constraint calls, for every role that writes
+  -- to this table, including service_role, which has no EXECUTE on it.
+  -- The function above stays the source of truth for the plpgsql bodies
+  -- below; profiles_consent.test.sql has a drift test tying the literal
+  -- and the function together.
+  full_name text not null default '' check (char_length(full_name) <= 120),
   consent_version text references public.privacy_notice_versions (version),
   consent_at timestamptz,
   is_admin boolean not null default false

@@ -4,10 +4,10 @@
 -- slice extends. At PR1a the allowlists started empty (no tables and no
 -- SECURITY DEFINER functions this project owned yet); PR1b added real
 -- objects (`profiles`, `record_consent`, `private.is_admin`,
--- `private.has_consent`, `private.full_name_max_length`), so checks 5, 6
--- and 8 now hold against a non-empty allowlist (check 7 enforces a fixed
--- rule -- owner `postgres`, `search_path` pinned empty -- and carries no
--- allowlist of its own). Checks 5b, 6b, 7-pos, 7b, 8-pos and 8b fixture a
+-- `private.has_consent`), so checks 5, 6 and 8 now hold against a
+-- non-empty allowlist (check 7 enforces a fixed rule -- owner
+-- `postgres`, `search_path` pinned empty -- and carries no allowlist of
+-- its own). Checks 5b, 6b, 7-pos, 7b, 8-pos and 8b fixture a
 -- real case each, assert the guard's own queries classify it correctly,
 -- then drop the fixture explicitly (a SAVEPOINT/ROLLBACK here would also
 -- roll back pgTAP's own bookkeeping of the test that just ran, which is
@@ -233,8 +233,7 @@ select is(
       values
         ('public', 'record_consent', 'authenticated'),
         ('private', 'is_admin', 'authenticated'),
-        ('private', 'has_consent', 'authenticated'),
-        ('private', 'full_name_max_length', 'authenticated')
+        ('private', 'has_consent', 'authenticated')
     )
     select count(*)::int
     from pg_temp.__catalog_function_grants() g

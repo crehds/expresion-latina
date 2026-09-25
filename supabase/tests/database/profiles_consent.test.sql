@@ -15,7 +15,7 @@
 -- in the same transaction to switch identity between scenarios.
 begin;
 
-select plan(34);
+select plan(39);
 
 -- Member A signs up by email with consent given at sign-up; member B
 -- signs up through Google, so its profile starts PENDING.
@@ -383,6 +383,61 @@ select is(
 );
 
 reset role;
+
+-- Bugfix regression: the full_name CHECK used to call a function, and
+-- Postgres checks EXECUTE on that function for whichever role performs
+-- the INSERT/UPDATE. service_role keeps Supabase's default table privileges
+-- on profiles (this migration only revokes from public, anon,
+-- authenticated) and bypasses RLS, so before the fix ANY write to
+-- profiles as service_role failed with 42501 (permission denied for
+-- function full_name_max_length), even one that never touches full_name.
+set local role service_role;
+
+select lives_ok(
+  $$update public.profiles set is_admin = true where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
+  'service_role can update a profile row'
+);
+
+select is(
+  (select is_admin from public.profiles where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  true,
+  'service_role''s update actually changed the row'
+);
+
+reset role;
+
+-- Drift guard: the table CHECK hardcodes the length limit as a literal
+-- (a function call in a CHECK needs EXECUTE for every writing role,
+-- which is what the bug above was), while handle_new_user and
+-- record_consent keep calling private.full_name_max_length(). This
+-- proves the literal still matches the function's value instead of the
+-- two silently drifting apart. Runs as postgres (the owner role, which
+-- the CHECK is evaluated for here too): the boundary value is built
+-- while still postgres because service_role/authenticated have no
+-- EXECUTE on the function.
+select lives_ok(
+  format(
+    $$update public.profiles set full_name = %L where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
+    repeat('x', private.full_name_max_length ())
+  ),
+  'a full_name at the maximum length is accepted'
+);
+
+select is(
+  (select char_length(full_name) from public.profiles where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  private.full_name_max_length (),
+  'the stored full_name is exactly the maximum length'
+);
+
+select throws_ok(
+  format(
+    $$update public.profiles set full_name = %L where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
+    repeat('x', private.full_name_max_length () + 1)
+  ),
+  '23514',
+  null,
+  'a full_name one character over the maximum length is rejected'
+);
 
 select * from finish();
 
