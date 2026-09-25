@@ -13,7 +13,7 @@
 -- guarantees nothing this file creates survives it.
 begin;
 
-select plan(27);
+select plan(37);
 
 -- Admin (flipped after insert, same as profiles_consent.test.sql), plus six
 -- members: member_x carries the CRUD and self-write-rejected scenarios;
@@ -340,6 +340,137 @@ select is(
   (select count(*)::int from public.admin_search_members('_', 50)),
   0,
   '_ is matched as a literal character, not a wildcard'
+);
+
+reset role;
+
+-- ============================================================
+-- Group 6: Correcting Paid Periods -- status follows the corrected
+-- period, read through admin_search_members (Spec: Correcting Paid
+-- Periods, "the member's status MUST be evaluated against the corrected
+-- period"). One member is followed through record -> correct -> delete
+-- so every assertion proves status is recomputed from the CURRENT row,
+-- not read from a second, uncorrected fixture. `(now() at time zone
+-- 'America/Lima')::date` duplicates private.lima_today()'s own
+-- expression: that function is granted to nobody (Design), so it cannot
+-- be called while impersonating the admin the way this group does -- the
+-- plain expression needs no grant and is stable within one transaction,
+-- same as the function.
+-- ============================================================
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'a0000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'pp-member-v@example.com',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Member V","consent_version":"2026-01-01"}', now(), now()
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+insert into public.paid_periods (member_id, starts_on, ends_on) values (
+  'a0000000-0000-0000-0000-000000000008',
+  (now() at time zone 'America/Lima')::date - 5,
+  (now() at time zone 'America/Lima')::date + 30
+);
+
+select is(
+  (select is_active from public.admin_search_members('pp-member-v', 50) limit 1),
+  true,
+  'the member is active while their recorded period covers today'
+);
+
+select is(
+  (select paid_until from public.admin_search_members('pp-member-v', 50) limit 1),
+  (select ends_on from public.paid_periods where member_id = 'a0000000-0000-0000-0000-000000000008'),
+  'paid_until matches the original period end date'
+);
+
+update public.paid_periods
+set
+  ends_on = (now() at time zone 'America/Lima')::date - 1
+where
+  member_id = 'a0000000-0000-0000-0000-000000000008';
+
+select is(
+  (select is_active from public.admin_search_members('pp-member-v', 50) limit 1),
+  false,
+  'after the admin shortens the period to end before today, status flips to inactive immediately'
+);
+
+select is(
+  (select paid_until from public.admin_search_members('pp-member-v', 50) limit 1),
+  (select ends_on from public.paid_periods where member_id = 'a0000000-0000-0000-0000-000000000008'),
+  'paid_until follows the corrected end date, not the original one'
+);
+
+delete from public.paid_periods
+where
+  member_id = 'a0000000-0000-0000-0000-000000000008';
+
+select is(
+  (select count(*)::int from public.admin_search_members('pp-member-v', 50)),
+  1,
+  'the member still appears in the directory after their only recorded period is deleted'
+);
+
+select is(
+  (select paid_until from public.admin_search_members('pp-member-v', 50) limit 1),
+  null::date,
+  'paid_until is null once no period remains'
+);
+
+select is(
+  (select is_active from public.admin_search_members('pp-member-v', 50) limit 1),
+  false,
+  'is_active is false once no period remains'
+);
+
+reset role;
+
+-- ============================================================
+-- Group 7: the member directory lists consented members only. A pending
+-- account (created by Google sign-in before the person accepts the
+-- privacy notice) has no recorded consent, is deleted automatically
+-- about 23 hours after creation if that never changes (PR3), and would
+-- otherwise expose the email of someone who never agreed to anything.
+-- ============================================================
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'a0000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'pp-pending-google@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{"full_name":"Pending Visitor"}', now(), now()
+);
+
+select is(
+  (select consent_at from public.profiles where id = 'a0000000-0000-0000-0000-000000000009'),
+  null::timestamptz,
+  'the fixture is a pending account with no recorded consent'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select is(
+  (select count(*)::int from public.admin_search_members('pp-pending-google', 50)),
+  0,
+  'a pending account with no recorded consent is invisible to the directory even when its email matches'
+);
+
+-- ============================================================
+-- Group 8: the same owner decision also gates payments -- an admin
+-- cannot record a paid period for a member who has not consented, so a
+-- payment can never be attached to an account the hourly purge (PR3) is
+-- about to delete.
+-- ============================================================
+select throws_ok(
+  $$insert into public.paid_periods (member_id, starts_on, ends_on) values ('a0000000-0000-0000-0000-000000000009', '2026-01-01', '2026-01-31')$$,
+  '42501',
+  null,
+  'an admin cannot record a paid period for a member who has not recorded consent'
 );
 
 reset role;

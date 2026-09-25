@@ -87,9 +87,21 @@ create policy paid_periods_select on public.paid_periods for select to authentic
   or (select private.is_admin ())
 );
 
+-- An admin can only record a period for a member who has accepted the
+-- privacy notice. Without this check, a payment could be attached to a
+-- pending account that gets deleted automatically about 23 hours after
+-- creation, before the person ever confirms they want an account at
+-- all -- a payment can never exist for an account that cannot hold one.
+-- private.has_consent(member_id) is called directly, not wrapped in a
+-- `(select ...)` InitPlan: it depends on the row being inserted, not on
+-- a value fixed for the whole statement, so it must be evaluated per
+-- row. This policy only constrains client roles acting as
+-- `authenticated`; service_role bypasses row level security entirely
+-- and remains a trusted backend path outside every policy in this file.
 create policy paid_periods_admin_insert on public.paid_periods for insert to authenticated
 with check (
   (select private.is_admin ())
+  and private.has_consent (member_id)
 );
 
 create policy paid_periods_admin_update on public.paid_periods
@@ -142,12 +154,23 @@ begin
   join auth.users u on u.id = p.id
   left join public.paid_periods pp on pp.member_id = p.id
   where
-    -- position(), not ilike: '%' and '_' in q are literal characters here,
-    -- never SQL LIKE wildcards (Design Interfaces). Case-insensitive on
-    -- both sides for a forgiving directory search -- the "not a wildcard"
-    -- rule only concerns the two LIKE metacharacters themselves.
-    position(lower(q) in lower(p.full_name)) > 0
-    or position(lower(q) in lower(u.email)) > 0
+    (
+      -- position(), not ilike: '%' and '_' in q are literal characters
+      -- here, never SQL LIKE wildcards (Design Interfaces). Case-
+      -- insensitive on both sides for a forgiving directory search -- the
+      -- "not a wildcard" rule only concerns the two LIKE metacharacters
+      -- themselves.
+      position(lower(q) in lower(p.full_name)) > 0
+      or position(lower(q) in lower(u.email)) > 0
+    )
+    -- The directory lists consented members only. A pending account
+    -- (created by Google sign-in before the person accepts the privacy
+    -- notice) has no recorded consent, gets deleted automatically about
+    -- 23 hours after it is created if that never changes, and would
+    -- otherwise expose the email of someone who never agreed to
+    -- anything. The member becomes searchable the moment they accept the
+    -- notice on their next sign-in.
+    and p.consent_at is not null
   group by
     p.id,
     p.full_name,
