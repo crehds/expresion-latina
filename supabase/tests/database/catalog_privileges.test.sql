@@ -238,6 +238,7 @@ select is(
       values
         ('public', 'record_consent', 'authenticated'),
         ('public', 'admin_search_members', 'authenticated'),
+        ('public', 'delete_my_account', 'authenticated'),
         ('private', 'is_admin', 'authenticated'),
         ('private', 'has_consent', 'authenticated'),
         ('private', 'can_confirm', 'authenticated')
