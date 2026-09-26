@@ -21,7 +21,7 @@
 -- 'America/Lima')::date`, instead (Gotcha, PR2a corrective re-run).
 begin;
 
-select plan(25);
+select plan(40);
 
 insert into auth.users (
   id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -146,7 +146,7 @@ insert into public.attendance_confirmations (
 select is(
   (select starts_at from public.attendance_confirmations where genre_id = 'salsa' and room_key = 'room-a'),
   '2026-10-05 14:00:00-05:00'::timestamptz,
-  'the starts_at trigger computes the Lima wall-clock instant for an evening class'
+  'the starts_at trigger computes the Lima wall-clock instant for an afternoon class'
 );
 
 insert into public.attendance_confirmations (
@@ -424,6 +424,197 @@ select is(
 );
 
 reset role;
+
+-- ============================================================
+-- Group 12: Confirm Attendance -- the confirm_own window bounds,
+-- isolated for an authenticated member (Design D2). member_a is active,
+-- consented and covered from today-5 through today+30, so every other
+-- clause of confirm_own and private.can_confirm holds for every case
+-- below -- only the window bound under test can fail. now() is constant
+-- for the whole transaction, and America/Lima has no DST, so "yesterday"
+-- and "day+7/day+8 at 00:00" hold regardless of when the suite runs.
+-- ============================================================
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"b0000000-0000-0000-0000-000000000002","role":"authenticated"}';
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date - 1, '19:00', '20:00', 'salsa', 'studio-already-started', 'Salsa', 'Studio Already Started')$$,
+  '42501',
+  null,
+  'an active, consented, covered member cannot confirm a class that already started yesterday'
+);
+
+select lives_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date + 7, '00:00', '01:00', 'salsa', 'studio-edge-day7', 'Salsa', 'Studio Edge Day 7')$$,
+  'confirming a class exactly at the 7-day upper boundary (day+7 at 00:00 Lima) is accepted'
+);
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date + 8, '00:00', '01:00', 'salsa', 'studio-edge-day8', 'Salsa', 'Studio Edge Day 8')$$,
+  '42501',
+  null,
+  'confirming a class just past the 7-day upper boundary (day+8 at 00:00 Lima) is rejected'
+);
+
+reset role;
+
+-- ============================================================
+-- Group 13: private.can_confirm's "active today" clause, isolated
+-- (Design D4). member_g is consented and holds a paid period that COVERS
+-- a class five days out but has not STARTED yet -- the mirror image of
+-- member_d (Group 5), who is active today but not covered by their own
+-- period. Proves "active today" is checked independently of "covered",
+-- not implied by it.
+-- ============================================================
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'b0000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'ac-member-g@example.com',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Member G","consent_version":"2026-01-01"}', now(), now()
+);
+
+insert into public.paid_periods (member_id, starts_on, ends_on, recorded_by) values (
+  'b0000000-0000-0000-0000-000000000008',
+  private.lima_today () + 3,
+  private.lima_today () + 10,
+  'b0000000-0000-0000-0000-000000000001'
+);
+
+select is(
+  (select starts_on > private.lima_today () from public.paid_periods where member_id = 'b0000000-0000-0000-0000-000000000008'),
+  true,
+  'member_g''s only paid period has not started yet, so they are not active today'
+);
+
+select is(
+  (select starts_on <= private.lima_today () + 5 and ends_on >= private.lima_today () + 5 from public.paid_periods where member_id = 'b0000000-0000-0000-0000-000000000008'),
+  true,
+  'member_g''s period does cover the target class date, so the fixture isolates the active-today clause'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"b0000000-0000-0000-0000-000000000008","role":"authenticated"}';
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date + 5, '19:00', '20:00', 'salsa', 'studio-not-active-yet', 'Salsa', 'Studio Not Active Yet')$$,
+  '42501',
+  null,
+  'a member whose period covers the class date but has not started yet cannot confirm'
+);
+
+reset role;
+
+select is(
+  private.can_confirm ('b0000000-0000-0000-0000-000000000008', private.lima_today () + 5),
+  false,
+  'can_confirm is false when the period covers the class date but the member is not active today'
+);
+
+-- ============================================================
+-- Group 14: input CHECK constraints on the client-supplied occurrence
+-- columns (Design D2: the database never validates the schedule itself,
+-- only the shape of what the client sends). Inserted directly as
+-- postgres so each CHECK is isolated from RLS and grants -- these
+-- constraints bind service_role and every other writer too, not just
+-- authenticated.
+-- ============================================================
+select throws_ok(
+  $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ('b0000000-0000-0000-0000-000000000002', '2026-11-01', '19:00', '20:00', 'SALSA', 'studio-check-1', 'Salsa', 'Studio Check 1')$$,
+  '23514',
+  null,
+  'an uppercase genre_id violates the slug format check'
+);
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ('b0000000-0000-0000-0000-000000000002', '2026-11-01', '19:00', '20:00', '', 'studio-check-2', 'Salsa', 'Studio Check 2')$$,
+  '23514',
+  null,
+  'an empty genre_id violates the length bound'
+);
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ('b0000000-0000-0000-0000-000000000002', '2026-11-01', '19:00', '20:00', 'salsa', repeat('a', 61), 'Salsa', 'Studio Check 3')$$,
+  '23514',
+  null,
+  'a 61-character room_key violates the length bound'
+);
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ('b0000000-0000-0000-0000-000000000002', '2026-11-01', '19:00', '20:00', 'salsa', 'studio-check-4', repeat('a', 121), 'Studio Check 4')$$,
+  '23514',
+  null,
+  'a 121-character genre_name violates the length bound'
+);
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ('b0000000-0000-0000-0000-000000000002', '2026-11-01', '19:00', '20:00', 'salsa', 'studio-check-5', 'Salsa', repeat('a', 121))$$,
+  '23514',
+  null,
+  'a 121-character room_label violates the length bound'
+);
+
+-- ============================================================
+-- Group 15: the has_consent clause in cancel_own_before_start and
+-- attendance_confirmations_select, isolated. member_h is a PENDING
+-- Google account (no recorded consent) who owns a future confirmation
+-- inserted directly as postgres, bypassing RLS -- a pending member could
+-- never confirm it themselves, since private.can_confirm's own
+-- has_consent check would already reject them. Survival after the
+-- attempted cancel is verified by reading the row back as postgres AFTER
+-- `reset role`, never through member_h's own filtered SELECT view, which
+-- would read 0 rows whether the delete succeeded or the row is merely
+-- hidden (same pitfall as the cross-member delete test, Group 7).
+-- ============================================================
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'b0000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'ac-member-h@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{"full_name":"Member H"}', now(), now()
+);
+
+select is(
+  (select consent_at from public.profiles where id = 'b0000000-0000-0000-0000-000000000009'),
+  null::timestamptz,
+  'member_h is a genuinely pending account with no recorded consent'
+);
+
+insert into public.attendance_confirmations (
+  member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label
+) values (
+  'b0000000-0000-0000-0000-000000000009', private.lima_today () + 4, '19:00', '20:00', 'salsa', 'studio-pending-owner', 'Salsa', 'Studio Pending Owner'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"b0000000-0000-0000-0000-000000000009","role":"authenticated"}';
+
+select is(
+  (select count(*)::int from public.attendance_confirmations where room_key = 'studio-pending-owner'),
+  0,
+  'a pending member cannot see their own confirmation through the select policy'
+);
+
+delete from public.attendance_confirmations where room_key = 'studio-pending-owner';
+
+reset role;
+
+select is(
+  (select count(*)::int from public.attendance_confirmations where room_key = 'studio-pending-owner'),
+  1,
+  'a pending member''s attempted cancel affects no rows -- the confirmation survives, read back as postgres'
+);
 
 select * from finish();
 
