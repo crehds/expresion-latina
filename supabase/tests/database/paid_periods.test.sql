@@ -13,7 +13,7 @@
 -- guarantees nothing this file creates survives it.
 begin;
 
-select plan(41);
+select plan(53);
 
 -- Admin (flipped after insert, same as profiles_consent.test.sql), plus six
 -- members: member_x carries the CRUD and self-write-rejected scenarios;
@@ -291,9 +291,12 @@ reset role;
 -- the auth.users fixtures above): diana's window straddles "today" by
 -- construction (today-5 .. today+30), erik's sits entirely in the past
 -- (today-90 .. today-60). Both hold regardless of which day the suite
--- runs, without the test itself ever needing to call private.lima_today()
--- -- that function is granted to nobody (Design: only called from inside
--- other SECURITY DEFINER bodies, which run as postgres).
+-- runs. The inserts below call private.lima_today() directly, which only
+-- works because they still run as postgres here (before the first `set
+-- local role authenticated`) -- that function is granted to nobody
+-- (Design: only ever called from inside other SECURITY DEFINER bodies,
+-- which run as postgres), so no impersonated scenario elsewhere in this
+-- file could call it the same way.
 insert into public.paid_periods (member_id, starts_on, ends_on, recorded_by) values (
   'a0000000-0000-0000-0000-000000000006',
   private.lima_today () - 5,
@@ -369,6 +372,119 @@ select is(
   (select count(*)::int from public.admin_search_members('_', 50)),
   0,
   '_ is matched as a literal character, not a wildcard'
+);
+
+-- admin_search_members input hardening: lim must be a real, bounded page
+-- size. NULL previously disabled the LIMIT clause entirely (returning
+-- every consented member in one call), 0 silently returned an empty
+-- result (LIMIT 0 is valid SQL), and anything above 200 was accepted
+-- without complaint -- none of those raised a catchable error.
+select throws_ok(
+  $$select * from public.admin_search_members('e', null)$$,
+  '22023',
+  null,
+  'admin_search_members rejects a NULL lim'
+);
+
+select throws_ok(
+  $$select * from public.admin_search_members('e', 0)$$,
+  '22023',
+  null,
+  'admin_search_members rejects a lim of 0'
+);
+
+select throws_ok(
+  $$select * from public.admin_search_members('e', 201)$$,
+  '22023',
+  null,
+  'admin_search_members rejects a lim above 200'
+);
+
+select lives_ok(
+  $$select * from public.admin_search_members('e', 1)$$,
+  'admin_search_members accepts a lim of 1'
+);
+
+select lives_ok(
+  $$select * from public.admin_search_members('e', 200)$$,
+  'admin_search_members accepts a lim of 200'
+);
+
+-- A NULL or whitespace-only query now normalizes to '' (coalesce(btrim(q),
+-- '')) and lists every consented member, the same as an explicit ''. The
+-- expected count is a subquery, not a literal: a seeded local-dev member
+-- (supabase/seed.sql) is already consented and outside this file's own
+-- fixtures, so "every consented member" is whatever that count actually
+-- is, not just the fixtures inserted above. Before the fix, a NULL query
+-- listed nobody (position(NULL in ...) is NULL, never > 0).
+select is(
+  (select count(*)::int from public.admin_search_members(null, 50)),
+  (select count(*)::int from public.profiles where consent_at is not null),
+  'a NULL query lists every consented member'
+);
+
+select is(
+  (select count(*)::int from public.admin_search_members('', 50)),
+  (select count(*)::int from public.profiles where consent_at is not null),
+  'an empty-string query lists every consented member'
+);
+
+select is(
+  (select count(*)::int from public.admin_search_members('   ', 50)),
+  (select count(*)::int from public.profiles where consent_at is not null),
+  'a whitespace-only query lists every consented member'
+);
+
+-- Deterministic order: two members sharing a full_name must still come
+-- back in a stable order (by id) instead of whatever order a GROUP BY
+-- happens to produce, so truncating at lim never drops an arbitrary one
+-- of a tied pair. Inserted as postgres (reset role first, same convention
+-- as Groups 6/7 below): `authenticated` has no INSERT on auth.users at
+-- all, admin included.
+reset role;
+
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'a0000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'tied-name-a@example.com',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Tied Name","consent_version":"2026-01-01"}', now(), now()
+);
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'a0000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'tied-name-b@example.com',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Tied Name","consent_version":"2026-01-01"}', now(), now()
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select is(
+  (select count(*)::int from public.admin_search_members('Tied Name', 50)),
+  2,
+  'both tied-name members match the search'
+);
+
+select is(
+  (select id from public.admin_search_members('Tied Name', 50) offset 0 limit 1),
+  'a0000000-0000-0000-0000-00000000000a'::uuid,
+  'the first tied-name match is the lower id'
+);
+
+select is(
+  (select id from public.admin_search_members('Tied Name', 50) offset 1 limit 1),
+  'a0000000-0000-0000-0000-00000000000b'::uuid,
+  'the second tied-name match is the higher id'
+);
+
+select is(
+  (select id from public.admin_search_members('Tied Name', 1)),
+  'a0000000-0000-0000-0000-00000000000a'::uuid,
+  'truncating tied-name matches at lim keeps the lower id first'
 );
 
 reset role;
@@ -461,8 +577,8 @@ reset role;
 -- ============================================================
 -- Group 7: the member directory lists consented members only. A pending
 -- account (created by Google sign-in before the person accepts the
--- privacy notice) has no recorded consent, is deleted automatically
--- about 23 hours after creation if that never changes (PR3), and would
+-- privacy notice) has no recorded consent, is deleted automatically by
+-- the pending-consent purge (PR3) if the person never accepts, and would
 -- otherwise expose the email of someone who never agreed to anything.
 -- ============================================================
 insert into auth.users (

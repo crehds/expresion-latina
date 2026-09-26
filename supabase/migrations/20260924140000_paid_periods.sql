@@ -145,10 +145,27 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_q text;
 begin
   if not private.is_admin () then
     raise exception 'admin role required' using errcode = '42501';
   end if;
+
+  -- lim must be a real, bounded page size: NULL previously disabled the
+  -- LIMIT clause entirely (every consented member in one call), 0
+  -- silently returned an empty result (LIMIT 0 is valid SQL), and
+  -- anything above 200 was accepted without complaint; a negative value
+  -- was the only case Postgres itself rejected, with its own raw 2201W.
+  if lim is null or lim < 1 or lim > 200 then
+    raise exception 'lim must be between 1 and 200' using errcode = '22023';
+  end if;
+
+  -- A NULL or whitespace-only query normalizes to '': position('' in
+  -- anything) is always found, so it behaves like an explicit '' and
+  -- matches every row, instead of position(NULL in ...) silently
+  -- matching nothing.
+  v_q := coalesce(btrim(q), '');
 
   return query
   select
@@ -165,18 +182,18 @@ begin
   left join public.paid_periods pp on pp.member_id = p.id
   where
     (
-      -- position(), not ilike: '%' and '_' in q are literal characters
+      -- position(), not ilike: '%' and '_' in v_q are literal characters
       -- here, never SQL LIKE wildcards (Design Interfaces). Case-
       -- insensitive on both sides for a forgiving directory search -- the
       -- "not a wildcard" rule only concerns the two LIKE metacharacters
       -- themselves.
-      position(lower(q) in lower(p.full_name)) > 0
-      or position(lower(q) in lower(u.email)) > 0
+      position(lower(v_q) in lower(p.full_name)) > 0
+      or position(lower(v_q) in lower(u.email)) > 0
     )
     -- The directory lists consented members only. A pending account
     -- (created by Google sign-in before the person accepts the privacy
-    -- notice) has no recorded consent, gets deleted automatically about
-    -- 23 hours after it is created if that never changes, and would
+    -- notice) has no recorded consent, gets deleted automatically by the
+    -- pending-consent purge (PR3) if the person never accepts, and would
     -- otherwise expose the email of someone who never agreed to
     -- anything. The member becomes searchable the moment they accept the
     -- notice on their next sign-in.
@@ -185,7 +202,9 @@ begin
     p.id,
     p.full_name,
     u.email
-  order by p.full_name
+  -- p.id breaks ties between members who share a full_name, so
+  -- truncating at lim never drops an arbitrary one of a tied pair.
+  order by p.full_name, p.id
   limit lim;
 end;
 $$;
