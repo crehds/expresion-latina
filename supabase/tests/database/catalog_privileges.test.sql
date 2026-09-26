@@ -172,7 +172,9 @@ select is(
       values
         ('public', 'profiles', 'authenticated', 'SELECT'),
         ('public', 'paid_periods', 'authenticated', 'SELECT'),
-        ('public', 'paid_periods', 'authenticated', 'DELETE')
+        ('public', 'paid_periods', 'authenticated', 'DELETE'),
+        ('public', 'attendance_confirmations', 'authenticated', 'SELECT'),
+        ('public', 'attendance_confirmations', 'authenticated', 'DELETE')
     )
     select count(*)::int
     from pg_temp.__catalog_table_grants() g
@@ -237,7 +239,8 @@ select is(
         ('public', 'record_consent', 'authenticated'),
         ('public', 'admin_search_members', 'authenticated'),
         ('private', 'is_admin', 'authenticated'),
-        ('private', 'has_consent', 'authenticated')
+        ('private', 'has_consent', 'authenticated'),
+        ('private', 'can_confirm', 'authenticated')
     )
     select count(*)::int
     from pg_temp.__catalog_function_grants() g
@@ -359,7 +362,14 @@ select is(
         ('public', 'paid_periods', 'starts_on', 'authenticated', 'INSERT'),
         ('public', 'paid_periods', 'ends_on', 'authenticated', 'INSERT'),
         ('public', 'paid_periods', 'starts_on', 'authenticated', 'UPDATE'),
-        ('public', 'paid_periods', 'ends_on', 'authenticated', 'UPDATE')
+        ('public', 'paid_periods', 'ends_on', 'authenticated', 'UPDATE'),
+        ('public', 'attendance_confirmations', 'class_date', 'authenticated', 'INSERT'),
+        ('public', 'attendance_confirmations', 'start_time', 'authenticated', 'INSERT'),
+        ('public', 'attendance_confirmations', 'end_time', 'authenticated', 'INSERT'),
+        ('public', 'attendance_confirmations', 'genre_id', 'authenticated', 'INSERT'),
+        ('public', 'attendance_confirmations', 'room_key', 'authenticated', 'INSERT'),
+        ('public', 'attendance_confirmations', 'genre_name', 'authenticated', 'INSERT'),
+        ('public', 'attendance_confirmations', 'room_label', 'authenticated', 'INSERT')
     )
     select count(*)::int
     from pg_temp.__catalog_column_grants() g
