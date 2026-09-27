@@ -1,16 +1,24 @@
-# Pings the keepalive RPC twice a week so the free Supabase project never
+# Pings the keepalive RPC every day so the free Supabase project never
 # reaches its 7-day no-database-activity pause (Design D7; spec: "Weekly
 # Keep-Alive Ping", "Keep-Alive Failure Detection"). Dormant until the
 # owner has created the Supabase project and set the two repository
 # secrets below -- see supabase/README.md's "Keep-alive ping" section.
+# Once the project is live, also set the KEEPALIVE_ENABLED repository
+# variable to "true" to switch to strict mode, where a missing secret
+# fails the run instead of silently going back to dormant -- see the
+# same README section.
 name: Keep-alive ping
 
 on:
   schedule:
-    # Monday and Thursday, 12:00 UTC. The exact time is arbitrary; the
-    # only requirement is that consecutive runs are never more than 7
-    # days apart, and Monday/Thursday never are (3 and 4 days apart).
-    - cron: '0 12 * * 1,4'
+    # Daily at 12:00 UTC. The exact time is arbitrary; what matters is
+    # the margin against Supabase's 7-day pause threshold. At the
+    # previous twice-a-week schedule, one failed or dropped run could
+    # already leave a 7-day gap between successful pings -- exactly the
+    # pause threshold, no room for anything else to go wrong. At one run
+    # a day, curl's own retries below would have to fail outright on six
+    # consecutive days before that same 7-day gap could open.
+    - cron: '0 12 * * *'
   workflow_dispatch:
 
 # Least privilege: this job only sends one HTTPS request and reads no
@@ -24,7 +32,9 @@ jobs:
     name: Ping public.keepalive()
     runs-on: ubuntu-latest
     # A hung request should never run until the workflow's own default
-    # limit; this bounds it to a couple of minutes.
+    # limit; this bounds the whole job to 5 minutes. curl's own
+    # --connect-timeout/--max-time below, even added up across every
+    # retry attempt, stay well inside it.
     timeout-minutes: 5
 
     steps:
@@ -34,12 +44,37 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          KEEPALIVE_ENABLED: ${{ vars.KEEPALIVE_ENABLED }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+          # Exactly one secret set is always a misconfiguration -- a
+          # partial setup, or one secret removed after go-live -- and
+          # must fail loudly no matter what KEEPALIVE_ENABLED says. It
+          # must never be treated the same as both-missing (dormant).
+          if [ -n "$SUPABASE_URL" ] && [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Keep-alive is misconfigured: VITE_SUPABASE_URL is set but VITE_SUPABASE_PUBLISHABLE_KEY is not. Set both repository secrets, or clear both to go back to dormant -- see supabase/README.md."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_URL" ] && [ -n "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Keep-alive is misconfigured: VITE_SUPABASE_PUBLISHABLE_KEY is set but VITE_SUPABASE_URL is not. Set both repository secrets, or clear both to go back to dormant -- see supabase/README.md."
+            exit 1
+          fi
+
+          if [ -z "$SUPABASE_URL" ] && [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            if [ "$KEEPALIVE_ENABLED" = "true" ]; then
+              echo "::error::Keep-alive is set to strict mode (the KEEPALIVE_ENABLED repository variable is \"true\") but VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are both unset. Set both repository secrets -- see supabase/README.md."
+              exit 1
+            fi
             echo "::notice::Keep-alive is dormant: the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY repository secrets are not set yet. There is no Supabase project to ping until both secrets are configured -- see supabase/README.md."
             exit 0
           fi
 
+          # --retry/--retry-all-errors retry a transient failure,
+          # including a non-2xx response -- safe because keepalive() is
+          # an idempotent upsert, so a retried call can never double-book
+          # anything. --connect-timeout/--max-time bound every single
+          # attempt so a hung request can never eat the job's own
+          # timeout-minutes above.
           curl --fail --silent --show-error --request POST \
+            --connect-timeout 10 --max-time 20 --retry 3 --retry-all-errors \
             "$SUPABASE_URL/rest/v1/rpc/keepalive" \
             --header "apikey: $SUPABASE_PUBLISHABLE_KEY"

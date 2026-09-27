@@ -196,15 +196,21 @@ are never part of the kill switch.
 
 ### Keep-alive ping
 
-`.github/workflows/keepalive.yml` runs Monday and Thursday (plus manual
-`workflow_dispatch`) and calls `public.keepalive()` with the publishable
-key. Two platform facts explain why twice a week is enough, and why a
-scheduled run alone does not keep the workflow itself alive:
+`.github/workflows/keepalive.yml` runs daily (plus manual
+`workflow_dispatch`), retrying a transient failure automatically, and
+calls `public.keepalive()` with the publishable key. Two platform facts
+explain the schedule and retry margin, and why a scheduled run alone
+does not keep the workflow itself alive:
 
 - Supabase pauses a free project after **7 days with no database
   activity** (any PostgREST request counts, and Supabase emails a
-  warning first). Monday and Thursday are never more than 4 days apart,
-  comfortably inside that window.
+  warning first). At the previous twice-a-week schedule, a single
+  failed or dropped run could already leave a 7-day gap between
+  successful pings -- exactly that pause threshold, with no margin
+  left. Daily runs change that: each run also retries a transient
+  failure up to 3 times (`curl --retry 3 --retry-all-errors`), so
+  several consecutive days of outright failure are needed before a
+  7-day gap can open at all.
 - GitHub disables a scheduled workflow in a public repository after
   **60 days with no repository activity** -- and a _scheduled_ run does
   not count as that activity; a push does. In other words, this
@@ -212,16 +218,34 @@ scheduled run alone does not keep the workflow itself alive:
   repository keep the _workflow itself_ from eventually being disabled
   (GitHub emails the last editor about 7 days before that happens).
 
-Until the two secrets above exist, every run prints a notice and exits
-successfully -- see the workflow file's own comment. Once they exist, a
-real failure is a red run in the Actions tab, which GitHub emails to the
-workflow's author. There is no admin-facing banner for this yet (a later
-slice adds one); to check the last successful ping by hand, run this as
-an admin, or as `postgres` in the SQL editor:
+While the two repository secrets above are unset, every run prints a
+notice and exits successfully (dormant). Once the Supabase project
+exists and both secrets are set, also set the **`KEEPALIVE_ENABLED`
+repository variable to `true`** (repository Settings -> Secrets and
+variables -> Actions -> Variables tab) to switch the workflow to
+strict mode: from then on, a secret going missing again -- a partial
+setup, or one secret cleared by mistake -- fails the run instead of
+silently falling back to dormant. Exactly one secret set always fails
+the run, in either mode, since that combination can only be a
+misconfiguration and is never treated as "both missing".
+
+The real signal that keep-alive is working is the **Actions run
+history**, not a database read: a failing run shows red in the Actions
+tab, and GitHub emails that failure to the workflow's last editor.
+`ops_heartbeat.last_ping_at` is not proof that this workflow ran --
+`public.keepalive()` is callable by anyone holding the publishable key
+(by design: the workflow calls it with no signed-in session at all), so
+a third party, or a stray manual call from anywhere else, can keep that
+timestamp fresh independently of whether the scheduled job itself is
+succeeding. Reading it is a convenience status check, never
+confirmation that the workflow ran:
 
 ```sql
 select last_ping_at from public.ops_heartbeat;
 ```
+
+There is no admin-facing banner for this yet (a later slice adds one);
+run the query above as an admin, or as `postgres` in the SQL editor.
 
 ### Checking the scheduled purges
 
