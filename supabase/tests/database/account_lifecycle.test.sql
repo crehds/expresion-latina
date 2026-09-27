@@ -26,7 +26,7 @@
 -- "merely hidden from me" (pgTAP cross-member-write lesson).
 begin;
 
-select plan(46);
+select plan(55);
 
 -- ============================================================
 -- Fixtures, Group A: member_self owns one row in every table that must
@@ -505,7 +505,11 @@ select is(
 -- Group D: private.purge_pending_consent_accounts (spec: "Google account
 -- without a recorded consent", 24-hour scenario).
 -- ============================================================
-select private.purge_pending_consent_accounts ();
+select is(
+  private.purge_pending_consent_accounts (),
+  2,
+  'purge_pending_consent_accounts reports deleting exactly the two accounts this group''s fixtures make eligible'
+);
 
 select is(
   (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000004'),
@@ -537,7 +541,11 @@ select is(
 -- Group E: private.purge_unconfirmed_email_accounts (own named function,
 -- an UNCONFIRMED owner default).
 -- ============================================================
-select private.purge_unconfirmed_email_accounts ();
+select is(
+  private.purge_unconfirmed_email_accounts (),
+  2,
+  'purge_unconfirmed_email_accounts reports deleting exactly the two accounts this group''s fixtures make eligible'
+);
 
 select is(
   (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000007'),
@@ -575,7 +583,11 @@ select is(
 -- silence"). One call covers every fixture above; each "kept" fixture
 -- isolates exactly one recent signal.
 -- ============================================================
-select private.purge_dormant_accounts ();
+select is(
+  private.purge_dormant_accounts (),
+  2,
+  'purge_dormant_accounts reports deleting exactly the two accounts this group''s fixtures make eligible'
+);
 
 select is(
   (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000011'),
@@ -622,7 +634,11 @@ select is(
 -- Group G: private.purge_expired_confirmations (spec: "Attendance
 -- Retention", "Old confirmation removed").
 -- ============================================================
-select private.purge_expired_confirmations ();
+select is(
+  private.purge_expired_confirmations (),
+  1,
+  'purge_expired_confirmations reports deleting exactly the one confirmation past the 30-day retention window'
+);
 
 select is(
   (select count(*)::int from public.attendance_confirmations where room_key = 'lifecycle-old'),
@@ -640,50 +656,30 @@ select is(
   'an upcoming confirmation is never touched by the retention purge'
 );
 
--- ============================================================
--- Group H: private.purge_expired_accounts composes the four purges
--- above. Fresh fixtures prove the composed entry point really wires up
--- both an account purge and the confirmation purge, not just that the
--- sub-functions work in isolation (Groups D-G already proved that).
--- ============================================================
-insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
-) values (
-  'c0000000-0000-0000-0000-000000000018', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'al-composition-pending@example.com',
-  '{"provider":"google","providers":["google"]}',
-  '{"full_name":"Composition Pending"}', now() - interval '24 hours', now() - interval '24 hours'
-);
-
-insert into public.attendance_confirmations (
-  member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label
-) values (
-  'c0000000-0000-0000-0000-000000000017', private.lima_today () - 31, '19:00', '20:00', 'salsa', 'lifecycle-composition', 'Salsa', 'Lifecycle Composition'
-);
-
-select private.purge_expired_accounts ();
-
-select is(
-  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000018'),
-  0,
-  'private.purge_expired_accounts composes the pending-consent purge'
-);
-select is(
-  (select count(*)::int from public.attendance_confirmations where room_key = 'lifecycle-composition'),
-  0,
-  'private.purge_expired_accounts composes the attendance retention purge'
-);
+-- Group H (composed-entry-point test) removed: private.purge_expired_accounts()
+-- no longer exists (review advisory Y2 -- see the migration's own comment
+-- on the four cron.schedule calls below the purge functions). There is no
+-- single entry point left to test composing; Groups D-G above already
+-- prove each purge function works on its own, and Group I below proves
+-- each one has its own pg_cron job.
 
 -- ============================================================
--- Group J: private.purge_expired_accounts isolates each purge (owner
--- decision 2026-09-26, review advisories Q/R/T). A temporary trigger,
--- local to this test file only, simulates ONE purge (pending-consent)
--- failing on its one target row; the other two purges below still
--- delete their own unrelated targets, and the composed call itself
--- never throws -- exactly what a bare sequence of `perform` calls with
--- no exception handling could never provide (a failure partway through
--- the first purge would abort the whole function before the other three
--- ever ran).
+-- Group J: each purge job's own scheduled command is a single, bare call
+-- with nothing to swallow a failure (owner decision 2026-09-26, review
+-- advisory Y2). private.purge_expired_accounts() -- the composed entry
+-- point advisories Q/R/T once had isolate each purge with its own
+-- BEGIN/EXCEPTION block -- is gone; every command below is the EXACT
+-- text now registered as one purge's pg_cron job (see Group I). pg_cron's
+-- own scheduler runs outside any test transaction (it wakes on
+-- wall-clock time and each run opens its own session), so this file
+-- cannot literally watch a job fire and check cron.job_run_details for
+-- it -- the closest equivalent provable here is that the very call each
+-- job makes, run exactly as written, throws instead of being caught, and
+-- that a second, unrelated call made right after it still succeeds on
+-- its own -- i.e. these are independent statements, not steps sharing
+-- one exception handler. A temporary trigger, local to this test file
+-- only, simulates the pending-consent purge failing on its one target
+-- row.
 -- ============================================================
 insert into auth.users (
   id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -745,21 +741,33 @@ before delete on auth.users
 for each row
 execute function pg_temp.__block_one_delete();
 
-select lives_ok(
-  $$select private.purge_expired_accounts()$$,
-  'purge_expired_accounts does not throw even when one of its purges fails on one row'
+select throws_ok(
+  $$select private.purge_pending_consent_accounts()$$,
+  'P0001',
+  'simulated failure for the purge isolation test',
+  'the pending-consent purge''s own job command -- a bare, unwrapped call -- throws instead of swallowing the failure'
 );
 
 select is(
   (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000025'),
   1,
-  'the row the trigger blocked is still there -- its own purge genuinely failed, not silently skipped'
+  'the row the trigger blocked is still there -- the failed purge genuinely did not commit its delete'
+);
+
+select lives_ok(
+  $$select private.purge_dormant_accounts()$$,
+  'the dormant purge''s own job command still succeeds when called right after the pending-consent purge threw'
 );
 
 select is(
   (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000026'),
   0,
-  'the dormant purge still deleted its own unrelated target after the pending-consent purge failed'
+  'the dormant purge deleted its own unrelated target -- unaffected by the pending-consent purge''s failure'
+);
+
+select lives_ok(
+  $$select private.purge_expired_confirmations()$$,
+  'the attendance-retention purge''s own job command also still succeeds, called right after the same failure'
 );
 
 select is(
@@ -773,19 +781,82 @@ drop function pg_temp.__block_one_delete();
 
 -- ============================================================
 -- Group I: the pg_cron jobs are registered with the schedules the
--- design names (hourly purge, plus the weekly cron.job_run_details
--- cleanup).
+-- design names -- one job per purge (review advisory Y2), plus the
+-- weekly cron.job_run_details cleanup. Every purge job's check also
+-- asserts its command mentions NO other purge function, so a future
+-- edit could not silently recompose two jobs into one shared call
+-- without failing here.
 -- ============================================================
 select is(
   (
     select count(*)::int from cron.job
-    where jobname = 'purge-expired-accounts'
+    where jobname = 'purge-pending-consent-accounts'
       and schedule = '17 * * * *'
       and active
-      and command ~* 'private\.purge_expired_accounts'
+      and command ~* 'private\.purge_pending_consent_accounts'
+      and command !~* 'purge_unconfirmed_email_accounts|purge_dormant_accounts|purge_expired_confirmations|purge_expired_accounts'
   ),
   1,
-  'the hourly purge_expired_accounts job is registered with the design''s schedule'
+  'the pending-consent purge has its own job, on its own schedule, calling only itself'
+);
+
+select is(
+  (
+    select count(*)::int from cron.job
+    where jobname = 'purge-unconfirmed-email-accounts'
+      and schedule = '22 * * * *'
+      and active
+      and command ~* 'private\.purge_unconfirmed_email_accounts'
+      and command !~* 'purge_pending_consent_accounts|purge_dormant_accounts|purge_expired_confirmations|purge_expired_accounts'
+  ),
+  1,
+  'the unconfirmed-email purge has its own job, on its own schedule, calling only itself'
+);
+
+select is(
+  (
+    select count(*)::int from cron.job
+    where jobname = 'purge-dormant-accounts'
+      and schedule = '27 * * * *'
+      and active
+      and command ~* 'private\.purge_dormant_accounts'
+      and command !~* 'purge_pending_consent_accounts|purge_unconfirmed_email_accounts|purge_expired_confirmations|purge_expired_accounts'
+  ),
+  1,
+  'the dormant purge has its own job, on its own schedule, calling only itself'
+);
+
+select is(
+  (
+    select count(*)::int from cron.job
+    where jobname = 'purge-expired-confirmations'
+      and schedule = '32 * * * *'
+      and active
+      and command ~* 'private\.purge_expired_confirmations'
+      and command !~* 'purge_pending_consent_accounts|purge_unconfirmed_email_accounts|purge_dormant_accounts|purge_expired_accounts'
+  ),
+  1,
+  'the attendance-retention purge has its own job, on its own schedule, calling only itself'
+);
+
+select is(
+  (select count(*)::int from cron.job where command ~* 'purge_expired_accounts'),
+  0,
+  'no job calls purge_expired_accounts -- the old composed hourly job (and the function it called) is gone'
+);
+
+select is(
+  (
+    select count(distinct schedule)::int from cron.job
+    where jobname in (
+      'purge-pending-consent-accounts',
+      'purge-unconfirmed-email-accounts',
+      'purge-dormant-accounts',
+      'purge-expired-confirmations'
+    )
+  ),
+  4,
+  'the four purge jobs run at four distinct minutes, never at the same moment'
 );
 
 -- W (review advisory): assert the weekly job's schedule and retention
@@ -809,7 +880,7 @@ select is(
       and command ~* 'interval\s+''7 days'''
   ),
   1,
-  'the weekly cleanup job retains cron.job_run_details rows for exactly 7 days'
+  'the weekly cleanup job retains cron.job_run_details rows for exactly 7 days -- long enough for a failed purge run to be noticed'
 );
 
 select lives_ok(
