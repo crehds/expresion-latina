@@ -174,7 +174,8 @@ select is(
         ('public', 'paid_periods', 'authenticated', 'SELECT'),
         ('public', 'paid_periods', 'authenticated', 'DELETE'),
         ('public', 'attendance_confirmations', 'authenticated', 'SELECT'),
-        ('public', 'attendance_confirmations', 'authenticated', 'DELETE')
+        ('public', 'attendance_confirmations', 'authenticated', 'DELETE'),
+        ('public', 'ops_heartbeat', 'authenticated', 'SELECT')
     )
     select count(*)::int
     from pg_temp.__catalog_table_grants() g
@@ -242,7 +243,8 @@ select is(
         ('private', 'is_admin', 'authenticated'),
         ('private', 'has_consent', 'authenticated'),
         ('private', 'can_confirm', 'authenticated'),
-        ('private', 'has_confirmed_email', 'authenticated')
+        ('private', 'has_confirmed_email', 'authenticated'),
+        ('public', 'keepalive', 'anon')
     )
     select count(*)::int
     from pg_temp.__catalog_function_grants() g
