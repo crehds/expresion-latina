@@ -425,29 +425,48 @@ select lives_ok(
 -- 2026-09-26): "every consented member" changed meaning to "every
 -- consented, email-confirmed member" once the directory's WHERE clause
 -- gained the same second condition -- `authenticated` has no grant on
--- auth.users at all, so this comparison runs as postgres (`reset role`)
--- instead; request.jwt.claims is untouched by `reset role` (it only
--- clears the `role` GUC), so admin_search_members still sees the same
--- admin caller via auth.uid() and postgres, a superuser, bypasses the
--- EXECUTE check the same way it bypasses the auth.users grant.
+-- auth.users at all, so the count is computed as postgres (`reset role`)
+-- and stashed in a custom GUC (review advisory Y1), the same mechanism
+-- this file already uses for request.jwt.claims, so it survives the
+-- switch back to the authenticated admin below. The previous revision of
+-- this test computed the count AND called admin_search_members both
+-- after the same `reset role`, so the call itself also ran as postgres --
+-- a superuser bypasses admin_search_members' own EXECUTE grant check the
+-- same way it bypasses the auth.users grant, so that version proved
+-- nothing about whether an AUTHENTICATED admin can actually call this
+-- function.
 reset role;
+
+select set_config(
+  'test.y1_expected_listed_count',
+  (
+    select count(*)::int
+    from public.profiles p
+    join auth.users u on u.id = p.id
+    where p.consent_at is not null and u.email_confirmed_at is not null
+  )::text,
+  true
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}';
 
 select is(
   (select count(*)::int from public.admin_search_members(null, 50)),
-  (select count(*)::int from public.profiles p join auth.users u on u.id = p.id where p.consent_at is not null and u.email_confirmed_at is not null),
-  'a NULL query lists every consented, email-confirmed member'
+  current_setting('test.y1_expected_listed_count')::int,
+  'a NULL query lists every consented, email-confirmed member, called as the authenticated admin'
 );
 
 select is(
   (select count(*)::int from public.admin_search_members('', 50)),
-  (select count(*)::int from public.profiles p join auth.users u on u.id = p.id where p.consent_at is not null and u.email_confirmed_at is not null),
-  'an empty-string query lists every consented, email-confirmed member'
+  current_setting('test.y1_expected_listed_count')::int,
+  'an empty-string query lists every consented, email-confirmed member, called as the authenticated admin'
 );
 
 select is(
   (select count(*)::int from public.admin_search_members('   ', 50)),
-  (select count(*)::int from public.profiles p join auth.users u on u.id = p.id where p.consent_at is not null and u.email_confirmed_at is not null),
-  'a whitespace-only query lists every consented, email-confirmed member'
+  current_setting('test.y1_expected_listed_count')::int,
+  'a whitespace-only query lists every consented, email-confirmed member, called as the authenticated admin'
 );
 
 -- Deterministic order: two members sharing a full_name must still come
