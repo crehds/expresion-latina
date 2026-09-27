@@ -1,0 +1,45 @@
+# Pings the keepalive RPC twice a week so the free Supabase project never
+# reaches its 7-day no-database-activity pause (Design D7; spec: "Weekly
+# Keep-Alive Ping", "Keep-Alive Failure Detection"). Dormant until the
+# owner has created the Supabase project and set the two repository
+# secrets below -- see supabase/README.md's "Keep-alive ping" section.
+name: Keep-alive ping
+
+on:
+  schedule:
+    # Monday and Thursday, 12:00 UTC. The exact time is arbitrary; the
+    # only requirement is that consecutive runs are never more than 7
+    # days apart, and Monday/Thursday never are (3 and 4 days apart).
+    - cron: '0 12 * * 1,4'
+  workflow_dispatch:
+
+# Least privilege: this job only sends one HTTPS request and reads no
+# repository content, so it does not check the repository out and needs
+# no write access at all.
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping public.keepalive()
+    runs-on: ubuntu-latest
+    # A hung request should never run until the workflow's own default
+    # limit; this bounds it to a couple of minutes.
+    timeout-minutes: 5
+
+    steps:
+      # No third-party action is used here: curl already ships on the
+      # ubuntu-latest runner image, and there is nothing else to set up.
+      - name: Ping the keepalive RPC
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::notice::Keep-alive is dormant: the VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY repository secrets are not set yet. There is no Supabase project to ping until both secrets are configured -- see supabase/README.md."
+            exit 0
+          fi
+
+          curl --fail --silent --show-error --request POST \
+            "$SUPABASE_URL/rest/v1/rpc/keepalive" \
+            --header "apikey: $SUPABASE_PUBLISHABLE_KEY"
