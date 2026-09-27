@@ -5,9 +5,9 @@ Nothing here talks to a hosted Supabase project unless someone explicitly
 runs `supabase link` and `supabase db push` -- this project's own scripts
 never do that (see `scripts/db/test-db.mjs`).
 
-This is a stub. First-admin setup, SMTP, Google OAuth, the redirect
-allowlist and production secrets land here as the later slices that need
-them are implemented.
+The sections below cover local development first (Prerequisites through
+"Email sign-up requires a consent version"), then everything needed to
+run this against a real, hosted project ("Production runbook" onward).
 
 ## Prerequisites
 
@@ -79,6 +79,189 @@ update public.profiles set is_admin = true where id = (
   select id from auth.users where email = 'owner@example.com'
 );
 ```
+
+## Production runbook
+
+Everything below is for when the owner is ready to run this feature
+against a real, hosted Supabase project instead of the local stack. None
+of it runs automatically -- every step is a manual dashboard action or
+an explicitly authorized `supabase link` / `supabase db push`, never
+something this repository's own scripts do on their own.
+
+Rough order: create the Supabase project, push these migrations, sign up
+once and promote yourself to admin (see "Email sign-up requires a
+consent version" above), configure SMTP and the email rate limit,
+configure Google sign-in and the redirect allowlist, set the environment
+variables and repository secrets, then verify the keep-alive ping. The
+sections below also cover the kill switch, checking the scheduled
+purges, and teardown.
+
+### Fresh project only
+
+Every migration in this folder assumes a **fresh** Supabase project with
+no pre-existing `auth.users` rows. The trigger that creates a
+`public.profiles` row only ever fires on a NEW `auth.users` insert, so
+an auth user created before these migrations existed would have no
+profile row at all -- and every policy and RPC in this schema reads that
+row (directly, or through the admin/consent checks), so that user would
+be treated as having no consent and no admin rights instead of failing
+with a clear "no profile" error. There is currently no backfill
+migration for this. Before linking this project to a Supabase project
+that already has real auth users, back-fill a `profiles` row for each
+one first (leave `consent_at` null so the existing consent gate makes
+them re-consent).
+
+### Email (Gmail SMTP)
+
+Supabase's own built-in email sending is for testing only -- 2 emails an
+hour, and only to the project team's own addresses -- never enough for
+real sign-ups. Configure custom SMTP instead:
+
+1. Supabase Dashboard -> **Authentication -> Emails -> SMTP Settings**:
+   enable custom SMTP with `smtp.gmail.com`, port 587, a Gmail address,
+   and a Google **App Password** (not the account's own login password
+   -- generate one from the Google Account's security settings).
+2. Gmail's own limit for this: **500 recipients a day, 100 per
+   message**; going over suspends sending for about 24 hours. That is
+   plenty for a small academy, but it is a hard ceiling this project
+   cannot raise.
+3. Supabase Dashboard -> **Authentication -> Rate Limits**: once custom
+   SMTP is configured, set the auth email rate limit to about **30 an
+   hour** -- comfortably under Gmail's daily ceiling, generous enough
+   for normal sign-up/reset traffic, and small enough to blunt an abuse
+   burst. Without custom SMTP this setting stays fixed at Supabase's own
+   default of 2/hour.
+4. If sign-ups are ever abused (a burst of fake accounts eating into the
+   email quota), enable **Authentication -> Bot and Abuse Protection ->
+   Enable CAPTCHA protection**, choosing **Cloudflare Turnstile**, with
+   a site key and secret key from a Turnstile widget created in the
+   Cloudflare dashboard. This is not wired into the sign-up form as of
+   this slice -- it is a lever to enable later if abuse ever happens,
+   not a default-on control.
+
+### Google sign-in
+
+1. Google Cloud Console: create an OAuth 2.0 Client ID, application type
+   **Web application**.
+2. **Authorized JavaScript origins**: the production site origin (and
+   `http://localhost:<port>` for local testing).
+3. **Authorized redirect URIs**: Supabase's own callback URL, shown on
+   the Google provider page in the Supabase Dashboard --
+   `https://<project-ref>.supabase.co/auth/v1/callback`. This is
+   Supabase's callback, not this app's; do not put the app's own
+   `/auth/callback` route here.
+4. Supabase Dashboard -> **Authentication -> Providers -> Google**:
+   paste the Client ID and Client Secret from step 1, then enable the
+   provider.
+
+### Redirect allowlist
+
+Supabase Dashboard -> **Authentication -> URL Configuration -> Redirect
+URLs** (a different list from step 3 above -- this one is Supabase
+redirecting the browser back to _this app_, not Google redirecting to
+Supabase). List only the production origin and `localhost`, and nothing
+else: no wildcards, no preview-deployment domains. Preview deployments
+never receive the Supabase environment variables in the first place
+(see below), so they have nothing to redirect back from.
+
+### Environment variables and repository secrets
+
+| Name                            | Value                                                         | Where                                                                                  |
+| ------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`             | The project's URL, from Supabase Dashboard -> Settings -> API | Vercel (**Production** environment only), and this repository's GitHub Actions secrets |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | The **publishable** key from the same page                    | Same as above                                                                          |
+
+The browser only ever receives the publishable key -- never the
+project's other, secret API key shown on that same page. That secret
+key belongs nowhere in this repository, in Vercel's client-side
+environment variables, or in a GitHub Actions secret used by a workflow
+that only ever sends anonymous, client-style requests, such as this
+one.
+
+Both variables are deliberately **Production only** in Vercel: preview
+deployments build with them unset, so the feature stays off and
+previews never touch the real database. The same two values, as
+repository secrets, are what `.github/workflows/keepalive.yml` uses.
+
+### Kill switch
+
+While `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` are unset (or
+removed) at build time, every route and control this feature adds stays
+off: the rest of the site renders exactly as it does today, and the
+Supabase client library is never loaded into the bundle. Vite inlines
+environment variables at build time, so turning the feature off -- or
+back on -- is a matter of changing the Vercel environment variables and
+redeploying, not a code change. Migrations themselves are additive and
+are never part of the kill switch.
+
+### Keep-alive ping
+
+`.github/workflows/keepalive.yml` runs Monday and Thursday (plus manual
+`workflow_dispatch`) and calls `public.keepalive()` with the publishable
+key. Two platform facts explain why twice a week is enough, and why a
+scheduled run alone does not keep the workflow itself alive:
+
+- Supabase pauses a free project after **7 days with no database
+  activity** (any PostgREST request counts, and Supabase emails a
+  warning first). Monday and Thursday are never more than 4 days apart,
+  comfortably inside that window.
+- GitHub disables a scheduled workflow in a public repository after
+  **60 days with no repository activity** -- and a _scheduled_ run does
+  not count as that activity; a push does. In other words, this
+  workflow keeps Supabase awake, but only real commits to this
+  repository keep the _workflow itself_ from eventually being disabled
+  (GitHub emails the last editor about 7 days before that happens).
+
+Until the two secrets above exist, every run prints a notice and exits
+successfully -- see the workflow file's own comment. Once they exist, a
+real failure is a red run in the Actions tab, which GitHub emails to the
+workflow's author. There is no admin-facing banner for this yet (a later
+slice adds one); to check the last successful ping by hand, run this as
+an admin, or as `postgres` in the SQL editor:
+
+```sql
+select last_ping_at from public.ops_heartbeat;
+```
+
+### Checking the scheduled purges
+
+Five pg_cron jobs run on their own schedule (all times UTC), each in its
+own transaction so one failing job never blocks the others:
+
+| Job                                | Schedule                     | Does                                                                    |
+| ---------------------------------- | ---------------------------- | ----------------------------------------------------------------------- |
+| `purge-pending-consent-accounts`   | `17 * * * *` (hourly)        | Deletes accounts that never recorded consent, about 24h after creation  |
+| `purge-unconfirmed-email-accounts` | `22 * * * *` (hourly)        | Deletes email sign-ups that never confirmed their address, after 7 days |
+| `purge-dormant-accounts`           | `27 * * * *` (hourly)        | Deletes accounts with no sign-in and no payment for 2 years             |
+| `purge-expired-confirmations`      | `32 * * * *` (hourly)        | Deletes attendance confirmations 30 days after their class date         |
+| `purge-cron-job-run-details`       | `0 4 * * 0` (weekly, Sunday) | Trims `cron.job_run_details` itself, keeping 7 days of run history      |
+
+Check recent runs (as `postgres`, or an admin with SQL editor access):
+
+```sql
+select j.jobname, r.status, r.start_time, r.return_message
+from cron.job_run_details r
+join cron.job j on j.jobid = r.jobid
+order by r.start_time desc
+limit 20;
+```
+
+A failing purge shows `status = 'failed'` on its own row, with the error
+in `return_message`, while the other jobs' rows are unaffected.
+
+### Teardown
+
+To abandon the feature entirely: delete the personal data and auth users
+with SQL (or through the dashboard), then delete the Supabase project
+itself. Stopping the GitHub keep-alive schedule is optional -- pointing
+it at a project that no longer exists just means every run fails loudly,
+which is itself a correct signal -- but disable or delete the workflow,
+and remove the two repository secrets, if that noise is not wanted.
+Migrations are additive and version-controlled, so nothing here is lost
+by deleting the project; recreating it and pushing them again is enough
+to come back. This is separate from stopping the **local** dev stack
+(`supabase stop`, see "Bootstrapping" above), which never touches a
+hosted project.
 
 ## What's here
 
