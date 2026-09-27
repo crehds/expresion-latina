@@ -29,14 +29,25 @@
 -- database (Verified Platform Fact: "DELETE FROM auth.users in a
 -- postgres-owned SECURITY DEFINER function works") requires exactly this
 -- shape.
+-- Returns the number of rows actually deleted (0 or 1, since id is the
+-- primary key) so every caller can tell "deleted" apart from "there was
+-- nothing to delete" -- delete_my_account() (owner decision 2026-09-26,
+-- review advisory U) raises on 0, and every purge below sums this
+-- return value into its own logged count instead of counting loop
+-- iterations, so a row that somehow no longer exists is never counted
+-- as deleted.
 create function private.delete_account(p_id uuid)
-returns void
+returns integer
 language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_deleted_count integer;
 begin
   delete from auth.users where id = p_id;
+  get diagnostics v_deleted_count = row_count;
+  return v_deleted_count;
 end;
 $$;
 
@@ -49,14 +60,34 @@ revoke execute on function private.delete_account (uuid) from public, anon, auth
 -- delete_my_account and then signOut"), not wait for the hourly purge.
 -- It only ever deletes auth.uid(), the caller's own id: there is no
 -- parameter, so no client input ever names a different account.
+--
+-- Two failure modes raise instead of silently "succeeding" (owner
+-- decision 2026-09-26, review advisory U), the same discipline
+-- public.record_consent already applies to its own missing-row case: a
+-- null auth.uid() (no authenticated caller at all -- the same errcode
+-- admin_search_members already uses for "not allowed to do this") and a
+-- delete that removed zero rows (the caller's account was already gone
+-- -- P0002, matching record_consent's own "no profile found" raise).
 create function public.delete_my_account()
 returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_uid uuid;
+  v_deleted_count integer;
 begin
-  perform private.delete_account (auth.uid ());
+  v_uid := auth.uid ();
+  if v_uid is null then
+    raise exception 'no authenticated user' using errcode = '42501';
+  end if;
+
+  v_deleted_count := private.delete_account (v_uid);
+
+  if v_deleted_count = 0 then
+    raise exception 'no account was deleted' using errcode = 'P0002';
+  end if;
 end;
 $$;
 
@@ -74,23 +105,33 @@ grant execute on function public.delete_my_account () to authenticated;
 -- paid_periods_admin_insert policy already requires has_consent on the
 -- member being paid), so this purge can never delete a payment.
 create function private.purge_pending_consent_accounts()
-returns void
+returns integer
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
   v_id uuid;
+  v_count integer := 0;
 begin
   for v_id in
     select u.id
     from auth.users u
     join public.profiles p on p.id = u.id
     where p.consent_at is null
+      -- 23h, not 24h: this function runs hourly (cron schedule below,
+      -- '17 * * * *'), so a pending account created just after one run
+      -- is always caught by the next one, at most 23h59m later -- 23h
+      -- plus that worst-case wait never exceeds 24h since sign-up,
+      -- matching Design D6a's "within 24 hours" guarantee exactly.
       and u.created_at < now() - interval '23 hours'
   loop
-    perform private.delete_account (v_id);
+    v_count := v_count + private.delete_account (v_id);
   end loop;
+
+  raise log 'purge_pending_consent_accounts deleted % account(s)', v_count;
+
+  return v_count;
 end;
 $$;
 
@@ -107,13 +148,14 @@ revoke execute on function private.purge_pending_consent_accounts () from public
 -- other purge criterion, precisely so it can change independently
 -- without touching the others.
 create function private.purge_unconfirmed_email_accounts()
-returns void
+returns integer
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
   v_id uuid;
+  v_count integer := 0;
 begin
   for v_id in
     select u.id
@@ -122,8 +164,12 @@ begin
       and u.email_confirmed_at is null
       and u.created_at < now() - interval '7 days'
   loop
-    perform private.delete_account (v_id);
+    v_count := v_count + private.delete_account (v_id);
   end loop;
+
+  raise log 'purge_unconfirmed_email_accounts deleted % account(s)', v_count;
+
+  return v_count;
 end;
 $$;
 
@@ -147,13 +193,14 @@ revoke execute on function private.purge_unconfirmed_email_accounts () from publ
 -- TimeZone) runs in UTC, so a zone-less value is read as UTC, exactly as
 -- the design specifies.
 create function private.purge_dormant_accounts()
-returns void
+returns integer
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
   v_id uuid;
+  v_count integer := 0;
 begin
   for v_id in
     select u.id
@@ -169,8 +216,12 @@ begin
       max(pp.created_at)
     ) < now() - interval '2 years'
   loop
-    perform private.delete_account (v_id);
+    v_count := v_count + private.delete_account (v_id);
   end loop;
+
+  raise log 'purge_dormant_accounts deleted % account(s)', v_count;
+
+  return v_count;
 end;
 $$;
 
@@ -183,26 +234,58 @@ revoke execute on function private.purge_dormant_accounts () from public, anon, 
 -- confirmation is kept through its 30th day and removed starting its
 -- 31st, matching the spec's own example exactly.
 create function private.purge_expired_confirmations()
-returns void
+returns integer
 language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_count integer;
 begin
   delete from public.attendance_confirmations
   where class_date < private.lima_today () - 30;
+
+  get diagnostics v_count = row_count;
+
+  raise log 'purge_expired_confirmations deleted % confirmation(s)', v_count;
+
+  return v_count;
 end;
 $$;
 
 revoke execute on function private.purge_expired_confirmations () from public, anon, authenticated;
 
 -- private.purge_expired_accounts (Design D6; Database Security
--- Contract: "hourly purge"). Composes the four purges above into the
--- single entry point pg_cron schedules below. Granted to nobody, like
--- every function it calls -- pg_cron always runs a scheduled command as
--- the role that scheduled it (postgres, a local superuser, since this
--- migration itself runs as postgres), so no client role ever needs
--- reach here.
+-- Contract: "hourly purge"). Composes the three account purges above
+-- PLUS the unrelated attendance-retention purge (Design D6d) into the
+-- single entry point pg_cron schedules below -- this comment, and the
+-- one on the cron.schedule call itself, are the only places that say
+-- so, since the function and job are both named for account purges
+-- alone. Granted to nobody, like every function it calls -- pg_cron
+-- always runs a scheduled command as the role that scheduled it
+-- (postgres, a local superuser, since this migration itself runs as
+-- postgres), so no client role ever needs reach here.
+--
+-- ISOLATION (owner decision 2026-09-26, review advisories Q/R/T): each
+-- purge runs inside its own BEGIN/EXCEPTION block instead of one bare
+-- sequence of `perform` calls. plpgsql opens an implicit savepoint on
+-- entry to any block that has an EXCEPTION clause, and on error rolls
+-- back to only that savepoint before continuing after the block -- so a
+-- failure inside any one purge (say, a future migration adds an FK that
+-- rejects one specific row) is contained to that purge alone and can
+-- never roll back the other three, including attendance retention,
+-- which must keep running every hour regardless of what happens to
+-- account deletion. Without this, all four ran in the single implicit
+-- transaction pg_cron opens for the whole function call, so one
+-- exception would have rolled back every purge, hourly. Every branch
+-- logs its own outcome -- the deleted count on success (inside each
+-- purge above), or sqlerrm on failure (here) -- counts and error text
+-- only, never an email, name or id.
+--
+-- NO PER-RUN CAP (review advisory R): none of the four purges limits
+-- how many rows it processes in one run. The hosted project starts
+-- brand new with no pre-existing legacy users to sweep, so an unbounded
+-- scan is an accepted tradeoff for this project, not an oversight.
 create function private.purge_expired_accounts()
 returns void
 language plpgsql
@@ -210,10 +293,33 @@ security definer
 set search_path = ''
 as $$
 begin
-  perform private.purge_pending_consent_accounts ();
-  perform private.purge_unconfirmed_email_accounts ();
-  perform private.purge_dormant_accounts ();
-  perform private.purge_expired_confirmations ();
+  begin
+    perform private.purge_pending_consent_accounts ();
+  exception
+    when others then
+      raise warning 'purge_pending_consent_accounts failed: %', sqlerrm;
+  end;
+
+  begin
+    perform private.purge_unconfirmed_email_accounts ();
+  exception
+    when others then
+      raise warning 'purge_unconfirmed_email_accounts failed: %', sqlerrm;
+  end;
+
+  begin
+    perform private.purge_dormant_accounts ();
+  exception
+    when others then
+      raise warning 'purge_dormant_accounts failed: %', sqlerrm;
+  end;
+
+  begin
+    perform private.purge_expired_confirmations ();
+  exception
+    when others then
+      raise warning 'purge_expired_confirmations failed: %', sqlerrm;
+  end;
 end;
 $$;
 
@@ -238,7 +344,9 @@ grant all privileges on all tables in schema cron to postgres;
 
 -- Hourly, at :17 (Design D6/D7's own chosen offset, away from the top of
 -- the hour). Named so the schedule can be looked up and changed without
--- guessing at an autogenerated job id.
+-- guessing at an autogenerated job id. Despite the name, this job also
+-- runs attendance retention (private.purge_expired_confirmations) --
+-- see the comment on private.purge_expired_accounts() above.
 select cron.schedule(
   'purge-expired-accounts',
   '17 * * * *',

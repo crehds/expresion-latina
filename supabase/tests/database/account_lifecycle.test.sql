@@ -26,7 +26,7 @@
 -- "merely hidden from me" (pgTAP cross-member-write lesson).
 begin;
 
-select plan(33);
+select plan(46);
 
 -- ============================================================
 -- Fixtures, Group A: member_self owns one row in every table that must
@@ -120,6 +120,32 @@ insert into auth.users (
   now() - interval '100 days', now() - interval '100 days'
 );
 
+-- V (review advisory): just-inside / just-outside the exact 23-hour
+-- threshold, pinned relative to the SAME expression the migration
+-- itself subtracts (`now() - interval '23 hours'`), one minute to
+-- either side -- not the coarse 24h/1h fixtures above. now() is
+-- constant for the whole transaction, so both hold regardless of when
+-- the suite runs.
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000019', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-pending-justinside@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{"full_name":"Pending Just Inside"}',
+  now() - interval '23 hours' + interval '1 minute', now() - interval '23 hours' + interval '1 minute'
+);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-pending-justoutside@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{"full_name":"Pending Just Outside"}',
+  now() - interval '23 hours' - interval '1 minute', now() - interval '23 hours' - interval '1 minute'
+);
+
 -- ============================================================
 -- Fixtures, Group E: private.purge_unconfirmed_email_accounts (an
 -- UNCONFIRMED owner default -- see the migration comment). Only
@@ -165,6 +191,29 @@ insert into auth.users (
   '{"provider":"google","providers":["google"]}',
   '{"full_name":"Google Unconfirmed Old"}',
   now() - interval '8 days', now() - interval '8 days'
+);
+
+-- V (review advisory): just-inside / just-outside the exact 7-day
+-- threshold, pinned relative to `now() - interval '7 days'`, the same
+-- expression the migration subtracts.
+insert into auth.users (
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-unconfirmed-justinside@example.com', null,
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Unconfirmed Just Inside","consent_version":"2026-01-01"}',
+  now() - interval '7 days' + interval '1 minute', now() - interval '7 days' + interval '1 minute'
+);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000022', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-unconfirmed-justoutside@example.com', null,
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Unconfirmed Just Outside","consent_version":"2026-01-01"}',
+  now() - interval '7 days' - interval '1 minute', now() - interval '7 days' - interval '1 minute'
 );
 
 -- google_unconfirmed_old is consented directly (the handle_new_user
@@ -270,6 +319,33 @@ insert into public.paid_periods (member_id, starts_on, ends_on) values (
   'c0000000-0000-0000-0000-000000000016', private.lima_today () - 1200, private.lima_today () - 1100
 );
 
+-- V (review advisory): just-inside / just-outside the exact 2-year
+-- threshold, pinned relative to `now() - interval '2 years'` (the same
+-- expression the migration subtracts), 1 hour to either side. Every
+-- signal on both fixtures is pinned to the SAME age, so greatest()
+-- genuinely reflects that one boundary instead of a mix of signals.
+insert into auth.users (
+  id, instance_id, aud, role, email, last_sign_in_at, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000023', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-dormant-justinside@example.com',
+  now() - interval '2 years' + interval '1 hour', now() - interval '2 years' + interval '1 hour',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Dormant Just Inside","consent_version":"2026-01-01"}',
+  now() - interval '2 years' + interval '1 hour', now() - interval '2 years' + interval '1 hour'
+);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, last_sign_in_at, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-dormant-justoutside@example.com',
+  now() - interval '2 years' - interval '1 hour', now() - interval '2 years' - interval '1 hour',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Dormant Just Outside","consent_version":"2026-01-01"}',
+  now() - interval '2 years' - interval '1 hour', now() - interval '2 years' - interval '1 hour'
+);
+
 -- ============================================================
 -- Fixtures, Group G: private.purge_expired_confirmations. One member
 -- owns all three probe confirmations, at and around the 30-day boundary
@@ -300,6 +376,26 @@ insert into public.attendance_confirmations (
 ) values (
   'c0000000-0000-0000-0000-000000000017', private.lima_today () + 3, '19:00', '20:00', 'salsa', 'lifecycle-future', 'Salsa', 'Lifecycle Future'
 );
+
+-- ============================================================
+-- Group A0: delete_my_account requires an authenticated caller (owner
+-- decision 2026-09-26, review advisory U). Called here as
+-- `authenticated`, with no JWT claims ever set in this transaction, so
+-- auth.uid() reads null -- the same failure mode as a malformed or
+-- missing bearer token reaching PostgREST. This MUST run before any
+-- other group sets request.jwt.claims (set local persists for the rest
+-- of the transaction, and no later group resets it back to unset).
+-- ============================================================
+set local role authenticated;
+
+select throws_ok(
+  $$select delete_my_account()$$,
+  '42501',
+  null,
+  'delete_my_account raises when there is no authenticated caller (auth.uid() is null)'
+);
+
+reset role;
 
 -- ============================================================
 -- Group A: delete_my_account() deletes the caller's own account and
@@ -345,6 +441,23 @@ select is(
   1,
   'deleting one member''s account never touches another member''s account'
 );
+
+-- delete_my_account raises when the account was already deleted (owner
+-- decision 2026-09-26, review advisory U). auth.uid() here is a real,
+-- well-formed id -- the very one that just deleted itself above -- so
+-- this isolates the "nothing was deleted" branch from the "no caller at
+-- all" branch Group A0 already proved.
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"c0000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select throws_ok(
+  $$select delete_my_account()$$,
+  'P0002',
+  null,
+  'delete_my_account raises when the caller''s account was already deleted'
+);
+
+reset role;
 
 -- ============================================================
 -- Group B: private.delete_account has no client EXECUTE.
@@ -409,6 +522,16 @@ select is(
   1,
   'a consented account is kept regardless of age'
 );
+select is(
+  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000019'),
+  1,
+  'a pending account 1 minute inside the 23-hour threshold is kept'
+);
+select is(
+  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000020'),
+  0,
+  'a pending account 1 minute past the 23-hour threshold is purged'
+);
 
 -- ============================================================
 -- Group E: private.purge_unconfirmed_email_accounts (own named function,
@@ -435,6 +558,16 @@ select is(
   (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000010'),
   1,
   'a non-email (Google) account is kept even with no email confirmation timestamp'
+);
+select is(
+  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000021'),
+  1,
+  'an unconfirmed email account 1 minute inside the 7-day threshold is kept'
+);
+select is(
+  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000022'),
+  0,
+  'an unconfirmed email account 1 minute past the 7-day threshold is purged'
 );
 
 -- ============================================================
@@ -473,6 +606,16 @@ select is(
   (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000016'),
   1,
   'a paid period recorded recently keeps the account, even when its dates are long expired and every other signal is old'
+);
+select is(
+  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000023'),
+  1,
+  'an account 1 hour inside the 2-year dormant threshold on every signal is kept'
+);
+select is(
+  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000024'),
+  0,
+  'an account 1 hour past the 2-year dormant threshold on every signal is purged'
 );
 
 -- ============================================================
@@ -532,6 +675,103 @@ select is(
 );
 
 -- ============================================================
+-- Group J: private.purge_expired_accounts isolates each purge (owner
+-- decision 2026-09-26, review advisories Q/R/T). A temporary trigger,
+-- local to this test file only, simulates ONE purge (pending-consent)
+-- failing on its one target row; the other two purges below still
+-- delete their own unrelated targets, and the composed call itself
+-- never throws -- exactly what a bare sequence of `perform` calls with
+-- no exception handling could never provide (a failure partway through
+-- the first purge would abort the whole function before the other three
+-- ever ran).
+-- ============================================================
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000025', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-iso-blocked-pending@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{"full_name":"Iso Blocked Pending"}', now() - interval '25 hours', now() - interval '25 hours'
+);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, last_sign_in_at, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000026', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-iso-dormant@example.com', now() - interval '3 years', now() - interval '3 years',
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Iso Dormant","consent_version":"2026-01-01"}',
+  now() - interval '3 years', now() - interval '3 years'
+);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'c0000000-0000-0000-0000-000000000027', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'al-iso-confirmation-owner@example.com', now(),
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Iso Confirmation Owner","consent_version":"2026-01-01"}', now(), now()
+);
+
+insert into public.attendance_confirmations (
+  member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label
+) values (
+  'c0000000-0000-0000-0000-000000000027', private.lima_today () - 31, '19:00', '20:00', 'salsa', 'lifecycle-isolation', 'Salsa', 'Lifecycle Isolation'
+);
+
+-- Blocks the delete for exactly one row (matched by email, not id, so
+-- the trigger body never needs to know any fixture's uuid), simulating
+-- the pending-consent purge hitting an unexpected failure -- a future
+-- FK or constraint this migration does not currently have, standing in
+-- for one this test cannot otherwise provoke. This whole file runs in
+-- one transaction that always ends in `rollback;`, so the trigger and
+-- function would disappear either way, but both are dropped explicitly
+-- right after use, the same hygiene catalog_privileges.test.sql already
+-- uses for its own fixture functions.
+create function pg_temp.__block_one_delete()
+returns trigger
+language plpgsql
+as $$
+begin
+  if old.email = 'al-iso-blocked-pending@example.com' then
+    raise exception 'simulated failure for the purge isolation test';
+  end if;
+  return old;
+end;
+$$;
+
+create trigger __block_one_delete_trigger
+before delete on auth.users
+for each row
+execute function pg_temp.__block_one_delete();
+
+select lives_ok(
+  $$select private.purge_expired_accounts()$$,
+  'purge_expired_accounts does not throw even when one of its purges fails on one row'
+);
+
+select is(
+  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000025'),
+  1,
+  'the row the trigger blocked is still there -- its own purge genuinely failed, not silently skipped'
+);
+
+select is(
+  (select count(*)::int from auth.users where id = 'c0000000-0000-0000-0000-000000000026'),
+  0,
+  'the dormant purge still deleted its own unrelated target after the pending-consent purge failed'
+);
+
+select is(
+  (select count(*)::int from public.attendance_confirmations where room_key = 'lifecycle-isolation'),
+  0,
+  'attendance retention still ran after the pending-consent purge failed'
+);
+
+drop trigger __block_one_delete_trigger on auth.users;
+drop function pg_temp.__block_one_delete();
+
+-- ============================================================
 -- Group I: the pg_cron jobs are registered with the schedules the
 -- design names (hourly purge, plus the weekly cron.job_run_details
 -- cleanup).
@@ -548,18 +788,28 @@ select is(
   'the hourly purge_expired_accounts job is registered with the design''s schedule'
 );
 
+-- W (review advisory): assert the weekly job's schedule and retention
+-- interval exactly, not just "some weekday" and "some interval".
 select is(
   (
     select count(*)::int from cron.job
     where jobname = 'purge-cron-job-run-details'
+      and schedule = '0 4 * * 0'
       and active
       and command ~* 'cron\.job_run_details'
-      -- A weekly schedule names one specific day of the week (not `*`)
-      -- in the 5th cron field.
-      and split_part(schedule, ' ', 5) <> '*'
   ),
   1,
-  'the weekly cron.job_run_details cleanup job is registered on a specific weekday'
+  'the weekly cron.job_run_details cleanup job is registered with the design''s exact schedule (Sunday 04:00 UTC)'
+);
+
+select is(
+  (
+    select count(*)::int from cron.job
+    where jobname = 'purge-cron-job-run-details'
+      and command ~* 'interval\s+''7 days'''
+  ),
+  1,
+  'the weekly cleanup job retains cron.job_run_details rows for exactly 7 days'
 );
 
 select lives_ok(
