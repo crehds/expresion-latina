@@ -3,18 +3,20 @@
 -- supabase/tests/database/keepalive.test.sql.
 --
 -- public.keepalive() is the ONE function in this whole schema granted to
--- anon instead of authenticated: the twice-weekly GitHub Actions workflow
+-- anon instead of authenticated: the daily GitHub Actions workflow
 -- (.github/workflows/keepalive.yml) calls it using only the publishable
 -- ("anon") key -- there is no signed-in session at that point, and there
 -- never needs to be one. It takes no parameters and its target row is
 -- fixed (id = 1), so nothing about this call is ever influenced by client
 -- input.
 
--- A one-row table: id is pinned to 1 by both the default and the CHECK,
--- and the only INSERT this migration ever runs also names it explicitly
--- (Design Interfaces: "ops_heartbeat(id=1, last_ping_at)"). RLS on,
--- admin-only SELECT -- the same policy shape every other member-facing
--- table already uses (Database Security Contract), with the admin check
+-- A one-row table: id is pinned to 1 by both the default and the CHECK.
+-- This migration itself runs no INSERT -- the table starts empty -- but
+-- the only write path into it, the upsert inside public.keepalive()
+-- below, also names id explicitly (Design Interfaces:
+-- "ops_heartbeat(id=1, last_ping_at)"). RLS on, admin-only SELECT -- the
+-- same policy shape every other member-facing table already uses
+-- (Database Security Contract), with the admin check
 -- wrapped in its own `(select ...)` so the planner evaluates it once per
 -- statement rather than once per row (PR1b review follow-up, Supabase RLS
 -- performance guidance).

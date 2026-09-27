@@ -426,8 +426,8 @@ select lives_ok(
 -- consented, email-confirmed member" once the directory's WHERE clause
 -- gained the same second condition -- `authenticated` has no grant on
 -- auth.users at all, so the count is computed as postgres (`reset role`)
--- and stashed in a custom GUC (review advisory Y1), the same mechanism
--- this file already uses for request.jwt.claims, so it survives the
+-- and stashed in a custom GUC, the same mechanism this file already
+-- uses for request.jwt.claims, so it survives the
 -- switch back to the authenticated admin below. The previous revision of
 -- this test computed the count AND called admin_search_members both
 -- after the same `reset role`, so the call itself also ran as postgres --
@@ -438,7 +438,7 @@ select lives_ok(
 reset role;
 
 select set_config(
-  'test.y1_expected_listed_count',
+  'test.expected_listed_member_count',
   (
     select count(*)::int
     from public.profiles p
@@ -453,19 +453,19 @@ set local request.jwt.claims to '{"sub":"a0000000-0000-0000-0000-000000000001","
 
 select is(
   (select count(*)::int from public.admin_search_members(null, 50)),
-  current_setting('test.y1_expected_listed_count')::int,
+  current_setting('test.expected_listed_member_count')::int,
   'a NULL query lists every consented, email-confirmed member, called as the authenticated admin'
 );
 
 select is(
   (select count(*)::int from public.admin_search_members('', 50)),
-  current_setting('test.y1_expected_listed_count')::int,
+  current_setting('test.expected_listed_member_count')::int,
   'an empty-string query lists every consented, email-confirmed member, called as the authenticated admin'
 );
 
 select is(
   (select count(*)::int from public.admin_search_members('   ', 50)),
-  current_setting('test.y1_expected_listed_count')::int,
+  current_setting('test.expected_listed_member_count')::int,
   'a whitespace-only query lists every consented, email-confirmed member, called as the authenticated admin'
 );
 

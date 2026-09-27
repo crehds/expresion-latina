@@ -1,9 +1,9 @@
 -- Keep-alive heartbeat (Design D7; spec: "Weekly Keep-Alive Ping",
 -- "Keep-Alive Failure Detection"). Proven against
--- supabase/migrations/<timestamp>_keepalive.sql.
+-- supabase/migrations/20260924170000_keepalive.sql.
 --
 -- public.keepalive() is the one function in this whole schema granted to
--- anon instead of authenticated: the twice-weekly GitHub Actions workflow
+-- anon instead of authenticated: the daily GitHub Actions workflow
 -- (.github/workflows/keepalive.yml) calls it with only the publishable
 -- ("anon") key, with no signed-in session at all -- exactly what Group A
 -- below exercises. now() is constant for this whole test transaction
@@ -50,6 +50,21 @@ insert into auth.users (
   'authenticated', 'authenticated', 'ka-member@example.com',
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Keepalive Member","consent_version":"2026-01-01"}', now(), now()
+);
+
+-- Snapshot of both fixtures' whole profiles rows, taken before the first
+-- keepalive() call below (Group A). Group E compares this against a
+-- fresh snapshot taken after every keepalive() call in this file, to
+-- prove the rows are byte-for-byte unchanged -- not merely that they
+-- still exist.
+select set_config(
+  'test.profiles_snapshot_before',
+  (
+    select md5(string_agg(p::text, ',' order by p.id))
+    from public.profiles p
+    where p.id in ('d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002')
+  ),
+  true
 );
 
 -- ============================================================
@@ -215,15 +230,16 @@ reset role;
 -- reads or writes profiles/paid_periods/attendance_confirmations, so the
 -- two member fixtures above -- and the absence of any period or
 -- confirmation for them -- must be exactly as this file left them after
--- five keepalive() calls.
+-- three keepalive() calls (one in Group A, two in Group B).
 -- ============================================================
 select is(
   (
-    select count(*)::int from public.profiles
-    where id in ('d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002')
+    select md5(string_agg(p::text, ',' order by p.id))
+    from public.profiles p
+    where p.id in ('d0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002')
   ),
-  2,
-  'keepalive() never touches public.profiles'
+  current_setting('test.profiles_snapshot_before'),
+  'keepalive() leaves both profiles rows byte-for-byte unchanged, not merely still present'
 );
 select is(
   (
