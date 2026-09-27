@@ -20,6 +20,13 @@ on conflict (version) do nothing;
 -- One fake member, so a fresh local stack has something to look at (e.g.
 -- in Supabase Studio) without running a real sign-up first. `example.test`
 -- is the RFC 6761 reserved test domain, not a real address.
+--
+-- email_confirmed_at is set immediately (owner decision 2026-09-26): the
+-- member directory and payments now require a confirmed email in
+-- addition to recorded consent, and the hourly purge deletes an
+-- unconfirmed email account after 7 days. Without this, this seed row
+-- would silently disappear from a local stack left running for a week,
+-- and would never show up in the directory to begin with.
 insert into
   auth.users (
     id,
@@ -27,6 +34,7 @@ insert into
     aud,
     role,
     email,
+    email_confirmed_at,
     raw_app_meta_data,
     raw_user_meta_data,
     created_at,
@@ -39,6 +47,7 @@ values
     'authenticated',
     'authenticated',
     'seed-member@example.test',
+    now(),
     '{"provider":"email","providers":["email"]}',
     '{"full_name":"Seed Member","consent_version":"2026-01-01"}',
     now(),

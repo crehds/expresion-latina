@@ -39,6 +39,31 @@ $$;
 
 revoke execute on function private.lima_today () from public, anon, authenticated;
 
+-- private.has_confirmed_email (owner decision 2026-09-26, extending the
+-- consented-only rule below): an email/password sign-up records
+-- consent_at immediately, before the address is ever confirmed (Design
+-- D5.2), so consent alone does not prove the account is reachable or
+-- real. SECURITY DEFINER because no client role has table access to
+-- auth.users at all; reads only the one column it needs. Used by the
+-- paid_periods_admin_insert policy below (per-row, called directly, not
+-- wrapped in `(select ...)`) -- admin_search_members' own WHERE clause
+-- checks the same column inline instead, since it already joins
+-- auth.users and needs no extra function call to reach it.
+create function private.has_confirmed_email(p_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from auth.users u where u.id = p_id and u.email_confirmed_at is not null
+  );
+$$;
+
+revoke execute on function private.has_confirmed_email (uuid) from public, anon, authenticated;
+grant execute on function private.has_confirmed_email (uuid) to authenticated;
+
 create table public.paid_periods (
   id uuid primary key default gen_random_uuid (),
   member_id uuid not null references public.profiles (id) on delete cascade,
@@ -96,22 +121,31 @@ create policy paid_periods_select on public.paid_periods for select to authentic
   or (select private.is_admin ())
 );
 
--- An admin can only record a period for a member who has accepted the
--- privacy notice. Without this check, a payment could be attached to a
--- pending account that the pending-consent purge (PR3) deletes
--- automatically if the person never accepts, before they ever confirm
--- they want an account at all -- a payment can never exist for an
--- account that cannot hold one.
--- private.has_consent(member_id) is called directly, not wrapped in a
--- `(select ...)` InitPlan: it depends on the row being inserted, not on
--- a value fixed for the whole statement, so it must be evaluated per
--- row. This policy only constrains client roles acting as
--- `authenticated`; service_role bypasses row level security entirely
--- and remains a trusted backend path outside every policy in this file.
+-- An admin can only record a period for a member who has BOTH accepted
+-- the privacy notice AND confirmed their email address (owner decision
+-- 2026-09-26, extending the original consented-only rule). Without the
+-- consent half, a payment could be attached to a pending account that
+-- the pending-consent purge (PR3) deletes automatically if the person
+-- never accepts, before they ever confirm they want an account at all.
+-- Without the confirmed-email half, a payment could be attached to an
+-- email sign-up that recorded consent at creation but never confirmed
+-- its address -- private.purge_unconfirmed_email_accounts (PR3a) deletes
+-- that account after 7 days and cascades the payment away with no
+-- trace, and an unconfirmed account cannot even sign in on the hosted
+-- project. Either way, a payment can never exist for an account that
+-- cannot durably hold one.
+-- Both private.has_consent(member_id) and private.has_confirmed_email
+-- (member_id) are called directly, not wrapped in a `(select ...)`
+-- InitPlan: each depends on the row being inserted, not on a value
+-- fixed for the whole statement, so both must be evaluated per row.
+-- This policy only constrains client roles acting as `authenticated`;
+-- service_role bypasses row level security entirely and remains a
+-- trusted backend path outside every policy in this file.
 create policy paid_periods_admin_insert on public.paid_periods for insert to authenticated
 with check (
   (select private.is_admin ())
   and private.has_consent (member_id)
+  and private.has_confirmed_email (member_id)
 );
 
 create policy paid_periods_admin_update on public.paid_periods
@@ -190,14 +224,23 @@ begin
       position(lower(v_q) in lower(p.full_name)) > 0
       or position(lower(v_q) in lower(u.email)) > 0
     )
-    -- The directory lists consented members only. A pending account
-    -- (created by Google sign-in before the person accepts the privacy
-    -- notice) has no recorded consent, gets deleted automatically by the
-    -- pending-consent purge (PR3) if the person never accepts, and would
-    -- otherwise expose the email of someone who never agreed to
-    -- anything. The member becomes searchable the moment they accept the
-    -- notice on their next sign-in.
+    -- The directory lists consented, email-confirmed members only
+    -- (owner decision 2026-09-26, extending the original consented-only
+    -- rule). A pending account (created by Google sign-in before the
+    -- person accepts the privacy notice) has no recorded consent, gets
+    -- deleted automatically by the pending-consent purge (PR3) if the
+    -- person never accepts, and would otherwise expose the email of
+    -- someone who never agreed to anything. An email/password sign-up
+    -- records consent_at immediately, before the address is ever
+    -- confirmed, so consent alone does not prove the account is
+    -- reachable -- and private.purge_unconfirmed_email_accounts (PR3a)
+    -- deletes it after 7 days regardless. The member becomes searchable
+    -- the moment both are true: for email/password, that means
+    -- accepting the notice AND confirming the address; for Google, the
+    -- address is already confirmed by the provider, so accepting the
+    -- notice alone is enough.
     and p.consent_at is not null
+    and u.email_confirmed_at is not null
   group by
     p.id,
     p.full_name,

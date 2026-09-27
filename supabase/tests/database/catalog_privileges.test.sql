@@ -241,7 +241,8 @@ select is(
         ('public', 'delete_my_account', 'authenticated'),
         ('private', 'is_admin', 'authenticated'),
         ('private', 'has_consent', 'authenticated'),
-        ('private', 'can_confirm', 'authenticated')
+        ('private', 'can_confirm', 'authenticated'),
+        ('private', 'has_confirmed_email', 'authenticated')
     )
     select count(*)::int
     from pg_temp.__catalog_function_grants() g

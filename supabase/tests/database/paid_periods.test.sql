@@ -13,7 +13,7 @@
 -- guarantees nothing this file creates survives it.
 begin;
 
-select plan(53);
+select plan(56);
 
 -- Admin (flipped after insert, same as profiles_consent.test.sql), plus six
 -- members: member_x carries the CRUD and self-write-rejected scenarios;
@@ -22,66 +22,70 @@ select plan(53);
 -- 1, before Group 3 gives it any periods of its own); member_w is left
 -- untouched until Group 4 so its EXCLUDE constraint can never fire for a
 -- reason other than the CHECK under test; diana and erik back Group 5.
+-- email_confirmed_at is set on every fixture below that must be listed
+-- or payable (owner decision 2026-09-26: the directory and payments now
+-- require a confirmed email in addition to recorded consent). Group 7b
+-- below adds the one fixture that deliberately leaves it null.
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'pp-admin@example.com',
+  'authenticated', 'authenticated', 'pp-admin@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Admin Reyes","consent_version":"2026-01-01"}', now(), now()
 );
 update public.profiles set is_admin = true where id = 'a0000000-0000-0000-0000-000000000001';
 
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'pp-member-x@example.com',
+  'authenticated', 'authenticated', 'pp-member-x@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Member X","consent_version":"2026-01-01"}', now(), now()
 );
 
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'pp-member-y@example.com',
+  'authenticated', 'authenticated', 'pp-member-y@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Member Y","consent_version":"2026-01-01"}', now(), now()
 );
 
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'pp-member-z@example.com',
+  'authenticated', 'authenticated', 'pp-member-z@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Member Z","consent_version":"2026-01-01"}', now(), now()
 );
 
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'pp-member-w@example.com',
+  'authenticated', 'authenticated', 'pp-member-w@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Member W","consent_version":"2026-01-01"}', now(), now()
 );
 
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'diana-cross@example.com',
+  'authenticated', 'authenticated', 'diana-cross@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Diana Cross","consent_version":"2026-01-01"}', now(), now()
 );
 
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'erik-fields@example.com',
+  'authenticated', 'authenticated', 'erik-fields@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Erik Fields","consent_version":"2026-01-01"}', now(), now()
 );
@@ -417,22 +421,33 @@ select lives_ok(
 -- fixtures, so "every consented member" is whatever that count actually
 -- is, not just the fixtures inserted above. Before the fix, a NULL query
 -- listed nobody (position(NULL in ...) is NULL, never > 0).
+-- The expected count now joins auth.users too (owner decision
+-- 2026-09-26): "every consented member" changed meaning to "every
+-- consented, email-confirmed member" once the directory's WHERE clause
+-- gained the same second condition -- `authenticated` has no grant on
+-- auth.users at all, so this comparison runs as postgres (`reset role`)
+-- instead; request.jwt.claims is untouched by `reset role` (it only
+-- clears the `role` GUC), so admin_search_members still sees the same
+-- admin caller via auth.uid() and postgres, a superuser, bypasses the
+-- EXECUTE check the same way it bypasses the auth.users grant.
+reset role;
+
 select is(
   (select count(*)::int from public.admin_search_members(null, 50)),
-  (select count(*)::int from public.profiles where consent_at is not null),
-  'a NULL query lists every consented member'
+  (select count(*)::int from public.profiles p join auth.users u on u.id = p.id where p.consent_at is not null and u.email_confirmed_at is not null),
+  'a NULL query lists every consented, email-confirmed member'
 );
 
 select is(
   (select count(*)::int from public.admin_search_members('', 50)),
-  (select count(*)::int from public.profiles where consent_at is not null),
-  'an empty-string query lists every consented member'
+  (select count(*)::int from public.profiles p join auth.users u on u.id = p.id where p.consent_at is not null and u.email_confirmed_at is not null),
+  'an empty-string query lists every consented, email-confirmed member'
 );
 
 select is(
   (select count(*)::int from public.admin_search_members('   ', 50)),
-  (select count(*)::int from public.profiles where consent_at is not null),
-  'a whitespace-only query lists every consented member'
+  (select count(*)::int from public.profiles p join auth.users u on u.id = p.id where p.consent_at is not null and u.email_confirmed_at is not null),
+  'a whitespace-only query lists every consented, email-confirmed member'
 );
 
 -- Deterministic order: two members sharing a full_name must still come
@@ -444,18 +459,18 @@ select is(
 reset role;
 
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'tied-name-a@example.com',
+  'authenticated', 'authenticated', 'tied-name-a@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Tied Name","consent_version":"2026-01-01"}', now(), now()
 );
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'tied-name-b@example.com',
+  'authenticated', 'authenticated', 'tied-name-b@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Tied Name","consent_version":"2026-01-01"}', now(), now()
 );
@@ -503,10 +518,10 @@ reset role;
 -- same as the function.
 -- ============================================================
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'pp-member-v@example.com',
+  'authenticated', 'authenticated', 'pp-member-v@example.com', now(),
   '{"provider":"email","providers":["email"]}',
   '{"full_name":"Member V","consent_version":"2026-01-01"}', now(), now()
 );
@@ -580,12 +595,17 @@ reset role;
 -- privacy notice) has no recorded consent, is deleted automatically by
 -- the pending-consent purge (PR3) if the person never accepts, and would
 -- otherwise expose the email of someone who never agreed to anything.
+-- email_confirmed_at is set here even though the fixture is pending: a
+-- real Google sign-in confirms the address immediately (the provider
+-- already verified it), so this isolates the missing-consent clause
+-- from the confirmed-email clause added in Group 7b below -- exclusion
+-- here is explained by consent alone.
 -- ============================================================
 insert into auth.users (
-  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 ) values (
   'a0000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'pp-pending-google@example.com',
+  'authenticated', 'authenticated', 'pp-pending-google@example.com', now(),
   '{"provider":"google","providers":["google"]}',
   '{"full_name":"Pending Visitor"}', now(), now()
 );
@@ -616,6 +636,49 @@ select throws_ok(
   '42501',
   null,
   'an admin cannot record a paid period for a member who has not recorded consent'
+);
+
+reset role;
+
+-- ============================================================
+-- Group 7b: the directory and payments also require a CONFIRMED email
+-- (owner decision 2026-09-26, extending the consented-only rule above).
+-- An email/password sign-up records consent_at immediately -- BEFORE
+-- the address is ever confirmed -- so this fixture is genuinely
+-- consented, unlike Group 7's pending-google fixture, isolating the
+-- confirmed-email clause on its own. Without this rule, this member
+-- would be listed and payable today, and PR3a's 7-day unconfirmed-email
+-- purge would then cascade-delete any payment recorded here with no
+-- trace.
+-- ============================================================
+insert into auth.users (
+  id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'a0000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'pp-unconfirmed-email@example.com', null,
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Unconfirmed Emailer","consent_version":"2026-01-01"}', now(), now()
+);
+
+select ok(
+  (select consent_at is not null from public.profiles where id = 'a0000000-0000-0000-0000-00000000000c'),
+  'the fixture has recorded consent -- email sign-up consents immediately, unlike the pending-google fixture above'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select is(
+  (select count(*)::int from public.admin_search_members('unconfirmed-email', 50)),
+  0,
+  'a consented account with an unconfirmed email is invisible to the directory even when its email matches'
+);
+
+select throws_ok(
+  $$insert into public.paid_periods (member_id, starts_on, ends_on) values ('a0000000-0000-0000-0000-00000000000c', '2026-01-01', '2026-01-31')$$,
+  '42501',
+  null,
+  'an admin cannot record a paid period for a consented member whose email is unconfirmed'
 );
 
 reset role;
