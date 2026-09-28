@@ -73,7 +73,6 @@ function buildEnv(overrides) {
   const env = { ...process.env };
   delete env.SUPABASE_URL;
   delete env.SUPABASE_PUBLISHABLE_KEY;
-  delete env.KEEPALIVE_ENABLED;
   delete env.KEEPALIVE_STRICT;
   return { ...env, ...overrides };
 }
@@ -122,7 +121,7 @@ function startStub(statusSequence) {
 }
 
 describe('scripts/ci/keepalive-ping.sh', () => {
-  describe('KEEPALIVE_STRICT validation (no secrets reachable)', () => {
+  describe('configuration validation (rejected before any request)', () => {
     it('is dormant when neither secret is set and KEEPALIVE_STRICT is unset', async () => {
       const result = await runScript(buildEnv({}));
       assert.equal(result.code, 0);
@@ -131,6 +130,15 @@ describe('scripts/ci/keepalive-ping.sh', () => {
 
     it('is dormant when neither secret is set and KEEPALIVE_STRICT=false', async () => {
       const result = await runScript(buildEnv({ KEEPALIVE_STRICT: 'false' }));
+      assert.equal(result.code, 0);
+      assert.match(result.stdout, /::notice::/);
+    });
+
+    it('is dormant when neither secret is set and KEEPALIVE_STRICT is explicitly empty', async () => {
+      // Distinct from unset: the env var is present but set to ''. buildEnv's
+      // overrides are applied after the unset/false/true baselines are wiped,
+      // so this actually sets KEEPALIVE_STRICT="" rather than leaving it absent.
+      const result = await runScript(buildEnv({ KEEPALIVE_STRICT: '' }));
       assert.equal(result.code, 0);
       assert.match(result.stdout, /::notice::/);
     });
@@ -160,9 +168,9 @@ describe('scripts/ci/keepalive-ping.sh', () => {
           const output = result.stdout + result.stderr;
           assert.equal(result.code, 1);
           assert.match(output, /::error::/);
-          assert.match(output, /true/);
-          assert.match(output, /false/);
-          assert.match(output, /1/);
+          assert.match(output, /"true"/);
+          assert.match(output, /"false"/);
+          assert.match(output, new RegExp(escapeRegExp('got "1"')));
           assert.equal(stub.requests.length, 0);
           assertKeyNeverLeaked(result, STUB_KEY);
         } finally {
@@ -184,8 +192,57 @@ describe('scripts/ci/keepalive-ping.sh', () => {
           const output = result.stdout + result.stderr;
           assert.equal(result.code, 1);
           assert.match(output, /::error::/);
-          assert.match(output, /true/);
-          assert.match(output, /false/);
+          assert.match(output, /"true"/);
+          assert.match(output, /"false"/);
+          assert.match(output, new RegExp(escapeRegExp('got "yes"')));
+          assert.equal(stub.requests.length, 0);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+    );
+
+    it(
+      'rejects a whitespace-padded KEEPALIVE_STRICT="true ", naming the accepted values, before ever calling curl',
+      async () => {
+        const stub = await startStub([204]);
+        try {
+          const result = await runScript(buildEnv({
+            KEEPALIVE_STRICT: 'true ',
+            SUPABASE_URL: stub.url,
+            SUPABASE_PUBLISHABLE_KEY: STUB_KEY,
+          }));
+          const output = result.stdout + result.stderr;
+          assert.equal(result.code, 1);
+          assert.match(output, /::error::/);
+          assert.match(output, /"true"/);
+          assert.match(output, /"false"/);
+          assert.match(output, new RegExp(escapeRegExp('got "true "')));
+          assert.equal(stub.requests.length, 0);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+    );
+
+    it(
+      'rejects a whitespace-padded KEEPALIVE_STRICT=" true", naming the accepted values, before ever calling curl',
+      async () => {
+        const stub = await startStub([204]);
+        try {
+          const result = await runScript(buildEnv({
+            KEEPALIVE_STRICT: ' true',
+            SUPABASE_URL: stub.url,
+            SUPABASE_PUBLISHABLE_KEY: STUB_KEY,
+          }));
+          const output = result.stdout + result.stderr;
+          assert.equal(result.code, 1);
+          assert.match(output, /::error::/);
+          assert.match(output, /"true"/);
+          assert.match(output, /"false"/);
+          assert.match(output, new RegExp(escapeRegExp('got " true"')));
           assert.equal(stub.requests.length, 0);
           assertKeyNeverLeaked(result, STUB_KEY);
         } finally {
@@ -210,6 +267,18 @@ describe('scripts/ci/keepalive-ping.sh', () => {
       const stub = await startStub([204]);
       try {
         const result = await runScript(buildEnv({ SUPABASE_URL: stub.url, KEEPALIVE_STRICT: 'true' }));
+        assert.equal(result.code, 1);
+        assert.match(result.stdout + result.stderr, /::error::/);
+        assert.equal(stub.requests.length, 0);
+      } finally {
+        await stub.close();
+      }
+    });
+
+    it('fails when only SUPABASE_URL is set, KEEPALIVE_STRICT=false, with zero requests', async () => {
+      const stub = await startStub([204]);
+      try {
+        const result = await runScript(buildEnv({ SUPABASE_URL: stub.url, KEEPALIVE_STRICT: 'false' }));
         assert.equal(result.code, 1);
         assert.match(result.stdout + result.stderr, /::error::/);
         assert.equal(stub.requests.length, 0);
@@ -250,6 +319,47 @@ describe('scripts/ci/keepalive-ping.sh', () => {
           assert.equal(stub.requests[0].method, 'POST');
           assert.equal(stub.requests[0].path, '/rest/v1/rpc/keepalive');
           assert.equal(stub.requests[0].apikey, STUB_KEY);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+      { timeout: 15000 },
+    );
+
+    it(
+      'succeeds on a single 204 when KEEPALIVE_STRICT=false and both secrets are set',
+      async () => {
+        const stub = await startStub([204]);
+        try {
+          const result = await runScript(buildEnv({
+            SUPABASE_URL: stub.url,
+            SUPABASE_PUBLISHABLE_KEY: STUB_KEY,
+            KEEPALIVE_STRICT: 'false',
+          }));
+          assert.equal(result.code, 0);
+          assert.equal(stub.requests.length, 1);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+      { timeout: 15000 },
+    );
+
+    it(
+      'succeeds on a single 204 when KEEPALIVE_STRICT=true and both secrets are set '
+        + '(the everyday production configuration after go-live)',
+      async () => {
+        const stub = await startStub([204]);
+        try {
+          const result = await runScript(buildEnv({
+            SUPABASE_URL: stub.url,
+            SUPABASE_PUBLISHABLE_KEY: STUB_KEY,
+            KEEPALIVE_STRICT: 'true',
+          }));
+          assert.equal(result.code, 0);
+          assert.equal(stub.requests.length, 1);
           assertKeyNeverLeaked(result, STUB_KEY);
         } finally {
           await stub.close();

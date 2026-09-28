@@ -246,12 +246,23 @@ Variables tab), so that a secret going missing again -- a partial
 setup, or one secret cleared by mistake -- turns the run red instead of
 silently falling back to dormant.
 
-Every row of the table above, and every HTTP and transport outcome the
-script can hit (a 2xx success, a wrong key or URL, a transient server
-error and its retry, a dropped connection), is proven by
+Every row of the table above -- including `KEEPALIVE_STRICT=true` with
+both secrets set, the everyday production configuration after go-live,
+and a whitespace-padded or otherwise invalid value -- is proven by
 `npm run test:ci-scripts` (`scripts/ci/__tests__/keepalive-ping.test.mjs`),
 which also runs in CI on any change to the script or either workflow
-file (`.github/workflows/keepalive-tests.yml`).
+file (`.github/workflows/keepalive-tests.yml`). Its `configuration
+validation` tests cross every `KEEPALIVE_STRICT` value (unset, empty,
+`false`, `true`, an invalid value, a whitespace-padded value) against
+both secrets set, exactly one secret set, and neither secret set,
+always asserting that a rejected configuration never makes a request.
+Its `HTTP outcomes` tests point the script at a local HTTP stub and
+cover a 2xx success, a 401 (wrong key) and a 404 (wrong URL) failing
+after exactly one request, a 503 that recovers on retry, four straight
+503s exhausting the retry budget, and a refused connection -- the
+stub's port is closed before the script runs. That is a refused
+connection, not a dropped one: the suite has no way to simulate a
+connection that is accepted and then silently drops mid-request.
 
 The real signal that keep-alive is working is the **Actions run
 history**, not a database read: a failing run shows red in the Actions
