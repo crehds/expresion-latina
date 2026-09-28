@@ -121,125 +121,237 @@ function startStub(statusSequence) {
   });
 }
 
-// Characterization tests for the ping logic as it exists today, inline
-// in .github/workflows/keepalive.yml (KEEPALIVE_ENABLED, curl --fail),
-// before it moves verbatim into this tested script. Behavior is
-// unchanged by the move; only KEEPALIVE_STRICT and the fail-fast client-
-// error handling (a later change) will alter these outcomes.
-describe('scripts/ci/keepalive-ping.sh (current inline behavior)', () => {
-  it('is dormant when neither secret is set and KEEPALIVE_ENABLED is unset', async () => {
-    const result = await runScript(buildEnv({}));
-    assert.equal(result.code, 0);
-    assert.match(result.stdout, /::notice::/);
-  });
+describe('scripts/ci/keepalive-ping.sh', () => {
+  describe('KEEPALIVE_STRICT validation (no secrets reachable)', () => {
+    it('is dormant when neither secret is set and KEEPALIVE_STRICT is unset', async () => {
+      const result = await runScript(buildEnv({}));
+      assert.equal(result.code, 0);
+      assert.match(result.stdout, /::notice::/);
+    });
 
-  it('fails when neither secret is set and KEEPALIVE_ENABLED=true', async () => {
-    const result = await runScript(buildEnv({ KEEPALIVE_ENABLED: 'true' }));
-    assert.equal(result.code, 1);
-    assert.match(result.stdout + result.stderr, /::error::/);
-  });
+    it('is dormant when neither secret is set and KEEPALIVE_STRICT=false', async () => {
+      const result = await runScript(buildEnv({ KEEPALIVE_STRICT: 'false' }));
+      assert.equal(result.code, 0);
+      assert.match(result.stdout, /::notice::/);
+    });
 
-  it('fails when only SUPABASE_URL is set', async () => {
-    const result = await runScript(buildEnv({ SUPABASE_URL: 'http://127.0.0.1:1' }));
-    assert.equal(result.code, 1);
-    assert.match(result.stdout + result.stderr, /::error::/);
-  });
+    it('fails when neither secret is set and KEEPALIVE_STRICT=true', async () => {
+      const result = await runScript(buildEnv({ KEEPALIVE_STRICT: 'true' }));
+      assert.equal(result.code, 1);
+      assert.match(result.stdout + result.stderr, /::error::/);
+    });
 
-  it('fails when only SUPABASE_PUBLISHABLE_KEY is set', async () => {
-    const result = await runScript(buildEnv({ SUPABASE_PUBLISHABLE_KEY: STUB_KEY }));
-    assert.equal(result.code, 1);
-    assert.match(result.stdout + result.stderr, /::error::/);
-  });
+    it('is case-insensitive: KEEPALIVE_STRICT=TRUE fails the same way', async () => {
+      const result = await runScript(buildEnv({ KEEPALIVE_STRICT: 'TRUE' }));
+      assert.equal(result.code, 1);
+      assert.match(result.stdout + result.stderr, /::error::/);
+    });
 
-  it(
-    'succeeds on a single 204 with exactly one POST carrying the apikey header',
-    async () => {
+    it(
+      'rejects an invalid KEEPALIVE_STRICT="1", naming the accepted values, before ever calling curl',
+      async () => {
+        const stub = await startStub([204]);
+        try {
+          const result = await runScript(buildEnv({
+            KEEPALIVE_STRICT: '1',
+            SUPABASE_URL: stub.url,
+            SUPABASE_PUBLISHABLE_KEY: STUB_KEY,
+          }));
+          const output = result.stdout + result.stderr;
+          assert.equal(result.code, 1);
+          assert.match(output, /::error::/);
+          assert.match(output, /true/);
+          assert.match(output, /false/);
+          assert.match(output, /1/);
+          assert.equal(stub.requests.length, 0);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+    );
+
+    it(
+      'rejects an invalid KEEPALIVE_STRICT="yes" the same way, before ever calling curl',
+      async () => {
+        const stub = await startStub([204]);
+        try {
+          const result = await runScript(buildEnv({
+            KEEPALIVE_STRICT: 'yes',
+            SUPABASE_URL: stub.url,
+            SUPABASE_PUBLISHABLE_KEY: STUB_KEY,
+          }));
+          const output = result.stdout + result.stderr;
+          assert.equal(result.code, 1);
+          assert.match(output, /::error::/);
+          assert.match(output, /true/);
+          assert.match(output, /false/);
+          assert.equal(stub.requests.length, 0);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+    );
+
+    it('fails when only SUPABASE_URL is set, KEEPALIVE_STRICT unset, with zero requests', async () => {
       const stub = await startStub([204]);
       try {
-        const result = await runScript(buildEnv({
-          SUPABASE_URL: stub.url,
-          SUPABASE_PUBLISHABLE_KEY: STUB_KEY,
-        }));
-        assert.equal(result.code, 0);
-        assert.equal(stub.requests.length, 1);
-        assert.equal(stub.requests[0].method, 'POST');
-        assert.equal(stub.requests[0].path, '/rest/v1/rpc/keepalive');
-        assert.equal(stub.requests[0].apikey, STUB_KEY);
-        assertKeyNeverLeaked(result, STUB_KEY);
+        const result = await runScript(buildEnv({ SUPABASE_URL: stub.url }));
+        assert.equal(result.code, 1);
+        assert.match(result.stdout + result.stderr, /::error::/);
+        assert.equal(stub.requests.length, 0);
       } finally {
         await stub.close();
       }
-    },
-    { timeout: 15000 },
-  );
+    });
 
-  it(
-    'retries a 401 for the full retry budget under --fail (four requests)',
-    async () => {
-      const stub = await startStub([401]);
+    it('fails when only SUPABASE_URL is set, KEEPALIVE_STRICT=true, with zero requests', async () => {
+      const stub = await startStub([204]);
       try {
+        const result = await runScript(buildEnv({ SUPABASE_URL: stub.url, KEEPALIVE_STRICT: 'true' }));
+        assert.equal(result.code, 1);
+        assert.match(result.stdout + result.stderr, /::error::/);
+        assert.equal(stub.requests.length, 0);
+      } finally {
+        await stub.close();
+      }
+    });
+
+    it('fails when only SUPABASE_PUBLISHABLE_KEY is set, KEEPALIVE_STRICT unset', async () => {
+      const result = await runScript(buildEnv({ SUPABASE_PUBLISHABLE_KEY: STUB_KEY }));
+      assert.equal(result.code, 1);
+      const output = result.stdout + result.stderr;
+      assert.match(output, /::error::/);
+      assertKeyNeverLeaked(result, STUB_KEY);
+    });
+
+    it('fails when only SUPABASE_PUBLISHABLE_KEY is set, KEEPALIVE_STRICT=true', async () => {
+      const result = await runScript(buildEnv({ SUPABASE_PUBLISHABLE_KEY: STUB_KEY, KEEPALIVE_STRICT: 'true' }));
+      assert.equal(result.code, 1);
+      const output = result.stdout + result.stderr;
+      assert.match(output, /::error::/);
+      assertKeyNeverLeaked(result, STUB_KEY);
+    });
+  });
+
+  describe('HTTP outcomes (both secrets set, pointing at a local stub)', () => {
+    it(
+      'succeeds on a single 204 with exactly one POST carrying the apikey header',
+      async () => {
+        const stub = await startStub([204]);
+        try {
+          const result = await runScript(buildEnv({
+            SUPABASE_URL: stub.url,
+            SUPABASE_PUBLISHABLE_KEY: STUB_KEY,
+          }));
+          assert.equal(result.code, 0);
+          assert.equal(stub.requests.length, 1);
+          assert.equal(stub.requests[0].method, 'POST');
+          assert.equal(stub.requests[0].path, '/rest/v1/rpc/keepalive');
+          assert.equal(stub.requests[0].apikey, STUB_KEY);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+      { timeout: 15000 },
+    );
+
+    it(
+      'fails after exactly one request on a 401 (wrong key)',
+      async () => {
+        const stub = await startStub([401]);
+        try {
+          const result = await runScript(
+            buildEnv({ SUPABASE_URL: stub.url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
+            { timeout: 10000 },
+          );
+          assert.equal(result.code, 1);
+          assert.match(result.stdout + result.stderr, /::error::/);
+          assert.equal(stub.requests.length, 1);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+      { timeout: 15000 },
+    );
+
+    it(
+      'fails after exactly one request on a 404 (wrong URL)',
+      async () => {
+        const stub = await startStub([404]);
+        try {
+          const result = await runScript(
+            buildEnv({ SUPABASE_URL: stub.url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
+            { timeout: 10000 },
+          );
+          assert.equal(result.code, 1);
+          assert.match(result.stdout + result.stderr, /::error::/);
+          assert.equal(stub.requests.length, 1);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+      { timeout: 15000 },
+    );
+
+    it(
+      'recovers on a 503 then 204 after exactly two requests',
+      async () => {
+        const stub = await startStub([503, 204]);
+        try {
+          const result = await runScript(
+            buildEnv({ SUPABASE_URL: stub.url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
+            { timeout: 18000 },
+          );
+          assert.equal(result.code, 0);
+          assert.equal(stub.requests.length, 2);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+      { timeout: 20000 },
+    );
+
+    it(
+      'fails after exactly four requests when every attempt gets a 503',
+      async () => {
+        const stub = await startStub([503]);
+        try {
+          const result = await runScript(
+            buildEnv({ SUPABASE_URL: stub.url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
+            { timeout: 25000 },
+          );
+          assert.equal(result.code, 1);
+          assert.match(result.stdout + result.stderr, /::error::/);
+          assert.equal(stub.requests.length, 4);
+          assertKeyNeverLeaked(result, STUB_KEY);
+        } finally {
+          await stub.close();
+        }
+      },
+      { timeout: 30000 },
+    );
+
+    it(
+      'fails on a transport-level error such as a refused connection',
+      async () => {
+        const stub = await startStub([204]);
+        const { url } = stub;
+        await stub.close();
         const result = await runScript(
-          buildEnv({ SUPABASE_URL: stub.url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
+          buildEnv({ SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
           { timeout: 25000 },
         );
         assert.notEqual(result.code, 0);
-        assert.equal(stub.requests.length, 4);
+        assert.match(result.stdout + result.stderr, /::error::/);
         assertKeyNeverLeaked(result, STUB_KEY);
-      } finally {
-        await stub.close();
-      }
-    },
-    { timeout: 30000 },
-  );
-
-  it(
-    'recovers on a 503 then 204 after exactly two requests',
-    async () => {
-      const stub = await startStub([503, 204]);
-      try {
-        const result = await runScript(
-          buildEnv({ SUPABASE_URL: stub.url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
-          { timeout: 18000 },
-        );
-        assert.equal(result.code, 0);
-        assert.equal(stub.requests.length, 2);
-      } finally {
-        await stub.close();
-      }
-    },
-    { timeout: 20000 },
-  );
-
-  it(
-    'fails after exactly four requests when every attempt gets a 503',
-    async () => {
-      const stub = await startStub([503]);
-      try {
-        const result = await runScript(
-          buildEnv({ SUPABASE_URL: stub.url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
-          { timeout: 25000 },
-        );
-        assert.notEqual(result.code, 0);
-        assert.equal(stub.requests.length, 4);
-      } finally {
-        await stub.close();
-      }
-    },
-    { timeout: 30000 },
-  );
-
-  it(
-    'fails on a transport-level error such as a refused connection',
-    async () => {
-      const stub = await startStub([204]);
-      const { url } = stub;
-      await stub.close();
-      const result = await runScript(
-        buildEnv({ SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: STUB_KEY }),
-        { timeout: 25000 },
-      );
-      assert.notEqual(result.code, 0);
-    },
-    { timeout: 30000 },
-  );
+      },
+      { timeout: 30000 },
+    );
+  });
 });

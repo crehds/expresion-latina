@@ -3,7 +3,7 @@
 # Keep-Alive Ping", "Keep-Alive Failure Detection"). Dormant until the
 # owner has created the Supabase project and set the two repository
 # secrets below -- see supabase/README.md's "Keep-alive ping" section.
-# Once the project is live, also set the KEEPALIVE_ENABLED repository
+# Once the project is live, also set the KEEPALIVE_STRICT repository
 # variable to "true" to switch to strict mode, where a missing secret
 # fails the run instead of silently going back to dormant -- see the
 # same README section.
@@ -58,5 +58,5 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          KEEPALIVE_ENABLED: ${{ vars.KEEPALIVE_ENABLED }}
+          KEEPALIVE_STRICT: ${{ vars.KEEPALIVE_STRICT }}
         run: bash scripts/ci/keepalive-ping.sh

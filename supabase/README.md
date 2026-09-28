@@ -197,8 +197,9 @@ are never part of the kill switch.
 ### Keep-alive ping
 
 `.github/workflows/keepalive.yml` runs daily (plus manual
-`workflow_dispatch`), retrying a transient failure automatically, and
-calls `public.keepalive()` with the publishable key. Two platform facts
+`workflow_dispatch`), checking out and running `scripts/ci/keepalive-ping.sh`,
+which retries a transient failure automatically and calls
+`public.keepalive()` with the publishable key. Two platform facts
 explain the schedule and retry margin, and why a scheduled run alone
 does not keep the workflow itself alive:
 
@@ -218,16 +219,39 @@ does not keep the workflow itself alive:
   repository keep the _workflow itself_ from eventually being disabled
   (GitHub emails the last editor about 7 days before that happens).
 
-While the two repository secrets above are unset, every run prints a
-notice and exits successfully (dormant). Once the Supabase project
-exists and both secrets are set, also set the **`KEEPALIVE_ENABLED`
-repository variable to `true`** (repository Settings -> Secrets and
-variables -> Actions -> Variables tab) to switch the workflow to
-strict mode: from then on, a secret going missing again -- a partial
-setup, or one secret cleared by mistake -- fails the run instead of
-silently falling back to dormant. Exactly one secret set always fails
-the run, in either mode, since that combination can only be a
-misconfiguration and is never treated as "both missing".
+The `KEEPALIVE_STRICT` repository variable and the two repository
+secrets combine into one outcome, checked in this order (an invalid
+`KEEPALIVE_STRICT` is rejected before the secrets are even looked at):
+
+| `KEEPALIVE_STRICT`                                                  | Secrets         | Result                                                           |
+| ------------------------------------------------------------------- | --------------- | ---------------------------------------------------------------- |
+| invalid (anything but `true`/`false`/unset/empty, case-insensitive) | any             | Red -- the run fails naming the accepted values                  |
+| unset, empty, or `false`                                            | both set        | Pings `public.keepalive()`; red only if the request itself fails |
+| unset, empty, or `false`                                            | exactly one set | Red -- a partial setup is always a misconfiguration              |
+| unset, empty, or `false`                                            | neither set     | Green with a notice (dormant)                                    |
+| `true`                                                              | both set        | Pings `public.keepalive()`; red only if the request itself fails |
+| `true`                                                              | exactly one set | Red -- a partial setup is always a misconfiguration              |
+| `true`                                                              | neither set     | Red                                                              |
+
+In other words, `KEEPALIVE_STRICT` only changes the neither-secret-set
+row, from a quiet dormant no-op to a red failure -- it never changes
+the exactly-one-secret-set row, which is always red in either mode,
+since that combination can only be a misconfiguration and is never
+treated as "both missing". While both repository secrets are unset and
+`KEEPALIVE_STRICT` is not `true`, every run prints a notice and exits
+successfully (dormant). Once the Supabase project exists and both
+secrets are set, also set the **`KEEPALIVE_STRICT` repository variable
+to `true`** (repository Settings -> Secrets and variables -> Actions ->
+Variables tab), so that a secret going missing again -- a partial
+setup, or one secret cleared by mistake -- turns the run red instead of
+silently falling back to dormant.
+
+Every row of the table above, and every HTTP and transport outcome the
+script can hit (a 2xx success, a wrong key or URL, a transient server
+error and its retry, a dropped connection), is proven by
+`npm run test:ci-scripts` (`scripts/ci/__tests__/keepalive-ping.test.mjs`),
+which also runs in CI on any change to the script or either workflow
+file (`.github/workflows/keepalive-tests.yml`).
 
 The real signal that keep-alive is working is the **Actions run
 history**, not a database read: a failing run shows red in the Actions
