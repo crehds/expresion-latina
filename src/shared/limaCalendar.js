@@ -24,6 +24,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const LIMA_UTC_OFFSET_HOURS = 5;
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /**
  * Parses a `'YYYY-MM-DD'` string into a UTC timestamp, rejecting anything
@@ -55,6 +56,24 @@ function parseIsoDate(isoDate) {
 
 function formatIsoDate(timestamp) {
   return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+/**
+ * Parses a 24-hour `'HH:MM'` string, rejecting anything outside 00:00-23:59
+ * (no single-digit hour, no ':60').
+ *
+ * @param {string} time
+ * @returns {{hours: number, minutes: number}}
+ */
+function parseTime(time) {
+  const match = typeof time === 'string' ? TIME_PATTERN.exec(time) : null;
+
+  if (!match) {
+    throw new Error(`Expected a time ('HH:MM', 00-23:00-59), got: ${JSON.stringify(time)}`);
+  }
+
+  const [, hours, minutes] = match;
+  return { hours: Number(hours), minutes: Number(minutes) };
 }
 
 /** The number of days in a given UTC year and zero-based month. */
@@ -122,4 +141,38 @@ export function anniversary(isoDate, months) {
   }
 
   return formatIsoDate(Date.UTC(year, targetMonth, day));
+}
+
+/**
+ * The calendar weekday of an ISO date, 0-6 with 0 = Sunday -- the same
+ * convention as `day.weekday` (src/data), `getSessionsForWeekday`
+ * (src/data/selectors.js) and `Date#getDay()`. A plain UTC read is correct
+ * here (unlike `todayInLima`): this asks which weekday a calendar date
+ * itself falls on, not what the Lima clock currently reads.
+ *
+ * @param {string} isoDate
+ * @returns {number}
+ */
+export function weekdayOf(isoDate) {
+  return new Date(parseIsoDate(isoDate)).getUTCDay();
+}
+
+/**
+ * The instant at which the Lima wall clock shows `time` on `isoDate` -- the
+ * JS half of the `set_attendance_starts_at` trigger's
+ * `(class_date + start_time) at time zone 'America/Lima'`
+ * (supabase/migrations/20260924150000_attendance_confirmations.sql). The
+ * two must agree bit-for-bit, since the database recomputes the same
+ * instant server-side from the same two inputs.
+ *
+ * @param {string} isoDate
+ * @param {string} time 'HH:MM', 24-hour
+ * @returns {Date}
+ */
+export function limaInstant(isoDate, time) {
+  const midnightUtc = parseIsoDate(isoDate);
+  const { hours, minutes } = parseTime(time);
+  const minutesSinceLimaMidnight = hours * 60 + minutes;
+
+  return new Date(midnightUtc + (minutesSinceLimaMidnight + LIMA_UTC_OFFSET_HOURS * 60) * 60000);
 }

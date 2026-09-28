@@ -1,4 +1,6 @@
-import { todayInLima, addDays, anniversary } from './limaCalendar';
+import {
+  todayInLima, addDays, anniversary, weekdayOf, limaInstant,
+} from './limaCalendar';
 
 describe('todayInLima', () => {
   // America/Lima is a fixed UTC-05:00 with no DST, so UTC midnight is still
@@ -98,5 +100,44 @@ describe('anniversary', () => {
 
   it.each([0, -1, 1.5, 'two'])('rejects a non-positive-integer month count (%s)', (months) => {
     expect(() => anniversary('2026-01-15', months)).toThrow();
+  });
+});
+
+describe('weekdayOf', () => {
+  it('is 0 for a known Sunday', () => {
+    expect(weekdayOf('2026-09-27')).toBe(0);
+  });
+
+  it('is 6 for a known Saturday', () => {
+    expect(weekdayOf('2026-10-03')).toBe(6);
+  });
+
+  it('rejects a malformed ISO date', () => {
+    expect(() => weekdayOf('not-a-date')).toThrow();
+  });
+
+  it('rejects an impossible calendar date', () => {
+    expect(() => weekdayOf('2026-02-30')).toThrow();
+  });
+});
+
+describe('limaInstant', () => {
+  // Same UTC-05:00 convention as todayInLima: a Lima evening class is still
+  // the previous UTC day plus five hours, one full day short of the naive
+  // "just append the offset" answer.
+  it('is 00:00Z the next day for a 19:00 Lima class', () => {
+    expect(limaInstant('2026-09-28', '19:00').toISOString()).toBe('2026-09-29T00:00:00.000Z');
+  });
+
+  it('is 05:00Z the same day for 00:00 Lima', () => {
+    expect(limaInstant('2026-09-28', '00:00').toISOString()).toBe('2026-09-28T05:00:00.000Z');
+  });
+
+  it.each(['24:00', '7:00', '19:60'])('rejects an invalid time (%s)', (time) => {
+    expect(() => limaInstant('2026-09-28', time)).toThrow();
+  });
+
+  it('propagates the invalid-date rejection from parseIsoDate', () => {
+    expect(() => limaInstant('not-a-date', '19:00')).toThrow();
   });
 });
