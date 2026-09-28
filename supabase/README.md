@@ -252,11 +252,16 @@ and a whitespace-padded or otherwise invalid value -- is proven by
 `npm run test:ci-scripts` (`scripts/ci/__tests__/keepalive-ping.test.mjs`),
 which also runs in CI on any change to the script or either workflow
 file (`.github/workflows/keepalive-tests.yml`). Its `configuration
-validation` tests cross every `KEEPALIVE_STRICT` value (unset, empty,
-`false`, `true`, an invalid value, a whitespace-padded value) against
-both secrets set, exactly one secret set, and neither secret set,
-always asserting that a rejected configuration never makes a request.
-Its `HTTP outcomes` tests point the script at a local HTTP stub and
+validation` tests exercise every `KEEPALIVE_STRICT` value (unset, empty,
+`false`, `true`, an invalid value, a whitespace-padded value) with
+neither secret set; an invalid value with exactly one secret set,
+proving the `KEEPALIVE_STRICT` check runs before the partial-secret
+check; an explicitly empty value with exactly one secret set; and an
+invalid or whitespace-padded value with both secrets set -- always
+asserting that a rejected configuration never makes a request. The
+valid values (unset, `false`, and `true`) with both secrets set are
+exercised separately, in the `HTTP outcomes` group below. Its
+`HTTP outcomes` tests point the script at a local HTTP stub and
 cover a 2xx success, a 401 (wrong key) and a 404 (wrong URL) failing
 after exactly one request, a 503 that recovers on retry, four straight
 503s exhausting the retry budget, and a refused connection -- the
