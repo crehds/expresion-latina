@@ -107,6 +107,13 @@ describe('nextOccurrence', () => {
     expect(nextOccurrence(session, now).classDate).toBe('2026-09-30');
   });
 
+  it('wraps into next week for a session whose weekday comes earlier in the week', () => {
+    const session = buildSession({ weekday: 0, start: '19:00', end: '19:55' }); // Sunday
+    const now = new Date('2026-09-28T12:00:00Z'); // Lima Monday 2026-09-28
+
+    expect(nextOccurrence(session, now).classDate).toBe('2026-10-04');
+  });
+
   // The Lima day rolls over at 05:00Z, not at UTC midnight. At this instant
   // the UTC calendar date is already 2026-09-29 (Tuesday), but the Lima wall
   // clock still reads 2026-09-28 (Monday) 23:30 -- a naive
