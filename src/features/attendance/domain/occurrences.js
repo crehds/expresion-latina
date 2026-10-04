@@ -16,11 +16,11 @@ import {
 
 const ROOM_KEY_MAX_LENGTH = 60;
 
-// Matches `normalise`'s diacritics strip in scripts/data/parse-workbook.mjs
-// (`.replace(/[̀-ͯ]/g, '')`), written as an escaped code point range instead
-// of the literal combining characters: both mean "Combining Diacritical
-// Marks", U+0300-U+036F.
-const COMBINING_MARKS_PATTERN = /[̀-ͯ]/g;
+// Matches `normalise`'s diacritics strip in scripts/data/parse-workbook.mjs,
+// which writes the same range with the literal combining characters. Here it
+// is an escaped code point range so the source stays ASCII: both mean
+// "Combining Diacritical Marks", U+0300-U+036F.
+const COMBINING_MARKS_PATTERN = /[\u0300-\u036f]/g;
 
 /**
  * The same slug algorithm as `toSlug` in scripts/data/build-academy.mjs
