@@ -88,11 +88,19 @@ describe('buildCsp', () => {
     'abc.supabase.co',
     '//abc.supabase.co',
     'ftp://abc.supabase.co',
+    // Built from parts only to satisfy eslint no-script-url; the input is a real javascript: URL.
     `${'java'}script:alert(1)`,
     'wss://abc.supabase.co',
     'data:text/plain,hi',
   ])('throws on the invalid URL %j', (supabaseUrl) => {
     expect(() => buildCsp({ supabaseUrl })).toThrow();
+  });
+
+  it('never allows the Realtime websocket origin (an https source never matches wss)', () => {
+    const connectSrc = directive(buildCsp({ supabaseUrl: 'https://abc.supabase.co' }), 'connect-src');
+
+    expect(connectSrc).not.toContain('wss:');
+    expect(connectSrc).not.toContain('ws:');
   });
 
   it('throws on a non-string URL', () => {

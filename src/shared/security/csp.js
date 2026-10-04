@@ -11,6 +11,11 @@
  * fonts.gstatic.com) and the Google Maps embed on the Contact page. Google
  * OAuth is a top-level navigation, so it needs no entry. `script-src` stays
  * `'self'` and never gains `'unsafe-inline'`.
+ *
+ * Supabase Realtime is not used. Adopting it requires adding the wss origin of
+ * the same host to `connect-src`: under CSP3 a source with scheme `https`
+ * never matches a `wss` URL, so `https://<ref>.supabase.co` alone blocks
+ * `wss://<ref>.supabase.co/realtime/v1`.
  */
 
 const HTTP_PROTOCOLS = ['http:', 'https:'];
