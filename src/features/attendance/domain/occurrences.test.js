@@ -1,4 +1,6 @@
-import { occurrenceOn, nextOccurrence, occurrenceKey } from './occurrences';
+import {
+  occurrenceOn, nextOccurrence, occurrenceKey, OCCURRENCE_KEY_FIELDS,
+} from './occurrences';
 
 /**
  * An enriched session shape (src/data/selectors.js), with the day/slot/room
@@ -132,5 +134,9 @@ describe('occurrenceKey', () => {
     const occurrence = occurrenceOn(buildSession({ weekday: 1 }), '2026-09-28');
 
     expect(occurrenceKey(occurrence)).toBe('2026-09-28|19:00|salsa|sala-1');
+  });
+
+  it('builds the key from the exported ordered field list', () => {
+    expect(OCCURRENCE_KEY_FIELDS).toEqual(['classDate', 'startTime', 'genreId', 'roomKey']);
   });
 });

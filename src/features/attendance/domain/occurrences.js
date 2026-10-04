@@ -16,6 +16,13 @@ import {
 
 const ROOM_KEY_MAX_LENGTH = 60;
 
+/**
+ * The fields of an occurrence's identity, in key order. The single source
+ * of the key format: `occurrenceKey` joins them, and the schedule match
+ * validates a confirmation against the same list.
+ */
+export const OCCURRENCE_KEY_FIELDS = Object.freeze(['classDate', 'startTime', 'genreId', 'roomKey']);
+
 // Matches `normalise`'s diacritics strip in scripts/data/parse-workbook.mjs,
 // which writes the same range with the literal combining characters. Here it
 // is an escaped code point range so the source stays ASCII: both mean
@@ -111,5 +118,5 @@ export function nextOccurrence(session, now) {
  * @returns {string}
  */
 export function occurrenceKey(occurrence) {
-  return `${occurrence.classDate}|${occurrence.startTime}|${occurrence.genreId}|${occurrence.roomKey}`;
+  return OCCURRENCE_KEY_FIELDS.map((field) => occurrence[field]).join('|');
 }

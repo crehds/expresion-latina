@@ -145,7 +145,7 @@ describe('flagScheduleMismatch', () => {
     expect(moved.byOccurrence.size).toBe(0);
   });
 
-  it('keeps a confirmation when only the teacher, end time or names change', () => {
+  it('keeps a confirmation when only the teacher, end time or genre name change', () => {
     const edited = selectorOver([buildSession({
       weekday: 1, start: '19:00', end: '20:30', teacherId: 'luis', genreName: 'Salsa On2',
     })]);
@@ -199,6 +199,41 @@ describe('flagScheduleMismatch', () => {
     const confirmation = confirmationFor();
 
     expect(flagScheduleMismatch([confirmation], new Set()).mismatched).toEqual([confirmation]);
+  });
+
+  it.each([
+    ['a Postgres-shaped start time', { startTime: '19:00:00' }],
+    ['an out-of-range start time', { startTime: '24:00' }],
+    ['a malformed class date', { classDate: '28/09/2026' }],
+    ['an impossible class date', { classDate: '2026-02-30' }],
+  ])('throws for a confirmation with %s instead of reporting it as mismatched', (_label, overrides) => {
+    expect(() => flagScheduleMismatch([confirmationFor(overrides)], expected())).toThrow();
+  });
+
+  it('names the invalid field and never echoes a confirmation value in the error', () => {
+    const secret = confirmationFor({
+      memberId: 'member-secret-77', memberName: 'Secret Person', startTime: '19:00:00',
+    });
+    const missing = { memberId: 'member-secret-77', memberName: 'Secret Person' };
+
+    const messages = [secret, missing, confirmationFor({ classDate: 'not-a-date-secret' })].map((bad) => {
+      try {
+        flagScheduleMismatch([bad], expected());
+      } catch (error) {
+        return error.message;
+      }
+      return '';
+    });
+
+    messages.forEach((message) => {
+      expect(message).not.toBe('');
+      expect(message).not.toContain('secret');
+      expect(message).not.toContain('Secret');
+      expect(message).not.toContain('19:00:00');
+    });
+    expect(messages[0]).toContain('startTime');
+    expect(messages[1]).toContain('classDate');
+    expect(messages[2]).toContain('classDate');
   });
 
   it('throws for malformed input', () => {

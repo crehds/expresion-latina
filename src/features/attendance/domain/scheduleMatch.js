@@ -12,8 +12,8 @@
  * The schedule selector is injected: the domain never imports `src/data`.
  */
 
-import { addDays, weekdayOf } from '../../../shared/limaCalendar';
-import { occurrenceKey, occurrenceOn } from './occurrences';
+import { addDays, limaInstant, weekdayOf } from '../../../shared/limaCalendar';
+import { OCCURRENCE_KEY_FIELDS, occurrenceKey, occurrenceOn } from './occurrences';
 
 /**
  * The occurrence keys the current schedule produces for every Lima calendar
@@ -49,15 +49,31 @@ export function expectedOccurrenceKeys(getSessionsForWeekday, fromDate, toDate) 
   return keys;
 }
 
+/**
+ * The occurrence key of a confirmation, or a throw naming the invalid
+ * field(s). Messages never carry a value from the confirmation: it holds
+ * member identifiers and names.
+ */
 function keyOfConfirmation(confirmation) {
-  const fields = ['classDate', 'startTime', 'genreId', 'roomKey'];
-  const isComplete = confirmation !== null
-    && typeof confirmation === 'object'
-    && fields.every((field) => typeof confirmation[field] === 'string' && confirmation[field] !== '');
+  const isObject = confirmation !== null && typeof confirmation === 'object';
+  const invalid = OCCURRENCE_KEY_FIELDS.filter((field) => !isObject
+    || typeof confirmation[field] !== 'string'
+    || confirmation[field] === '');
 
-  if (!isComplete) {
+  // limaInstant validates both: a real ISO date and a strict 'HH:MM' time.
+  // A Postgres-shaped '19:00:00' would otherwise build a key that never matches.
+  if (!invalid.includes('classDate') && !invalid.includes('startTime')) {
+    try {
+      limaInstant(confirmation.classDate, confirmation.startTime);
+    } catch {
+      invalid.push('classDate', 'startTime');
+    }
+  }
+
+  if (invalid.length > 0) {
     throw new Error(
-      `Expected a confirmation with ${fields.join(', ')}, got: ${JSON.stringify(confirmation)}`,
+      `Invalid confirmation: expected ${OCCURRENCE_KEY_FIELDS.join(', ')} as non-empty strings, `
+      + `classDate as an ISO date and startTime as 'HH:MM'; invalid: ${invalid.join(', ')}.`,
     );
   }
 
@@ -75,6 +91,10 @@ function keyOfConfirmation(confirmation) {
  *   byOccurrence: Map<string, object[]>, mismatched: object[],
  * }} `byOccurrence` groups the matching confirmations by occurrence key;
  *   `mismatched` holds the rest. Both keep the input order.
+ * @throws {Error} for a malformed confirmation, for the whole list and on
+ *   purpose: the database constraints and the adapter guarantee the shape, so
+ *   a bad row is an adapter bug that must surface, not a mismatch to hide.
+ *   The admin page (PR8b) catches it and shows a degraded state.
  */
 export function flagScheduleMismatch(confirmations, expectedKeys) {
   if (!Array.isArray(confirmations)) {
