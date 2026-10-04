@@ -231,9 +231,26 @@ describe('flagScheduleMismatch', () => {
       expect(message).not.toContain('Secret');
       expect(message).not.toContain('19:00:00');
     });
-    expect(messages[0]).toContain('startTime');
-    expect(messages[1]).toContain('classDate');
-    expect(messages[2]).toContain('classDate');
+    expect(messages[0]).toMatch(/invalid: startTime\.$/);
+    expect(messages[1]).toMatch(/invalid: classDate, startTime, genreId, roomKey\.$/);
+    expect(messages[2]).toMatch(/invalid: classDate\.$/);
+  });
+
+  it('blames only the start time when the date is valid and only the date when the time is valid', () => {
+    const invalidOf = (overrides) => {
+      try {
+        flagScheduleMismatch([confirmationFor(overrides)], expected());
+      } catch (error) {
+        return error.message;
+      }
+      return '';
+    };
+
+    expect(invalidOf({ startTime: '19:00:00' })).toMatch(/invalid: startTime\.$/);
+    expect(invalidOf({ startTime: '24:00' })).toMatch(/invalid: startTime\.$/);
+    expect(invalidOf({ classDate: '2026-02-30' })).toMatch(/invalid: classDate\.$/);
+    expect(invalidOf({ classDate: '28/09/2026' })).toMatch(/invalid: classDate\.$/);
+    expect(invalidOf({ classDate: '2026-02-30', startTime: '19:00:00' })).toMatch(/invalid: classDate, startTime\.$/);
   });
 
   it('throws for malformed input', () => {

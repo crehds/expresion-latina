@@ -136,7 +136,25 @@ describe('occurrenceKey', () => {
     expect(occurrenceKey(occurrence)).toBe('2026-09-28|19:00|salsa|sala-1');
   });
 
-  it('builds the key from the exported ordered field list', () => {
+  it('pins the exported ordered key field list', () => {
     expect(OCCURRENCE_KEY_FIELDS).toEqual(['classDate', 'startTime', 'genreId', 'roomKey']);
+  });
+
+  it('builds the key by joining the exported fields in order', () => {
+    const occurrence = Object.fromEntries(
+      OCCURRENCE_KEY_FIELDS.map((field, index) => [field, `value-${index}`]),
+    );
+
+    expect(occurrenceKey(occurrence)).toBe(OCCURRENCE_KEY_FIELDS.map((f) => occurrence[f]).join('|'));
+    expect(occurrenceKey(occurrence)).toBe('value-0|value-1|value-2|value-3');
+  });
+
+  it('writes a missing field as the literal undefined, never an empty segment', () => {
+    expect(occurrenceKey({ classDate: '2026-09-28', startTime: '19:00', genreId: 'salsa' }))
+      .toBe('2026-09-28|19:00|salsa|undefined');
+    expect(occurrenceKey({
+      classDate: null, startTime: '19:00', genreId: 'salsa', roomKey: 'sala-1',
+    }))
+      .toBe('null|19:00|salsa|sala-1');
   });
 });

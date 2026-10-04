@@ -118,5 +118,5 @@ export function nextOccurrence(session, now) {
  * @returns {string}
  */
 export function occurrenceKey(occurrence) {
-  return OCCURRENCE_KEY_FIELDS.map((field) => occurrence[field]).join('|');
+  return OCCURRENCE_KEY_FIELDS.map((field) => String(occurrence[field])).join('|');
 }

@@ -60,14 +60,26 @@ function keyOfConfirmation(confirmation) {
     || typeof confirmation[field] !== 'string'
     || confirmation[field] === '');
 
-  // limaInstant validates both: a real ISO date and a strict 'HH:MM' time.
-  // A Postgres-shaped '19:00:00' would otherwise build a key that never matches.
-  if (!invalid.includes('classDate') && !invalid.includes('startTime')) {
+  // The date is a real ISO date (weekdayOf throws otherwise); the time is a
+  // strict 'HH:MM' (limaInstant throws otherwise). A Postgres-shaped
+  // '19:00:00' would otherwise build a key that never matches. Each field is
+  // checked on its own so the error blames only the bad one: the time is
+  // tried against the confirmation's date when that is valid, else against a
+  // fixed valid date.
+  const fails = (check) => {
     try {
-      limaInstant(confirmation.classDate, confirmation.startTime);
+      check();
+      return false;
     } catch {
-      invalid.push('classDate', 'startTime');
+      return true;
     }
+  };
+  if (!invalid.includes('classDate') && fails(() => weekdayOf(confirmation.classDate))) {
+    invalid.push('classDate');
+  }
+  if (!invalid.includes('startTime')) {
+    const date = invalid.includes('classDate') ? '2000-01-01' : confirmation.classDate;
+    if (fails(() => limaInstant(date, confirmation.startTime))) invalid.push('startTime');
   }
 
   if (invalid.length > 0) {
