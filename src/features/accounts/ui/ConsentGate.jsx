@@ -8,12 +8,18 @@
  * untouched.
  *
  * - A pending profile with an accepted version kept in sessionStorage (the
- *   Google round trip) records it automatically, with a short loading state.
+ *   Google round trip) first records that version automatically, with a short
+ *   loading state: it records the version, clears the storage and refreshes the
+ *   profile. Whatever the outcome, the loading state then ends. When the
+ *   refreshed profile is current, the gate lets the page through; when it is
+ *   still pending or outdated (the stored version was older than the current
+ *   notice) or the recording failed, the member gets the screen below.
  * - Otherwise the member accepts, which records the current version, or
  *   declines, which deletes the account and signs out.
  *
  * `/privacy` is never covered, so the notice can be read from here. A failed
- * call shows a short fixed message, never member data or the raw error.
+ * call, or one that rejects, shows a short fixed message on the screen, never
+ * member data or the raw error, and the buttons work again.
  */
 import PropTypes from 'prop-types';
 import {
@@ -44,6 +50,29 @@ const ERROR_COPY = {
   default: 'No pudimos completar la acción. Inténtalo de nuevo.',
 };
 
+// Runs `action` (it resolves to a result) and then `onSuccess`. Resolves to
+// null on success, to the code of a failed result, or to UNKNOWN (the default
+// message) when anything rejected. It never rejects, so a caller cannot be left
+// waiting on it.
+async function attempt(action, onSuccess) {
+  try {
+    const result = await action();
+    if (!result.ok) {
+      return result.code;
+    }
+    await onSuccess();
+    return null;
+  } catch {
+    return RESULT_CODES.UNKNOWN;
+  }
+}
+
+// A recorded consent spends the stored version; the profile is read again.
+const afterRecording = (session) => async () => {
+  clearPendingConsentVersion();
+  await session.refresh();
+};
+
 function ConsentPrompt({ profile }) {
   const { services } = useContext(BackendContext);
   const session = useSession();
@@ -57,19 +86,21 @@ function ConsentPrompt({ profile }) {
   const autoStartedRef = useRef(false);
 
   // The accepted version travels through the Google round trip; record it once.
+  // Whatever happens, the loading state ends on the screen: if the refreshed
+  // profile is current the gate unmounts this prompt, otherwise (still pending,
+  // outdated, or a failure with its code) the member gets the buttons.
   useEffect(() => {
     if (phase !== 'auto' || autoStartedRef.current || !auth) {
       return;
     }
     autoStartedRef.current = true;
     (async () => {
-      const result = await auth.recordConsent(storedVersion);
-      if (!result.ok) {
-        setPhase('screen');
-        return;
-      }
-      clearPendingConsentVersion();
-      await session.refresh();
+      const code = await attempt(
+        () => auth.recordConsent(storedVersion),
+        afterRecording(session),
+      );
+      setErrorCode(code);
+      setPhase('screen');
     })();
   }, [phase, auth, storedVersion, session]);
 
@@ -86,21 +117,16 @@ function ConsentPrompt({ profile }) {
   const run = async (action, onSuccess) => {
     setBusy(true);
     setErrorCode(null);
-    const result = await action();
-    if (result.ok) {
-      await onSuccess();
-    } else {
-      setErrorCode(result.code);
+    try {
+      setErrorCode(await attempt(action, onSuccess));
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   const accept = () => run(
     () => auth.recordConsent(CURRENT_NOTICE_VERSION),
-    async () => {
-      clearPendingConsentVersion();
-      await session.refresh();
-    },
+    afterRecording(session),
   );
 
   const decline = () => run(

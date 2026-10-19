@@ -2,6 +2,7 @@ import {
   act, render, screen, waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useMemo, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import BackendContext from '../../../shared/backend/BackendContext';
 import SessionContext from '../composition/SessionProvider';
@@ -49,18 +50,40 @@ function fakeSession(overrides = {}) {
   };
 }
 
+// `afterRefresh` is the profile the session holds once `session.refresh()` has
+// run, the way the real provider reloads it after a consent is recorded. Left
+// out, the refresh changes nothing.
 function renderGate({
-  session = fakeSession(), services = fakeServices(), enabled = true, path = '/schedules',
+  session = fakeSession(),
+  services = fakeServices(),
+  enabled = true,
+  path = '/schedules',
+  afterRefresh = null,
 } = {}) {
-  const view = render(
-    <MemoryRouter initialEntries={[path]}>
-      <BackendContext.Provider value={{ enabled, services }}>
-        <SessionContext.Provider value={session}>
-          <ConsentGate><p>page content</p></ConsentGate>
-        </SessionContext.Provider>
-      </BackendContext.Provider>
-    </MemoryRouter>,
-  );
+  const backend = { enabled, services };
+  function Host() {
+    const [profile, setProfile] = useState(session.profile);
+    const value = useMemo(() => ({
+      ...session,
+      profile,
+      refresh: async () => {
+        await session.refresh();
+        if (afterRefresh) {
+          setProfile(afterRefresh);
+        }
+      },
+    }), [profile]);
+    return (
+      <MemoryRouter initialEntries={[path]}>
+        <BackendContext.Provider value={backend}>
+          <SessionContext.Provider value={value}>
+            <ConsentGate><p>page content</p></ConsentGate>
+          </SessionContext.Provider>
+        </BackendContext.Provider>
+      </MemoryRouter>
+    );
+  }
+  const view = render(<Host />);
   return { session, services, ...view };
 }
 
@@ -182,6 +205,72 @@ describe('ConsentGate with a pending profile and nothing stored', () => {
     expect(session.refresh).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  describe('when a call rejects instead of returning a result', () => {
+    const expectRecoverable = async () => {
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('No pudimos completar la acción');
+      expect(alert).not.toHaveTextContent('raw failure');
+      expect(screen.getByRole('button', { name: 'Acepto' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'No acepto, eliminar mi cuenta' })).toBeEnabled();
+    };
+
+    it('shows the default error and enables the buttons again when accept rejects', async () => {
+      const user = userEvent.setup();
+      const recordConsent = vi.fn()
+        .mockRejectedValueOnce(new Error('raw failure ana@example.test'))
+        .mockResolvedValueOnce(ok());
+      const { session } = renderGate({ services: fakeServices({ recordConsent }) });
+
+      await user.click(screen.getByRole('button', { name: 'Acepto' }));
+
+      await expectRecoverable();
+      expect(session.refresh).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: 'Acepto' }));
+
+      expect(recordConsent).toHaveBeenCalledTimes(2);
+      expect(session.refresh).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('shows the default error and enables the buttons again when decline rejects', async () => {
+      const user = userEvent.setup();
+      const { session } = renderGate({
+        services: fakeServices({
+          deleteMyAccount: vi.fn(async () => { throw new Error('raw failure'); }),
+        }),
+      });
+
+      await user.click(screen.getByRole('button', { name: 'No acepto, eliminar mi cuenta' }));
+
+      await expectRecoverable();
+      expect(session.signOut).not.toHaveBeenCalled();
+    });
+
+    it('does the same when the step after a successful accept rejects', async () => {
+      const user = userEvent.setup();
+      const refresh = vi.fn(async () => { throw new Error('raw failure'); });
+      renderGate({ session: fakeSession({ refresh }) });
+
+      await user.click(screen.getByRole('button', { name: 'Acepto' }));
+
+      await expectRecoverable();
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('does the same when signing out after a successful decline rejects', async () => {
+      const user = userEvent.setup();
+      const signOut = vi.fn(async () => { throw new Error('raw failure'); });
+      const { services } = renderGate({ session: fakeSession({ signOut }) });
+
+      await user.click(screen.getByRole('button', { name: 'No acepto, eliminar mi cuenta' }));
+
+      await expectRecoverable();
+      expect(services.auth.deleteMyAccount).toHaveBeenCalledTimes(1);
+      expect(signOut).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 describe('ConsentGate with a pending profile and a stored version', () => {
@@ -214,6 +303,84 @@ describe('ConsentGate with a pending profile and a stored version', () => {
     expect(await screen.findByRole('heading', { name: 'Necesitamos tu consentimiento' }))
       .toBeInTheDocument();
     expect(session.refresh).not.toHaveBeenCalled();
+  });
+
+  it('keeps the result code of a failed automatic recording and shows its message', async () => {
+    storePendingConsentVersion('2026-01-01');
+    renderGate({
+      services: fakeServices({ recordConsent: vi.fn(async () => fail('NETWORK')) }),
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No hay conexión');
+    expect(screen.getByRole('button', { name: 'Acepto' })).toBeEnabled();
+  });
+
+  it('shows the default error for a failed automatic recording without a message of its own', async () => {
+    storePendingConsentVersion('2099-01-01');
+    renderGate({
+      services: fakeServices({ recordConsent: vi.fn(async () => fail('INVALID')) }),
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos completar la acción');
+  });
+
+  it('falls back to the screen with the default error when the automatic recording rejects', async () => {
+    storePendingConsentVersion('2026-01-01');
+    const { session } = renderGate({
+      services: fakeServices({
+        recordConsent: vi.fn(async () => { throw new TypeError('raw failure'); }),
+      }),
+    });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No pudimos completar la acción');
+    expect(alert).not.toHaveTextContent('raw failure');
+    expect(screen.getByRole('button', { name: 'Acepto' })).toBeEnabled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(session.refresh).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the screen with the default error when the refresh rejects', async () => {
+    storePendingConsentVersion('2026-01-01');
+    const refresh = vi.fn(async () => { throw new Error('raw failure'); });
+    renderGate({ session: fakeSession({ refresh }) });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos completar la acción');
+    expect(screen.getByRole('button', { name: 'Acepto' })).toBeEnabled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('lets the page through once the refresh shows the recorded consent', async () => {
+    storePendingConsentVersion(CURRENT_NOTICE_VERSION);
+    renderGate({ afterRefresh: PROFILE });
+
+    expect(await screen.findByText('page content')).toBeInTheDocument();
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+  });
+
+  it('gives the member the buttons when the refreshed profile is still pending', async () => {
+    storePendingConsentVersion(CURRENT_NOTICE_VERSION);
+    const { services, session } = renderGate();
+
+    expect(await screen.findByRole('button', { name: 'Acepto' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'No acepto, eliminar mi cuenta' })).toBeEnabled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(services.auth.recordConsent).toHaveBeenCalledTimes(1);
+    expect(session.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks again, naming the update, when the stored version is older than the current one', async () => {
+    storePendingConsentVersion('2025-06-30');
+    const { services } = renderGate({
+      afterRefresh: { ...PROFILE, consentVersion: '2025-06-30' },
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Necesitamos tu consentimiento' }))
+      .toBeInTheDocument();
+    expect(screen.getByText(/Actualizamos el aviso de privacidad/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acepto' })).toBeEnabled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(services.auth.recordConsent).toHaveBeenCalledTimes(1);
   });
 });
 
