@@ -70,7 +70,16 @@ async function createSupabaseClient() {
   if (!config) {
     throw new BackendNotConfiguredError();
   }
-  const auth = { storageKey: supabaseStorageKey(config.url) };
+  // PKCE (Design: D10): auth-js defaults to the implicit flow, which would put
+  // the session tokens in the callback URL. With `detectSessionInUrl` the client
+  // itself exchanges the `?code=` of a callback while it initializes, and
+  // `getSession()` waits for that. The app never calls `exchangeCodeForSession`:
+  // a second exchange would race the first and burn the single-use verifier.
+  const auth = {
+    storageKey: supabaseStorageKey(config.url),
+    flowType: 'pkce',
+    detectSessionInUrl: true,
+  };
   const { createClient } = await import('@supabase/supabase-js');
   return createClient(config.url, config.key, { auth });
 }

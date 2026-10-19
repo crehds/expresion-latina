@@ -147,7 +147,7 @@ describe('getSupabaseClient', () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
-  it('creates the client from the URL and the publishable key', async () => {
+  it('creates the client from the URL and the publishable key, with the PKCE flow', async () => {
     configure();
     const { getSupabaseClient, createClient } = await loadClient();
 
@@ -156,7 +156,11 @@ describe('getSupabaseClient', () => {
     expect(client).toEqual({ marker: 'client' });
     expect(createClient).toHaveBeenCalledTimes(1);
     expect(createClient).toHaveBeenCalledWith(URL_ENV, KEY_ENV, {
-      auth: { storageKey: 'sb-abcd1234-auth-token' },
+      auth: {
+        storageKey: 'sb-abcd1234-auth-token',
+        flowType: 'pkce',
+        detectSessionInUrl: true,
+      },
     });
   });
 
