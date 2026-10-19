@@ -44,6 +44,25 @@ export function supabaseStorageKey(supabaseUrl) {
   return `sb-${label}-auth-token`;
 }
 
+/**
+ * Whether localStorage already holds a supabase-js session for this backend.
+ * The app loads supabase-js eagerly only when this is true. False while the
+ * kill switch is off, and false on any failure (a blocked storage, an
+ * unparsable URL): "nothing stored" is the safe answer, since it only means
+ * supabase-js is loaded later, on demand.
+ */
+export function hasStoredSession() {
+  const config = readConfig();
+  if (!config) {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(supabaseStorageKey(config.url)) !== null;
+  } catch {
+    return false;
+  }
+}
+
 let pending = null;
 
 async function createSupabaseClient() {

@@ -76,6 +76,57 @@ describe('supabaseStorageKey', () => {
   });
 });
 
+describe('hasStoredSession', () => {
+  const STORAGE_KEY = 'sb-abcd1234-auth-token';
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+  });
+
+  it('is false when the backend is not configured, even with a stored session', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', '');
+    vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', '');
+    window.localStorage.setItem(STORAGE_KEY, '{}');
+    const { hasStoredSession } = await loadClient();
+
+    expect(hasStoredSession()).toBe(false);
+  });
+
+  it('is false when nothing is stored under the key', async () => {
+    configure();
+    window.localStorage.setItem('sb-other-auth-token', '{}');
+    const { hasStoredSession } = await loadClient();
+
+    expect(hasStoredSession()).toBe(false);
+  });
+
+  it('is true when localStorage holds the key derived from the Supabase URL', async () => {
+    configure();
+    window.localStorage.setItem(STORAGE_KEY, '{}');
+    const { hasStoredSession } = await loadClient();
+
+    expect(hasStoredSession()).toBe(true);
+  });
+
+  it('is false when reading the storage throws', async () => {
+    configure();
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage is blocked');
+    });
+    const { hasStoredSession } = await loadClient();
+
+    expect(hasStoredSession()).toBe(false);
+  });
+
+  it('is false on a malformed URL instead of throwing', async () => {
+    configure('not a url');
+    const { hasStoredSession } = await loadClient();
+
+    expect(hasStoredSession()).toBe(false);
+  });
+});
+
 describe('getSupabaseClient', () => {
   it('never loads supabase-js at import time', async () => {
     configure();
@@ -111,7 +162,7 @@ describe('getSupabaseClient', () => {
 
   it('derives the storage key from the Supabase URL, never from the site location', async () => {
     configure('https://projectref.supabase.co');
-    const hostname = vi.spyOn(window, 'location', 'get').mockReturnValue({
+    const location = vi.spyOn(window, 'location', 'get').mockReturnValue({
       hostname: 'www.expresionlatina.example',
       host: 'www.expresionlatina.example',
       href: 'https://www.expresionlatina.example/schedules',
@@ -119,8 +170,11 @@ describe('getSupabaseClient', () => {
     });
     const { getSupabaseClient, createClient } = await loadClient();
 
-    await getSupabaseClient();
-    hostname.mockRestore();
+    try {
+      await getSupabaseClient();
+    } finally {
+      location.mockRestore();
+    }
 
     const [, , options] = createClient.mock.calls[0];
     expect(options.auth.storageKey).toBe('sb-projectref-auth-token');
