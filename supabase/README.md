@@ -144,8 +144,8 @@ something this repository's own scripts do on their own.
 Rough order: create the Supabase project, push these migrations, sign up
 once and promote yourself to admin (see "Email sign-up requires a
 consent version" above), configure SMTP and the email rate limit,
-configure Google sign-in, paste the email templates and set the Site URL,
-set the redirect allowlist, set the environment
+configure Google sign-in, paste the email templates and set the Site URL
+(both required, see "Hosted email templates"), set the redirect allowlist, set the environment
 variables and repository secrets, then verify the keep-alive ping. The
 sections below also cover the kill switch, checking the scheduled
 purges, and teardown.
@@ -210,9 +210,20 @@ real sign-ups. Configure custom SMTP instead:
 
 ### Hosted email templates
 
-The templates in `templates/` only reach the local stack. A hosted project
-keeps its own copy, so paste them in by hand, or members get Supabase's
-default English emails whose links do not go to `/auth/confirm`:
+**Required activation step. Do not activate the feature without it.** The
+templates in `templates/` only reach the local stack. A hosted project
+keeps its own copy, so paste them in by hand, and set the Site URL and the
+Redirect URLs, or the account flows break for real members:
+
+- Without the **Reset password** template, Supabase sends its default
+  English reset email, whose link lands on `/` with no new-password form.
+  The member cannot choose a new password, and the app has no fallback for
+  that.
+- Without the **Confirm sign up** template, the default confirmation link
+  only works in the same browser that started the sign-up, so a member who
+  opens the email on a phone, or in another browser, is not confirmed.
+- Without the right Site URL and Redirect URLs, the links in the templates
+  point to the wrong place or are refused.
 
 1. Supabase Dashboard -> **Authentication -> Emails -> Templates**. For
    **Confirm sign up**, set the subject to
