@@ -6,7 +6,9 @@
  * backend. A failed call shows the fixed message of its result code in an
  * alert, never what the backend said. On success the session is started so the
  * app learns who signed in, and the member goes to the home page; a pending or
- * outdated consent is the consent gate's job from there.
+ * outdated consent is the consent gate's job from there. If starting the session
+ * fails after the password was accepted, the member still goes to the home page
+ * and sees no error: the sign-in itself worked.
  *
  * Unlike sign-up and Google, signing in does not wait for the consent
  * checkbox: the account already exists and its consent is on record (spec:
@@ -58,7 +60,15 @@ export default function SignInForm() {
     const outcome = await run(async () => {
       const result = await auth.signInWithPassword({ email, password });
       if (result.ok) {
-        await session.start();
+        try {
+          await session.start();
+        } catch {
+          // The password was accepted and supabase-js already holds the session,
+          // so this is not a failed sign-in: the member goes on, and the session
+          // provider and the sign-in page pick the session up as they would
+          // after a reload. Showing an error here would send them to type the
+          // same password again.
+        }
       }
       return result;
     });

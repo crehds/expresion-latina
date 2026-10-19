@@ -92,6 +92,24 @@ describe('SignInForm', () => {
       .toBeLessThan(session.start.mock.invocationCallOrder[0]);
   });
 
+  // The password was accepted, so supabase-js already holds the session. Loading
+  // it into the app is a courtesy that other parts of the app repeat.
+  it.each([
+    ['rejects', () => vi.fn(async () => { throw new Error('raw failure ana@example.test'); })],
+    ['throws', () => vi.fn(() => { throw new Error('raw failure ana@example.test'); })],
+  ])('still goes to the home page, with no error, when starting the session %s after a good sign-in', async (_how, makeStart) => {
+    const user = userEvent.setup();
+    const start = makeStart();
+    const { auth } = renderForm({ session: fakeSession({ start }) });
+
+    await fillAndSubmit(user);
+
+    expect(await screen.findByText('home page')).toBeInTheDocument();
+    expect(auth.signInWithPassword).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('does not touch the session or leave the page when the sign-in fails', async () => {
     const user = userEvent.setup();
     const { session } = renderForm({
