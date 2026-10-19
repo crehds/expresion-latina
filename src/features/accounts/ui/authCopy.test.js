@@ -2,6 +2,8 @@ import { RESULT_CODES } from '../../../shared/backend/resultCodes';
 import {
   FULL_NAME_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  validateNewPassword,
+  validateResetRequest,
   validateSignIn,
   validateSignUp,
 } from '../domain/signupValidation';
@@ -9,7 +11,9 @@ import {
   CONFIRMATION_SENT,
   CONSENT_REQUIRED,
   DEFAULT_ERROR,
+  NEW_PASSWORD_MESSAGES,
   PASSWORD_HINT,
+  RESET_REQUEST_MESSAGES,
   SIGN_IN_MESSAGES,
   SIGN_UP_MESSAGES,
   authErrorMessage,
@@ -98,6 +102,37 @@ describe('the sign-up and sign-in field messages', () => {
     });
   });
 
+  it('covers every problem the new password validation can report', () => {
+    const problems = problemsOf(validateNewPassword, [
+      { password: '', confirmation: 'other' },
+      { password: 'abcdefgh', confirmation: 'abcdefgh' },
+    ]);
+
+    expect(new Set(problems.map(([field, problem]) => `${field}:${problem}`))).toEqual(new Set([
+      'password:too_short',
+      'password:needs_letter_and_digit',
+      'confirmation:mismatch',
+    ]));
+    problems.forEach(([field, problem]) => {
+      expect(NEW_PASSWORD_MESSAGES[field][problem]).toEqual(expect.any(String));
+      expect(NEW_PASSWORD_MESSAGES[field][problem]).not.toBe('');
+    });
+  });
+
+  it('covers every problem the reset request validation can report', () => {
+    const problems = problemsOf(validateResetRequest, [{ email: '' }]);
+
+    expect(problems.map(([field, problem]) => `${field}:${problem}`)).toEqual(['email:invalid']);
+    problems.forEach(([field, problem]) => {
+      expect(RESET_REQUEST_MESSAGES[field][problem]).toEqual(expect.any(String));
+    });
+  });
+
+  it('tells a password problem the same way in the sign-up and in the new password form', () => {
+    expect(NEW_PASSWORD_MESSAGES.password).toEqual(SIGN_UP_MESSAGES.password);
+    expect(RESET_REQUEST_MESSAGES.email).toEqual(SIGN_UP_MESSAGES.email);
+  });
+
   it('says the limits it enforces', () => {
     expect(SIGN_UP_MESSAGES.fullName.too_long).toContain(String(FULL_NAME_MAX_LENGTH));
     expect(SIGN_UP_MESSAGES.consent.required).toBe(CONSENT_REQUIRED);
@@ -110,6 +145,7 @@ describe('the sign-up and sign-in field messages', () => {
     expect(SIGN_UP_MESSAGES.password.needs_letter_and_digit)
       .toBe('La contraseña debe incluir letras y números.');
     expect(SIGN_IN_MESSAGES.password.required).toBe('Escribe tu contraseña.');
+    expect(NEW_PASSWORD_MESSAGES.confirmation.mismatch).toBe('Las contraseñas no coinciden.');
     expect(CONSENT_REQUIRED).toBe('Acepta el Aviso de privacidad para continuar.');
     expect(CONFIRMATION_SENT)
       .toBe('Te enviamos un correo para confirmar tu cuenta. Revisa tu bandeja de entrada.');

@@ -1,5 +1,6 @@
 /**
- * Checks for the sign-up and sign-in forms (Design: D5.2).
+ * Checks for the sign-up, sign-in, password reset and new password forms
+ * (Design: D5.2).
  *
  * They only save the member a round trip. The server stays the authority (the
  * `auth.users` trigger and the Auth settings in `supabase/config.toml`), so no
@@ -76,5 +77,26 @@ export function validateSignIn({ email, password } = {}) {
   return result([
     ['email', emailError(email)],
     ['password', asText(password).trim() === '' ? 'required' : null],
+  ]);
+}
+
+/**
+ * The form that asks for the email of an account whose password was forgotten.
+ * `errors` may hold `email` ('invalid'): the same shape rule as the sign-up.
+ */
+export function validateResetRequest({ email } = {}) {
+  return result([['email', emailError(email)]]);
+}
+
+/**
+ * The form that sets a new password, typed twice. `errors` may hold `password`
+ * ('too_short' | 'needs_letter_and_digit', the very rule of the sign-up) and
+ * `confirmation` ('mismatch'). The two are compared as typed, spaces and case
+ * included, because the password itself is sent as typed.
+ */
+export function validateNewPassword({ password, confirmation } = {}) {
+  return result([
+    ['password', passwordError(password)],
+    ['confirmation', asText(confirmation) === asText(password) ? null : 'mismatch'],
   ]);
 }

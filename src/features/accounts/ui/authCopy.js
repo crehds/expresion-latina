@@ -37,6 +37,13 @@ export const authErrorMessage = (code) => ERROR_MESSAGES.get(code) ?? DEFAULT_ER
 
 const EMAIL_INVALID = 'Escribe un correo válido.';
 
+// The two ways a new password can break the rule, told the same wherever a
+// password is chosen.
+const PASSWORD_PROBLEMS = {
+  too_short: 'La contraseña es muy corta.',
+  needs_letter_and_digit: 'La contraseña debe incluir letras y números.',
+};
+
 /** `SIGN_UP_MESSAGES[field][problem]`, for the keys `validateSignUp` reports. */
 export const SIGN_UP_MESSAGES = {
   fullName: {
@@ -44,10 +51,7 @@ export const SIGN_UP_MESSAGES = {
     too_long: `El nombre puede tener hasta ${FULL_NAME_MAX_LENGTH} caracteres.`,
   },
   email: { invalid: EMAIL_INVALID },
-  password: {
-    too_short: 'La contraseña es muy corta.',
-    needs_letter_and_digit: 'La contraseña debe incluir letras y números.',
-  },
+  password: PASSWORD_PROBLEMS,
   consent: { required: CONSENT_REQUIRED },
 };
 
@@ -55,4 +59,15 @@ export const SIGN_UP_MESSAGES = {
 export const SIGN_IN_MESSAGES = {
   email: { invalid: EMAIL_INVALID },
   password: { required: 'Escribe tu contraseña.' },
+};
+
+/** `RESET_REQUEST_MESSAGES[field][problem]`, for the keys `validateResetRequest` reports. */
+export const RESET_REQUEST_MESSAGES = {
+  email: { invalid: EMAIL_INVALID },
+};
+
+/** `NEW_PASSWORD_MESSAGES[field][problem]`, for the keys `validateNewPassword` reports. */
+export const NEW_PASSWORD_MESSAGES = {
+  password: PASSWORD_PROBLEMS,
+  confirmation: { mismatch: 'Las contraseñas no coinciden.' },
 };

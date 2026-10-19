@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   PASSWORD_MIN_LENGTH,
+  validateNewPassword,
+  validateResetRequest,
   validateSignIn,
   validateSignUp,
 } from './signupValidation';
@@ -192,6 +194,118 @@ describe('validateSignIn', () => {
 
   it('does not throw on an empty call', () => {
     expect(validateSignIn({}).valid).toBe(false);
+  });
+});
+
+describe('validateNewPassword', () => {
+  const NEW = { password: 'abcdefg1', confirmation: 'abcdefg1' };
+
+  it('accepts a good password typed twice', () => {
+    expect(validateNewPassword(NEW)).toEqual({ valid: true, errors: {} });
+  });
+
+  describe('password', () => {
+    it.each([
+      ['empty', ''],
+      ['missing', undefined],
+      ['short', 'abc1'],
+      ['seven characters', 'abcdef1'],
+      ['only letters', 'abcdefgh'],
+      ['only digits', '12345678'],
+      ['only symbols', '!!!!!!!!'],
+      ['non-ASCII letters and a digit', 'ñññññññ1'],
+      ['good', 'abcdefg1'],
+      ['good with a space', 'a b c d 1 2'],
+      ['good with non-ASCII letters', 'contraseña1'],
+    ])('follows the sign-up rule when it is %s', (_label, password) => {
+      const expected = validateSignUp({ ...VALID, password }).errors.password;
+
+      const { errors } = validateNewPassword({ password, confirmation: password });
+
+      expect(errors.password).toBe(expected);
+    });
+
+    it('is too short below 8 characters and needs a letter and a digit', () => {
+      expect(validateNewPassword({ password: 'abcdef1', confirmation: 'abcdef1' }).errors)
+        .toEqual({ password: 'too_short' });
+      expect(validateNewPassword({ password: 'abcdefgh', confirmation: 'abcdefgh' }).errors)
+        .toEqual({ password: 'needs_letter_and_digit' });
+    });
+  });
+
+  describe('confirmation', () => {
+    it.each([
+      ['a different password', 'abcdefg2'],
+      ['another case', 'ABCDEFG1'],
+      ['a trailing space', 'abcdefg1 '],
+      ['a leading space', ' abcdefg1'],
+      ['empty', ''],
+      ['missing', undefined],
+      ['not a string', 12345678],
+    ])('does not match %s', (_label, confirmation) => {
+      expect(validateNewPassword({ password: 'abcdefg1', confirmation }).errors)
+        .toEqual({ confirmation: 'mismatch' });
+    });
+
+    it('matches only a password that is exactly the same, spaces included', () => {
+      const password = ' abc def1 ';
+
+      expect(validateNewPassword({ password, confirmation: password }).valid).toBe(true);
+    });
+  });
+
+  it('reports both problems at once, as keys and never as the typed values', () => {
+    const result = validateNewPassword({ password: 'secret-typed', confirmation: 'other-typed' });
+
+    expect(result).toEqual({
+      valid: false,
+      errors: { password: 'needs_letter_and_digit', confirmation: 'mismatch' },
+    });
+    expect(JSON.stringify(result)).not.toMatch(/secret-typed|other-typed/);
+  });
+
+  it('reports the password only when a bad password is typed twice', () => {
+    expect(validateNewPassword({ password: 'abc', confirmation: 'abc' }).errors)
+      .toEqual({ password: 'too_short' });
+  });
+
+  it('does not throw on an empty call', () => {
+    expect(validateNewPassword().valid).toBe(false);
+    expect(validateNewPassword({}).valid).toBe(false);
+  });
+});
+
+describe('validateResetRequest', () => {
+  it('accepts an email address', () => {
+    expect(validateResetRequest({ email: 'ana@example.test' })).toEqual({ valid: true, errors: {} });
+  });
+
+  it.each([
+    ['empty', ''],
+    ['only spaces', '   '],
+    ['no @', 'ana.example.test'],
+    ['nothing before the @', '@example.test'],
+    ['nothing after the @', 'ana@'],
+    ['two @', 'ana@@example.test'],
+    ['a space inside', 'ana perez@example.test'],
+    ['a trailing space', 'ana@example.test '],
+    ['missing', undefined],
+    ['not a string', 42],
+  ])('rejects an address with %s, with the same shape rule as the sign-up', (_label, email) => {
+    expect(validateResetRequest({ email }).errors).toEqual({ email: 'invalid' });
+    expect(validateSignUp({ ...VALID, email }).errors.email).toBe('invalid');
+  });
+
+  it('reports the key and never the typed value', () => {
+    const result = validateResetRequest({ email: 'nope' });
+
+    expect(result).toEqual({ valid: false, errors: { email: 'invalid' } });
+    expect(JSON.stringify(result)).not.toMatch(/nope/);
+  });
+
+  it('does not throw on an empty call', () => {
+    expect(validateResetRequest().valid).toBe(false);
+    expect(validateResetRequest({}).valid).toBe(false);
   });
 });
 
