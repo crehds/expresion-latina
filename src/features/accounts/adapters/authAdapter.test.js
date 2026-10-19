@@ -312,6 +312,15 @@ describe('createAuthAdapter', () => {
 
       expect(result).toEqual({ ok: false, code: 'NETWORK' });
     });
+
+    it('maps a backend that failed, such as a sign-up trigger that raised (HTTP 500), to UNKNOWN', async () => {
+      // auth-js wraps HTTP 500 as a retryable fetch error, but it did get through.
+      const failed = { name: 'AuthRetryableFetchError', status: 500, message: 'Database error saving new user' };
+
+      const result = await adapterFor(fakeClient({ signUpError: failed })).signUp(SIGN_UP);
+
+      expect(result).toEqual({ ok: false, code: 'UNKNOWN' });
+    });
   });
 
   describe('signInWithPassword', () => {

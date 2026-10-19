@@ -42,13 +42,20 @@ const AUTH_CODES = new Map([
   ['over_sms_send_rate_limit', RESULT_CODES.RATE_LIMITED],
 ]);
 
+// An HTTP answer of 500 or more means the backend was reached and failed. It is
+// not a lost connection, so the member is not told to check their internet.
+// auth-js wraps the answers 500-504 and 520-530 as AuthRetryableFetchError (its
+// NETWORK_ERROR_CODES), which is why the class alone cannot tell the two apart.
+const isServerFailure = (error) => typeof error.status === 'number' && error.status >= 500;
+
 function isNetworkFailure(error) {
   return error instanceof TypeError
     // fetch rejects an aborted request (a timeout, a cancel) with a
     // DOMException. Its numeric `code` keeps the message rule below from
     // recognising it, so the name is what is read.
     || error.name === 'AbortError'
-    // auth-js wraps every transport failure and 502/503/504 this way.
+    // auth-js wraps a request that got no answer this way, with status 0. It
+    // wraps some server answers the same way: those are told apart first.
     || error.name === 'AuthRetryableFetchError'
     || (!error.code && FETCH_FAILURE_MESSAGE.test(error.message ?? ''));
 }
@@ -60,6 +67,10 @@ function isNetworkFailure(error) {
  */
 export function toResultCode(error) {
   if (!error || typeof error !== 'object') {
+    return RESULT_CODES.UNKNOWN;
+  }
+  // Before the network rules: only a request without an answer is NETWORK.
+  if (isServerFailure(error)) {
     return RESULT_CODES.UNKNOWN;
   }
   if (isNetworkFailure(error)) {

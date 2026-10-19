@@ -35,12 +35,45 @@ describe('toResultCode', () => {
     expect(toResultCode(new TypeError('Failed to fetch'))).toBe('NETWORK');
   });
 
-  it('maps an auth-js retryable fetch error to NETWORK, whatever its status', () => {
-    const offline = Object.assign(new Error('Failed to fetch'), { name: 'AuthRetryableFetchError', status: 0 });
-    const unavailable = Object.assign(new Error('HTTP 503'), { name: 'AuthRetryableFetchError', status: 503 });
+  describe('for the retryable fetch error of auth-js', () => {
+    const retryable = (status) => Object.assign(
+      new Error('x'),
+      { name: 'AuthRetryableFetchError', status },
+    );
 
-    expect(toResultCode(offline)).toBe('NETWORK');
-    expect(toResultCode(unavailable)).toBe('NETWORK');
+    // auth-js reports a request that got no answer with status 0 (fetch.ts:
+    // _handleRequest and handleError), and a missing status is no answer either.
+    it.each([0, undefined])('maps a request that got no answer (status %s) to NETWORK', (status) => {
+      expect(toResultCode(retryable(status))).toBe('NETWORK');
+    });
+
+    // The same class also wraps the answers of a failing backend: HTTP 500-504
+    // and 520-530 (fetch.ts: NETWORK_ERROR_CODES). The connection worked.
+    it.each([500, 501, 502, 503, 504, 520, 525, 530])(
+      'maps HTTP %i, an answer of the backend rather than a lost connection, to UNKNOWN',
+      (status) => {
+        expect(toResultCode(retryable(status))).toBe('UNKNOWN');
+      },
+    );
+  });
+
+  describe('for an error that carries an HTTP status of 500 or more', () => {
+    it.each([500, 503, 599])('maps HTTP %i to UNKNOWN whatever else the error says', (status) => {
+      expect(toResultCode({ name: 'AuthApiError', status, message: 'x' })).toBe('UNKNOWN');
+      expect(toResultCode({ name: 'BackendRequestError', status })).toBe('UNKNOWN');
+      // Not even a message that reads like a failed fetch makes it a lost connection.
+      expect(toResultCode({ status, message: 'TypeError: Failed to fetch', code: '' })).toBe('UNKNOWN');
+    });
+
+    it('leaves a thrown TypeError, which has no status, as NETWORK', () => {
+      expect(toResultCode(new TypeError('Failed to fetch dynamically imported module'))).toBe('NETWORK');
+    });
+
+    it('does not turn a lower status into UNKNOWN', () => {
+      expect(toResultCode({ name: 'AuthApiError', status: 499, code: 'invalid_credentials' }))
+        .toBe('INVALID_CREDENTIALS');
+      expect(toResultCode({ name: 'AuthApiError', status: 429 })).toBe('RATE_LIMITED');
+    });
   });
 
   it('maps a PostgREST error that carries a fetch failure to NETWORK', () => {
