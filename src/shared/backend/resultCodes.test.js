@@ -9,6 +9,10 @@ describe('RESULT_CODES', () => {
       FORBIDDEN: 'FORBIDDEN',
       NOT_FOUND: 'NOT_FOUND',
       INVALID: 'INVALID',
+      INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+      EMAIL_NOT_CONFIRMED: 'EMAIL_NOT_CONFIRMED',
+      WEAK_PASSWORD: 'WEAK_PASSWORD',
+      RATE_LIMITED: 'RATE_LIMITED',
       UNKNOWN: 'UNKNOWN',
     });
     expect(Object.isFrozen(RESULT_CODES)).toBe(true);
@@ -63,9 +67,53 @@ describe('toResultCode', () => {
     expect(toResultCode({ code, message: 'x' })).toBe('INVALID');
   });
 
+  describe('for the sign-in and sign-up failures of auth-js', () => {
+    // The code strings are auth-js's ErrorCode (error-codes.d.ts); the status is
+    // what GoTrue answers with for each.
+    it.each([
+      ['invalid_credentials', 400, 'INVALID_CREDENTIALS'],
+      ['email_not_confirmed', 400, 'EMAIL_NOT_CONFIRMED'],
+      ['weak_password', 422, 'WEAK_PASSWORD'],
+      ['over_request_rate_limit', 429, 'RATE_LIMITED'],
+      ['over_email_send_rate_limit', 429, 'RATE_LIMITED'],
+      ['over_sms_send_rate_limit', 429, 'RATE_LIMITED'],
+    ])('maps the code %s (HTTP %i) to %s', (code, status, expected) => {
+      expect(toResultCode({
+        name: 'AuthApiError', code, status, message: 'x',
+      })).toBe(expected);
+    });
+
+    it('maps the error auth-js builds for a weak password, with its reasons', () => {
+      const weak = Object.assign(new Error('Password should contain letters and digits.'), {
+        name: 'AuthWeakPasswordError', status: 422, code: 'weak_password', reasons: ['characters'],
+      });
+
+      expect(toResultCode(weak)).toBe('WEAK_PASSWORD');
+    });
+
+    it('maps any HTTP 429 to RATE_LIMITED, even without a code', () => {
+      expect(toResultCode({ name: 'AuthApiError', status: 429, message: 'x' })).toBe('RATE_LIMITED');
+    });
+
+    it.each([401, 403])('reads the code before the generic %i FORBIDDEN rule', (status) => {
+      expect(toResultCode({ code: 'invalid_credentials', status })).toBe('INVALID_CREDENTIALS');
+      expect(toResultCode({ code: 'email_not_confirmed', status })).toBe('EMAIL_NOT_CONFIRMED');
+      expect(toResultCode({ code: 'weak_password', status })).toBe('WEAK_PASSWORD');
+      expect(toResultCode({ code: 'over_request_rate_limit', status })).toBe('RATE_LIMITED');
+    });
+
+    it('never mistakes an inherited property name for a code', () => {
+      expect(toResultCode({ code: 'constructor', status: 400 })).toBe('UNKNOWN');
+      expect(toResultCode({ code: 'toString', status: 400 })).toBe('UNKNOWN');
+    });
+  });
+
   it.each([
     ['an unmapped Postgres code', { code: '23505', message: 'dup' }],
     ['an auth 500', { name: 'AuthApiError', status: 500, message: 'x' }],
+    ['an auth 422 whose code the adapter handles on its own', {
+      name: 'AuthApiError', status: 422, code: 'user_already_exists', message: 'x',
+    }],
     ['a plain Error', new Error('boom')],
     ['null', null],
     ['undefined', undefined],

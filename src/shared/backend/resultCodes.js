@@ -12,6 +12,12 @@ export const RESULT_CODES = Object.freeze({
   FORBIDDEN: 'FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
   INVALID: 'INVALID',
+  // The four below are the failures of a password sign-in or sign-up that the
+  // forms tell the member about.
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  EMAIL_NOT_CONFIRMED: 'EMAIL_NOT_CONFIRMED',
+  WEAK_PASSWORD: 'WEAK_PASSWORD',
+  RATE_LIMITED: 'RATE_LIMITED',
   UNKNOWN: 'UNKNOWN',
 });
 
@@ -24,6 +30,17 @@ export const fail = (code) => ({ ok: false, code });
 const FETCH_FAILURE_MESSAGE = /^(TypeError|FetchError|AbortError)\b/;
 
 const INVALID_CODES = new Set(['22023', '23514', '22P02']);
+
+// auth-js reports a GoTrue failure with a string `code` (its ErrorCode type).
+// A Map, so that an inherited name such as "constructor" is never a code.
+const AUTH_CODES = new Map([
+  ['invalid_credentials', RESULT_CODES.INVALID_CREDENTIALS],
+  ['email_not_confirmed', RESULT_CODES.EMAIL_NOT_CONFIRMED],
+  ['weak_password', RESULT_CODES.WEAK_PASSWORD],
+  ['over_request_rate_limit', RESULT_CODES.RATE_LIMITED],
+  ['over_email_send_rate_limit', RESULT_CODES.RATE_LIMITED],
+  ['over_sms_send_rate_limit', RESULT_CODES.RATE_LIMITED],
+]);
 
 function isNetworkFailure(error) {
   return error instanceof TypeError
@@ -43,6 +60,13 @@ export function toResultCode(error) {
   }
   if (isNetworkFailure(error)) {
     return RESULT_CODES.NETWORK;
+  }
+  // Before the generic 401/403 rule below, which they could collide with.
+  if (AUTH_CODES.has(error.code)) {
+    return AUTH_CODES.get(error.code);
+  }
+  if (error.status === 429) {
+    return RESULT_CODES.RATE_LIMITED;
   }
   if (error.code === '42501' || error.status === 401 || error.status === 403) {
     return RESULT_CODES.FORBIDDEN;
