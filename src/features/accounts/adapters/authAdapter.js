@@ -2,15 +2,20 @@
  * The only door between the accounts feature and Supabase Auth (Design: D5,
  * D10).
  *
- * `createAuthAdapter(getClient)` takes the lazy client getter and calls it only
- * when a method runs, so creating the adapter never loads supabase-js. Every
+ * `createAuthAdapter(getClient, { fetchSettings })` takes the lazy client getter
+ * and calls it only when a method runs, so creating the adapter never loads
+ * supabase-js. `fetchSettings` reads the backend's public Auth settings; like
+ * `getClient` it is injected by the composition root, so the adapter knows
+ * nothing of the build configuration and a test can hand it any answer. Every
  * method resolves to a result (`ok` / `fail`) and never throws: a rejected
  * `getClient()` (a failed dynamic import is a network failure) and any error
  * the client returns are mapped to a result code. A session leaves this module
  * as `{ userId, email }`, never with its tokens, and the sign-in methods return
  * nothing at all (the session stays inside supabase-js).
  */
-import { fail, ok, toResultCode } from '../../../shared/backend/resultCodes';
+import {
+  RESULT_CODES, fail, ok, toResultCode,
+} from '../../../shared/backend/resultCodes';
 
 const PROFILE_COLUMNS = 'id, full_name, consent_version, consent_at, is_admin';
 
@@ -31,7 +36,7 @@ const toProfile = (row) => (row ? {
   isAdmin: row.is_admin,
 } : null);
 
-export function createAuthAdapter(getClient) {
+export function createAuthAdapter(getClient, { fetchSettings = null } = {}) {
   // Runs `call(client)` and turns whatever it returns or throws into a result.
   // `call` returns `{ error, data }`-shaped values; `read` maps `data` on success.
   async function run(call, read) {
@@ -114,6 +119,22 @@ export function createAuthAdapter(getClient) {
       (client) => client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } }),
       () => null,
     ),
+
+    // Which sign-in providers the backend offers. It is a plain read of the
+    // public settings, so it needs no client and no session. A provider counts
+    // as offered only when the setting is exactly `true`; no reader, a failed
+    // read or an odd answer all leave it out, and only the flag leaves here.
+    getProviders: async () => {
+      if (!fetchSettings) {
+        return fail(RESULT_CODES.UNKNOWN);
+      }
+      try {
+        const settings = await fetchSettings();
+        return ok({ google: settings?.external?.google === true });
+      } catch (error) {
+        return fail(toResultCode(error));
+      }
+    },
   };
 }
 

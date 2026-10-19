@@ -10,7 +10,7 @@
  * The variables are read at call time, not captured in a constant, so tests can
  * change them with `vi.stubEnv`.
  */
-import { BackendNotConfiguredError } from './errors';
+import { BackendNotConfiguredError, BackendRequestError } from './errors';
 
 const isFilled = (value) => typeof value === 'string' && value.trim() !== '';
 
@@ -99,4 +99,30 @@ export function getSupabaseClient() {
     });
   }
   return pending;
+}
+
+/**
+ * The public Auth settings of the backend (`GET /auth/v1/settings`), which say
+ * which sign-in providers are enabled (`external.google`). auth-js has no
+ * public method for them, and the answer needs no session and no client, so
+ * this is one plain request: it never loads supabase-js. The publishable key is
+ * the only credential it sends.
+ *
+ * It fails closed. It rejects, without a request, while the kill switch is off
+ * or the URL cannot be parsed; it rejects with `BackendRequestError` on a status
+ * that is not a success, and with whatever `fetch` or `json()` raised
+ * otherwise. A caller that shows something only when the settings say so shows
+ * nothing in every one of those cases.
+ */
+export async function fetchAuthSettings() {
+  const config = readConfig();
+  if (!config) {
+    throw new BackendNotConfiguredError();
+  }
+  const endpoint = new URL(`${config.url.replace(/\/+$/, '')}/auth/v1/settings`);
+  const response = await fetch(endpoint, { headers: { apikey: config.key } });
+  if (!response.ok) {
+    throw new BackendRequestError(response.status);
+  }
+  return response.json();
 }

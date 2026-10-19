@@ -9,10 +9,10 @@ async function loadClient() {
   const factory = vi.fn(() => ({ createClient }));
   vi.doMock('@supabase/supabase-js', factory);
   const client = await import('./client');
-  // Imported after the reset so the class is the one client.js throws.
-  const { BackendNotConfiguredError } = await import('./errors');
+  // Imported after the reset so the classes are the ones client.js throws.
+  const { BackendNotConfiguredError, BackendRequestError } = await import('./errors');
   return {
-    ...client, createClient, factory, BackendNotConfiguredError,
+    ...client, createClient, factory, BackendNotConfiguredError, BackendRequestError,
   };
 }
 
@@ -224,5 +224,124 @@ describe('getSupabaseClient', () => {
 
     await expect(getSupabaseClient()).resolves.toEqual({ marker: 'client' });
     expect(createClient).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fetchAuthSettings', () => {
+  const SETTINGS = { external: { google: true }, disable_signup: false };
+
+  const answer = (body, status = 200) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  });
+
+  // Stands in for the global fetch; every call is recorded.
+  function stubFetch(response) {
+    const fetchMock = vi.fn(async () => response);
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('reads GET /auth/v1/settings with the publishable key and resolves to the settings', async () => {
+    configure();
+    const fetchMock = stubFetch(answer(SETTINGS));
+    const { fetchAuthSettings } = await loadClient();
+
+    await expect(fetchAuthSettings()).resolves.toEqual(SETTINGS);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe('https://abcd1234.supabase.co/auth/v1/settings');
+    expect(init.headers).toEqual({ apikey: KEY_ENV });
+  });
+
+  it('ignores a trailing slash of the configured URL', async () => {
+    configure('http://127.0.0.1:54321/');
+    const fetchMock = stubFetch(answer(SETTINGS));
+    const { fetchAuthSettings } = await loadClient();
+
+    await fetchAuthSettings();
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe('http://127.0.0.1:54321/auth/v1/settings');
+  });
+
+  it('never loads supabase-js', async () => {
+    configure();
+    stubFetch(answer(SETTINGS));
+    const { fetchAuthSettings, factory } = await loadClient();
+
+    await fetchAuthSettings();
+
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it('reads the environment at call time', async () => {
+    const fetchMock = stubFetch(answer(SETTINGS));
+    const { fetchAuthSettings } = await loadClient();
+    configure();
+
+    await fetchAuthSettings();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed without a request while the backend is not configured', async () => {
+    vi.stubEnv('VITE_SUPABASE_URL', '');
+    vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', '');
+    const fetchMock = stubFetch(answer(SETTINGS));
+    const { fetchAuthSettings, BackendNotConfiguredError } = await loadClient();
+
+    await expect(fetchAuthSettings()).rejects.toBeInstanceOf(BackendNotConfiguredError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects on a malformed URL without a request', async () => {
+    configure('not a url');
+    const fetchMock = stubFetch(answer(SETTINGS));
+    const { fetchAuthSettings } = await loadClient();
+
+    await expect(fetchAuthSettings()).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 404, 429, 500, 503])(
+    'rejects with the HTTP status, and nothing of the body, when the backend answers %i',
+    async (status) => {
+      configure();
+      stubFetch(answer({ message: 'private detail' }, status));
+      const { fetchAuthSettings, BackendRequestError } = await loadClient();
+
+      const error = await fetchAuthSettings().catch((caught) => caught);
+
+      expect(error).toBeInstanceOf(BackendRequestError);
+      expect(error.status).toBe(status);
+      expect(error.message).not.toMatch(/private detail/);
+    },
+  );
+
+  it('rejects when the answer is not JSON', async () => {
+    configure();
+    stubFetch({
+      ok: true,
+      status: 200,
+      json: async () => { throw new SyntaxError('Unexpected token <'); },
+    });
+    const { fetchAuthSettings } = await loadClient();
+
+    await expect(fetchAuthSettings()).rejects.toBeInstanceOf(SyntaxError);
+  });
+
+  it('rejects with the network error when the request itself fails', async () => {
+    configure();
+    const failure = new TypeError('Failed to fetch');
+    vi.stubGlobal('fetch', vi.fn(async () => { throw failure; }));
+    const { fetchAuthSettings } = await loadClient();
+
+    await expect(fetchAuthSettings()).rejects.toBe(failure);
   });
 });

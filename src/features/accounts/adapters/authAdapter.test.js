@@ -1,3 +1,4 @@
+import { BackendRequestError } from '../../../shared/backend/errors';
 import { createAuthAdapter } from './authAdapter';
 
 const RAW_SESSION = {
@@ -379,6 +380,69 @@ describe('createAuthAdapter', () => {
         .signInWithGoogle({ redirectTo: 'https://app.example.test/auth/callback' });
 
       expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
+  describe('getProviders', () => {
+    const adapterWith = (fetchSettings, getClient = vi.fn()) => createAuthAdapter(
+      getClient,
+      { fetchSettings },
+    );
+
+    it('reports Google as available when the backend settings enable it', async () => {
+      const fetchSettings = vi.fn(async () => ({ external: { google: true, email: true } }));
+
+      const result = await adapterWith(fetchSettings).getProviders();
+
+      expect(fetchSettings).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ ok: true, data: { google: true } });
+    });
+
+    it.each([
+      ['disabled', { external: { google: false } }],
+      ['missing', { external: { email: true } }],
+      ['the string "true"', { external: { google: 'true' } }],
+      ['the number 1', { external: { google: 1 } }],
+      ['without an external block', { disable_signup: false }],
+      ['null', null],
+      ['not an object', 'settings'],
+    ])('reports Google as unavailable when the setting is %s', async (_label, settings) => {
+      const result = await adapterWith(async () => settings).getProviders();
+
+      expect(result).toEqual({ ok: true, data: { google: false } });
+    });
+
+    it('returns the flag and nothing else of the settings', async () => {
+      const settings = { external: { google: true }, sms_provider: 'twilio', saml_enabled: true };
+
+      const result = await adapterWith(async () => settings).getProviders();
+
+      expect(Object.keys(result.data)).toEqual(['google']);
+    });
+
+    it.each([
+      ['a network failure', new TypeError('Failed to fetch'), 'NETWORK'],
+      ['a refusal for too many requests', new BackendRequestError(429), 'RATE_LIMITED'],
+      ['a refusal of the key', new BackendRequestError(401), 'FORBIDDEN'],
+      ['a server error', new BackendRequestError(503), 'UNKNOWN'],
+      ['anything else', new Error('private detail ana@example.test'), 'UNKNOWN'],
+    ])('maps %s to a code only', async (_label, failure, expected) => {
+      const result = await adapterWith(async () => { throw failure; }).getProviders();
+
+      expect(result).toEqual({ ok: false, code: expected });
+    });
+
+    it('does not ask for the client: the settings are a plain read', async () => {
+      const getClient = vi.fn();
+
+      await adapterWith(async () => ({}), getClient).getProviders();
+
+      expect(getClient).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when it was given no way to read the settings', async () => {
+      await expect(createAuthAdapter(vi.fn()).getProviders())
+        .resolves.toEqual({ ok: false, code: 'UNKNOWN' });
     });
   });
 

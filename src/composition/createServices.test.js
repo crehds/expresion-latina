@@ -1,4 +1,11 @@
+import { fetchAuthSettings } from '../shared/backend/client';
 import createServices from './createServices';
+
+// The real reader would call the network; the wiring is what this file checks.
+vi.mock('../shared/backend/client', async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetchAuthSettings: vi.fn(async () => ({ external: { google: true } })),
+}));
 
 describe('createServices', () => {
   it('builds the auth adapter from the lazy client getter', () => {
@@ -27,5 +34,15 @@ describe('createServices', () => {
 
     expect(getClient).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ ok: true, data: null });
+  });
+
+  it('hands the adapter the shared settings reader, so it can tell which providers are on', async () => {
+    const getClient = vi.fn();
+
+    const result = await createServices(getClient).auth.getProviders();
+
+    expect(fetchAuthSettings).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ ok: true, data: { google: true } });
+    expect(getClient).not.toHaveBeenCalled();
   });
 });
