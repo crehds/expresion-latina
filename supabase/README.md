@@ -107,6 +107,15 @@ update public.profiles set is_admin = true where id = (
   stack, uncomment the two `env(...)` lines of `[auth.external.google]` and
   set `enabled = true`, then restart the stack. Keep those edits out of
   commits.
+- **Real sign-up journey.** `npm run test:e2e:auth` drives a real sign-up
+  through the local stack, in a browser: it builds the site against the
+  stack, signs a new `e2e-auth-<time>@example.test` account up on the login
+  page, reads the confirmation email from Mailpit, follows its link, checks
+  that the member ends on the home page signed in with the consent recorded
+  in the database, and signs in again with the password. It deletes that
+  account and its email afterwards, whether it passes or not. It needs the
+  stack running (see "Bootstrapping") and port 3000 free, and it is not part
+  of `npm run test:e2e` or of CI, which has no stack.
 
 ## Production runbook
 

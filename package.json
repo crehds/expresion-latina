@@ -18,6 +18,7 @@
     "test:data": "node --test scripts/data/__tests__/*.test.mjs",
     "test:e2e": "node scripts/e2e/content-reaches-page.mjs && node scripts/e2e/csp-no-violations.mjs",
     "test:e2e:csp": "node scripts/e2e/csp-no-violations.mjs",
+    "test:e2e:auth": "node scripts/e2e/auth-journey.mjs",
     "test:db": "node scripts/db/test-db.mjs",
     "test:db-scripts": "node --test scripts/db/__tests__/*.test.mjs",
     "test:ci-scripts": "node --test scripts/ci/__tests__/*.test.mjs",
