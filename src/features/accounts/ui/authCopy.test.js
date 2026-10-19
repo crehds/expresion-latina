@@ -26,6 +26,8 @@ describe('authErrorMessage', () => {
       RESULT_CODES.WEAK_PASSWORD,
       'La contraseña debe tener al menos 8 caracteres, con letras y números.',
     ],
+    [RESULT_CODES.SAME_PASSWORD, 'La nueva contraseña debe ser distinta de la actual.'],
+    [RESULT_CODES.LINK_EXPIRED, 'El enlace venció o ya se usó. Pide uno nuevo.'],
     [RESULT_CODES.RATE_LIMITED, 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'],
     [RESULT_CODES.NETWORK, 'No hay conexión. Revisa tu internet e inténtalo de nuevo.'],
   ])('tells the member what to do after %s', (code, message) => {

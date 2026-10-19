@@ -12,11 +12,14 @@ export const RESULT_CODES = Object.freeze({
   FORBIDDEN: 'FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
   INVALID: 'INVALID',
-  // The four below are the failures of a password sign-in or sign-up that the
-  // forms tell the member about.
+  // The ones below are the failures of the account forms (sign-in, sign-up,
+  // password reset and a new password) and of an email link that the member is
+  // told about.
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   EMAIL_NOT_CONFIRMED: 'EMAIL_NOT_CONFIRMED',
   WEAK_PASSWORD: 'WEAK_PASSWORD',
+  SAME_PASSWORD: 'SAME_PASSWORD',
+  LINK_EXPIRED: 'LINK_EXPIRED',
   RATE_LIMITED: 'RATE_LIMITED',
   UNKNOWN: 'UNKNOWN',
 });
@@ -37,6 +40,11 @@ const AUTH_CODES = new Map([
   ['invalid_credentials', RESULT_CODES.INVALID_CREDENTIALS],
   ['email_not_confirmed', RESULT_CODES.EMAIL_NOT_CONFIRMED],
   ['weak_password', RESULT_CODES.WEAK_PASSWORD],
+  ['same_password', RESULT_CODES.SAME_PASSWORD],
+  // What verifyOtp answers (HTTP 403) for an email link whose token is no longer
+  // good: GoTrue uses this one code for a token that is unknown or expired,
+  // which includes one that was already used.
+  ['otp_expired', RESULT_CODES.LINK_EXPIRED],
   ['over_request_rate_limit', RESULT_CODES.RATE_LIMITED],
   ['over_email_send_rate_limit', RESULT_CODES.RATE_LIMITED],
   ['over_sms_send_rate_limit', RESULT_CODES.RATE_LIMITED],

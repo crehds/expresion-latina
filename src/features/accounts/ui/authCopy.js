@@ -1,5 +1,6 @@
 /**
- * The Spanish copy of the sign-in, sign-up and Google controls.
+ * The Spanish copy of the account controls: sign-in, sign-up, Google, the
+ * password reset and the new password.
  *
  * Every message is fixed text. A failed call shows the message of its result
  * code and nothing the backend said, so no raw error and no member data can
@@ -25,6 +26,8 @@ const ERROR_MESSAGES = new Map([
     'Confirma tu correo antes de ingresar. Revisa tu bandeja de entrada.',
   ],
   [RESULT_CODES.WEAK_PASSWORD, `La contraseña debe tener al menos ${PASSWORD_RULE}`],
+  [RESULT_CODES.SAME_PASSWORD, 'La nueva contraseña debe ser distinta de la actual.'],
+  [RESULT_CODES.LINK_EXPIRED, 'El enlace venció o ya se usó. Pide uno nuevo.'],
   [RESULT_CODES.RATE_LIMITED, 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'],
   [RESULT_CODES.NETWORK, 'No hay conexión. Revisa tu internet e inténtalo de nuevo.'],
 ]);

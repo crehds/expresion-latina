@@ -10,8 +10,9 @@
  * method resolves to a result (`ok` / `fail`) and never throws: a rejected
  * `getClient()` (a failed dynamic import is a network failure) and any error
  * the client returns are mapped to a result code. A session leaves this module
- * as `{ userId, email }`, never with its tokens, and the sign-in methods return
- * nothing at all (the session stays inside supabase-js).
+ * as `{ userId, email }`, never with its tokens, and the sign-in methods and the
+ * email link verification return nothing at all (the session stays inside
+ * supabase-js).
  */
 import {
   RESULT_CODES, fail, ok, toResultCode,
@@ -23,6 +24,13 @@ const PROFILE_COLUMNS = 'id, full_name, consent_version, consent_at, is_admin';
 // with an obfuscated success or with one of these errors. Both end as "check
 // your email", so the form cannot be used to find out who has an account.
 const ALREADY_REGISTERED = new Set(['user_already_exists', 'email_exists']);
+
+// The email links the app verifies (Design: D10, "email links use token_hash
+// plus verifyOtp"): the password recovery link, and the confirmation link of a
+// new account (`email`; `signup` is deprecated). verifyOtp would also verify an
+// invite, a magic link, an email change or a phone code from a link a stranger
+// crafted, so every other type is refused before a request is made.
+const LINK_TYPES = new Set(['recovery', 'email']);
 
 const toSession = (session) => (
   session ? { userId: session.user.id, email: session.user.email } : null
@@ -79,8 +87,10 @@ export function createAuthAdapter(getClient, { fetchSettings = null } = {}) {
       () => null,
     ),
 
+    // Ends this device's session only. auth-js signs out every device by
+    // default (`scope: 'global'`), which a button on one device must not do.
     signOut: () => run(
-      async (client) => ({ data: null, ...(await client.auth.signOut()) }),
+      async (client) => ({ data: null, ...(await client.auth.signOut({ scope: 'local' })) }),
       () => null,
     ),
 
@@ -119,6 +129,36 @@ export function createAuthAdapter(getClient, { fetchSettings = null } = {}) {
       (client) => client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } }),
       () => null,
     ),
+
+    // Asks for the password reset email. GoTrue answers the same way whether or
+    // not the address has an account, so the result says nothing about that.
+    // Where the link in the email points is up to the email template; the
+    // redirect target only matters to a template that uses it.
+    requestPasswordReset: ({ email, redirectTo }) => run(
+      (client) => client.auth.resetPasswordForEmail(email, { redirectTo }),
+      () => null,
+    ),
+
+    // Sets a new password for the signed-in member (including the one a recovery
+    // link has just signed in). The password goes out with the request and never
+    // comes back, not even in a failure.
+    updatePassword: ({ password }) => run(
+      (client) => client.auth.updateUser({ password }),
+      () => null,
+    ),
+
+    // Verifies the token hash of an email link, which signs the member in. The
+    // session stays inside supabase-js; the SessionProvider reads it next. A type
+    // outside `LINK_TYPES`, or a blank token, is INVALID without any request.
+    verifyEmailLink: async ({ tokenHash, type } = {}) => {
+      if (!LINK_TYPES.has(type) || typeof tokenHash !== 'string' || tokenHash.trim() === '') {
+        return fail(RESULT_CODES.INVALID);
+      }
+      return run(
+        (client) => client.auth.verifyOtp({ token_hash: tokenHash, type }),
+        () => null,
+      );
+    },
 
     // Which sign-in providers the backend offers. It is a plain read of the
     // public settings, so it needs no client and no session. A provider counts

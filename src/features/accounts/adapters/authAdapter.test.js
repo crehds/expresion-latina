@@ -32,6 +32,9 @@ function fakeClient({
   signUpError = null,
   signInError = null,
   oauthError = null,
+  resetError = null,
+  updateError = null,
+  verifyError = null,
 } = {}) {
   const calls = {};
   const unsubscribe = vi.fn();
@@ -67,6 +70,22 @@ function fakeClient({
         return oauthError
           ? { data: { provider: 'google', url: null, flowId: null }, error: oauthError }
           : { data: { provider: 'google', url: OAUTH_URL, flowId: null }, error: null };
+      }),
+      resetPasswordForEmail: vi.fn(async (email, options) => {
+        calls.resetPasswordForEmail = [email, options];
+        return resetError ? { data: null, error: resetError } : { data: {}, error: null };
+      }),
+      updateUser: vi.fn(async (attributes) => {
+        calls.updateUser = attributes;
+        return updateError
+          ? { data: { user: null }, error: updateError }
+          : { data: { user: RAW_SESSION.user }, error: null };
+      }),
+      verifyOtp: vi.fn(async (params) => {
+        calls.verifyOtp = params;
+        return verifyError
+          ? { data: NO_USER, error: verifyError }
+          : { data: { user: RAW_SESSION.user, session: RAW_SESSION }, error: null };
       }),
     },
     from: vi.fn((table) => { calls.table = table; return query; }),
@@ -222,12 +241,15 @@ describe('createAuthAdapter', () => {
   });
 
   describe('signOut', () => {
-    it('signs out through the client', async () => {
+    // auth-js signs out every device by default (scope 'global'); the button
+    // must only end this one.
+    it('signs out this device only', async () => {
       const client = fakeClient();
 
       const result = await adapterFor(client).signOut();
 
       expect(client.auth.signOut).toHaveBeenCalledTimes(1);
+      expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
       expect(result).toEqual({ ok: true, data: null });
     });
 
@@ -392,6 +414,149 @@ describe('createAuthAdapter', () => {
     });
   });
 
+  describe('requestPasswordReset', () => {
+    const REQUEST = { email: 'ana@example.test', redirectTo: 'https://app.example.test/auth/confirm' };
+
+    it('asks for the reset email with the address and the redirect target and returns nothing', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).requestPasswordReset(REQUEST);
+
+      expect(client.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+      expect(client.calls.resetPasswordForEmail).toStrictEqual([
+        'ana@example.test',
+        { redirectTo: 'https://app.example.test/auth/confirm' },
+      ]);
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
+    it.each([
+      ['over_email_send_rate_limit', 429, 'RATE_LIMITED'],
+      ['over_request_rate_limit', 429, 'RATE_LIMITED'],
+      ['email_address_invalid', 400, 'UNKNOWN'],
+    ])('maps the auth error %s (HTTP %i) to %s and never echoes the address', async (code, status, expected) => {
+      const result = await adapterFor(fakeClient({ resetError: authError(code, status) }))
+        .requestPasswordReset(REQUEST);
+
+      expect(result).toEqual({ ok: false, code: expected });
+      expect(JSON.stringify(result)).not.toMatch(/ana@example|private detail/);
+    });
+
+    it('maps a transport failure to NETWORK', async () => {
+      const result = await adapterFor(fakeClient({ resetError: offline }))
+        .requestPasswordReset(REQUEST);
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
+  describe('updatePassword', () => {
+    it('sets the new password for the signed-in member and returns nothing', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).updatePassword({ password: ' new pass1 ' });
+
+      expect(client.auth.updateUser).toHaveBeenCalledTimes(1);
+      expect(client.calls.updateUser).toStrictEqual({ password: ' new pass1 ' });
+      expect(result).toEqual({ ok: true, data: null });
+      expect(JSON.stringify(result)).not.toMatch(/new pass1|secret|ana@example/);
+    });
+
+    it.each([
+      ['same_password', 422, 'SAME_PASSWORD'],
+      ['weak_password', 422, 'WEAK_PASSWORD'],
+      ['over_request_rate_limit', 429, 'RATE_LIMITED'],
+      ['reauthentication_needed', 400, 'UNKNOWN'],
+    ])('maps the auth error %s (HTTP %i) to %s', async (code, status, expected) => {
+      const result = await adapterFor(fakeClient({ updateError: authError(code, status) }))
+        .updatePassword({ password: 'abcdefg1' });
+
+      expect(result).toEqual({ ok: false, code: expected });
+      expect(JSON.stringify(result)).not.toMatch(/abcdefg1|private detail/);
+    });
+
+    it('maps a transport failure to NETWORK', async () => {
+      const result = await adapterFor(fakeClient({ updateError: offline }))
+        .updatePassword({ password: 'abcdefg1' });
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
+  describe('verifyEmailLink', () => {
+    it.each(['recovery', 'email'])('verifies the token hash of a %s link and returns nothing, not even the session', async (type) => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).verifyEmailLink({ tokenHash: 'hash-1', type });
+
+      expect(client.auth.verifyOtp).toHaveBeenCalledTimes(1);
+      expect(client.calls.verifyOtp).toStrictEqual({ token_hash: 'hash-1', type });
+      expect(result).toEqual({ ok: true, data: null });
+      expect(JSON.stringify(result)).not.toMatch(/secret|ana@example/);
+    });
+
+    it.each([
+      ['signup', 'signup'],
+      ['magiclink', 'magiclink'],
+      ['invite', 'invite'],
+      ['email_change', 'email_change'],
+      ['a phone type', 'sms'],
+      ['another case', 'RECOVERY'],
+      ['padded with a space', 'recovery '],
+      ['an empty string', ''],
+      ['missing', undefined],
+      ['null', null],
+      ['not a string', ['recovery']],
+      ['an inherited property name', 'constructor'],
+    ])('refuses the type %s as INVALID, without asking for the client or calling verifyOtp', async (_label, type) => {
+      const getClient = vi.fn(async () => fakeClient());
+
+      const result = await createAuthAdapter(getClient).verifyEmailLink({ tokenHash: 'hash-1', type });
+
+      expect(result).toEqual({ ok: false, code: 'INVALID' });
+      expect(getClient).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['empty', ''],
+      ['only spaces', '   '],
+      ['missing', undefined],
+      ['null', null],
+      ['not a string', 42],
+    ])('refuses a token hash that is %s as INVALID, without calling verifyOtp', async (_label, tokenHash) => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).verifyEmailLink({ tokenHash, type: 'recovery' });
+
+      expect(result).toEqual({ ok: false, code: 'INVALID' });
+      expect(client.auth.verifyOtp).not.toHaveBeenCalled();
+    });
+
+    it('does not throw on an empty call', async () => {
+      await expect(adapterFor(fakeClient()).verifyEmailLink())
+        .resolves.toEqual({ ok: false, code: 'INVALID' });
+    });
+
+    it.each([
+      ['otp_expired', 403, 'LINK_EXPIRED'],
+      ['over_request_rate_limit', 429, 'RATE_LIMITED'],
+      ['unexpected_failure', 500, 'UNKNOWN'],
+    ])('maps the auth error %s (HTTP %i) to %s', async (code, status, expected) => {
+      const result = await adapterFor(fakeClient({ verifyError: authError(code, status) }))
+        .verifyEmailLink({ tokenHash: 'hash-1', type: 'recovery' });
+
+      expect(result).toEqual({ ok: false, code: expected });
+      expect(JSON.stringify(result)).not.toMatch(/hash-1|private detail/);
+    });
+
+    it('maps a transport failure to NETWORK', async () => {
+      const result = await adapterFor(fakeClient({ verifyError: offline }))
+        .verifyEmailLink({ tokenHash: 'hash-1', type: 'email' });
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
   describe('getProviders', () => {
     const adapterWith = (fetchSettings, getClient = vi.fn()) => createAuthAdapter(
       getClient,
@@ -467,6 +632,9 @@ describe('createAuthAdapter', () => {
       ['signUp', (a) => a.signUp(SIGN_UP)],
       ['signInWithPassword', (a) => a.signInWithPassword({ email: 'ana@example.test', password: 'x' })],
       ['signInWithGoogle', (a) => a.signInWithGoogle({ redirectTo: 'https://app.example.test/auth/callback' })],
+      ['requestPasswordReset', (a) => a.requestPasswordReset({ email: 'ana@example.test', redirectTo: 'https://app.example.test/auth/confirm' })],
+      ['updatePassword', (a) => a.updatePassword({ password: 'abcdefg1' })],
+      ['verifyEmailLink', (a) => a.verifyEmailLink({ tokenHash: 'hash-1', type: 'recovery' })],
     ];
 
     it.each(methods)('%s resolves to NETWORK when the dynamic import fails', async (_name, call) => {

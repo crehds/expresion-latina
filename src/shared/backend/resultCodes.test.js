@@ -12,6 +12,8 @@ describe('RESULT_CODES', () => {
       INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
       EMAIL_NOT_CONFIRMED: 'EMAIL_NOT_CONFIRMED',
       WEAK_PASSWORD: 'WEAK_PASSWORD',
+      SAME_PASSWORD: 'SAME_PASSWORD',
+      LINK_EXPIRED: 'LINK_EXPIRED',
       RATE_LIMITED: 'RATE_LIMITED',
       UNKNOWN: 'UNKNOWN',
     });
@@ -109,13 +111,16 @@ describe('toResultCode', () => {
     expect(toResultCode({ code, message: 'x' })).toBe('INVALID');
   });
 
-  describe('for the sign-in and sign-up failures of auth-js', () => {
+  describe('for the failures of auth-js that the account forms tell the member about', () => {
     // The code strings are auth-js's ErrorCode (error-codes.d.ts); the status is
-    // what GoTrue answers with for each.
+    // what GoTrue answers with for each (observed on the local stack for
+    // same_password, otp_expired and weak_password).
     it.each([
       ['invalid_credentials', 400, 'INVALID_CREDENTIALS'],
       ['email_not_confirmed', 400, 'EMAIL_NOT_CONFIRMED'],
       ['weak_password', 422, 'WEAK_PASSWORD'],
+      ['same_password', 422, 'SAME_PASSWORD'],
+      ['otp_expired', 403, 'LINK_EXPIRED'],
       ['over_request_rate_limit', 429, 'RATE_LIMITED'],
       ['over_email_send_rate_limit', 429, 'RATE_LIMITED'],
       ['over_sms_send_rate_limit', 429, 'RATE_LIMITED'],
@@ -141,6 +146,8 @@ describe('toResultCode', () => {
       expect(toResultCode({ code: 'invalid_credentials', status })).toBe('INVALID_CREDENTIALS');
       expect(toResultCode({ code: 'email_not_confirmed', status })).toBe('EMAIL_NOT_CONFIRMED');
       expect(toResultCode({ code: 'weak_password', status })).toBe('WEAK_PASSWORD');
+      expect(toResultCode({ code: 'same_password', status })).toBe('SAME_PASSWORD');
+      expect(toResultCode({ code: 'otp_expired', status })).toBe('LINK_EXPIRED');
       expect(toResultCode({ code: 'over_request_rate_limit', status })).toBe('RATE_LIMITED');
     });
 
@@ -155,6 +162,11 @@ describe('toResultCode', () => {
     ['an auth 500', { name: 'AuthApiError', status: 500, message: 'x' }],
     ['an auth 422 whose code the adapter handles on its own', {
       name: 'AuthApiError', status: 422, code: 'user_already_exists', message: 'x',
+    }],
+    // Only otp_expired is the answer for an email link that verifyOtp refuses.
+    // The flow state codes belong to the PKCE code exchange, not to a link.
+    ['a PKCE flow state that expired', {
+      name: 'AuthApiError', status: 422, code: 'flow_state_expired', message: 'x',
     }],
     ['a plain Error', new Error('boom')],
     ['null', null],
