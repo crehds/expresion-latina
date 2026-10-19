@@ -267,6 +267,28 @@ describe('createAuthAdapter', () => {
     });
   });
 
+  describe('signOutOthers', () => {
+    // After a password change: every other device must sign in again, and this
+    // one must stay signed in.
+    it('signs out every device except this one', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).signOutOthers();
+
+      expect(client.auth.signOut).toHaveBeenCalledTimes(1);
+      expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'others' });
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
+    it('maps a sign-out error to a code only', async () => {
+      const signOutError = { name: 'AuthApiError', status: 403, message: 'x' };
+
+      const result = await adapterFor(fakeClient({ signOutError })).signOutOthers();
+
+      expect(result).toEqual({ ok: false, code: 'FORBIDDEN' });
+    });
+  });
+
   // auth-js errors as GoTrue answers with them (error-codes.d.ts).
   const authError = (code, status) => ({
     name: 'AuthApiError', code, status, message: 'private detail ana@example.test',
@@ -684,6 +706,7 @@ describe('createAuthAdapter', () => {
       ['recordConsent', (a) => a.recordConsent('2026-01-01')],
       ['deleteMyAccount', (a) => a.deleteMyAccount()],
       ['signOut', (a) => a.signOut()],
+      ['signOutOthers', (a) => a.signOutOthers()],
       ['signUp', (a) => a.signUp(SIGN_UP)],
       ['signInWithPassword', (a) => a.signInWithPassword({ email: 'ana@example.test', password: 'x' })],
       ['signInWithGoogle', (a) => a.signInWithGoogle({ redirectTo: 'https://app.example.test/auth/callback' })],

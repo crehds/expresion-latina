@@ -6,8 +6,9 @@
  * (`validateNewPassword`: the very rule of the sign-up, and the two must match),
  * with a message per field and the focus on the first one that is wrong. The
  * password is sent exactly as typed. A failed call shows the fixed message of its
- * result code in an alert, never what the backend said or the password. The
- * parent decides what follows a success (`onDone`).
+ * result code in an alert, never what the backend said or the password. After
+ * a success the member's other devices are signed out (a failure of that step is
+ * ignored: the password changed). The parent decides what follows (`onDone`).
  */
 import PropTypes from 'prop-types';
 import { useContext, useRef, useState } from 'react';
@@ -51,6 +52,13 @@ export default function NewPassword({ onDone }) {
 
     const outcome = await run(() => auth.updatePassword({ password }));
     if (outcome.ok) {
+      // The password did change, so this step can only end in success: whether
+      // the other devices were signed out does not turn it into an error.
+      try {
+        await auth.signOutOthers();
+      } catch {
+        // Ignored on purpose.
+      }
       onDone();
     }
   };

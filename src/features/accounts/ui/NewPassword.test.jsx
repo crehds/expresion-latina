@@ -8,13 +8,19 @@ import NewPassword from './NewPassword';
 const ok = (data = null) => ({ ok: true, data });
 const fail = (code, extra = {}) => ({ ok: false, code, ...extra });
 
-function renderForm({ updatePassword = vi.fn(async () => ok()), onDone = vi.fn() } = {}) {
+function renderForm({
+  updatePassword = vi.fn(async () => ok()),
+  signOutOthers = vi.fn(async () => ok()),
+  onDone = vi.fn(),
+} = {}) {
   render(
-    <BackendContext.Provider value={{ enabled: true, services: { auth: { updatePassword } } }}>
+    <BackendContext.Provider
+      value={{ enabled: true, services: { auth: { updatePassword, signOutOthers } } }}
+    >
       <NewPassword onDone={onDone} />
     </BackendContext.Provider>,
   );
-  return { updatePassword, onDone };
+  return { updatePassword, signOutOthers, onDone };
 }
 
 const password = () => screen.getByLabelText('Nueva contraseña');
@@ -58,6 +64,50 @@ describe('NewPassword', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
     expect(updatePassword).toHaveBeenCalledTimes(1);
     expect(updatePassword).toHaveBeenCalledWith({ password: ' abc def2 ' });
+  });
+
+  describe('after the password changed', () => {
+    it('signs the other devices out, after the change and before telling the parent', async () => {
+      const user = userEvent.setup();
+      const calls = [];
+      const { signOutOthers, onDone } = renderForm({
+        updatePassword: vi.fn(async () => { calls.push('updatePassword'); return ok(); }),
+        signOutOthers: vi.fn(async () => { calls.push('signOutOthers'); return ok(); }),
+        onDone: vi.fn(() => calls.push('onDone')),
+      });
+
+      await fillAndSubmit(user);
+
+      await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+      expect(signOutOthers).toHaveBeenCalledTimes(1);
+      expect(calls).toEqual(['updatePassword', 'signOutOthers', 'onDone']);
+    });
+
+    it.each([
+      ['a failed result', vi.fn(async () => fail('NETWORK'))],
+      ['a rejection', vi.fn(async () => { throw new Error('offline'); })],
+    ])('is still a success when signing the other devices out ends in %s', async (_name, signOutOthers) => {
+      const user = userEvent.setup();
+      const { onDone } = renderForm({ signOutOthers });
+
+      await fillAndSubmit(user);
+
+      await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+      expect(signOutOthers).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('signs nobody out when the password did not change', async () => {
+      const user = userEvent.setup();
+      const { signOutOthers } = renderForm({
+        updatePassword: vi.fn(async () => fail('SAME_PASSWORD')),
+      });
+
+      await fillAndSubmit(user);
+
+      await screen.findByRole('alert');
+      expect(signOutOthers).not.toHaveBeenCalled();
+    });
   });
 
   describe('when the fields are not valid', () => {

@@ -94,6 +94,13 @@ export function createAuthAdapter(getClient, { fetchSettings = null } = {}) {
       () => null,
     ),
 
+    // Ends every session except this device's: what follows a password change,
+    // so a device that stole or kept the old session has to sign in again.
+    signOutOthers: () => run(
+      async (client) => ({ data: null, ...(await client.auth.signOut({ scope: 'others' })) }),
+      () => null,
+    ),
+
     // The consent travels with the sign-up: the `auth.users` trigger refuses an
     // email account without `consent_version` and `full_name` (Design: D5.2).
     // The result says only whether the member still has to confirm the address;
