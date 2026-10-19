@@ -344,4 +344,94 @@ describe('fetchAuthSettings', () => {
 
     await expect(fetchAuthSettings()).rejects.toBe(failure);
   });
+
+  describe('when the backend does not answer', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Runs fetchAuthSettings and records whether it has settled, so a test can
+    // tell "still waiting" from "gave up" at an exact moment.
+    async function startRequest() {
+      const { fetchAuthSettings } = await loadClient();
+      const request = { settled: false };
+      request.outcome = fetchAuthSettings()
+        .catch((error) => error)
+        .finally(() => { request.settled = true; });
+      return request;
+    }
+
+    // Something that stays open until the signal aborts it, like a hung request.
+    const hangsUntilAborted = (signal) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason));
+    });
+
+    it('hands the request an abort signal that nothing has fired yet', async () => {
+      configure();
+      const fetchMock = stubFetch(answer(SETTINGS));
+      const { fetchAuthSettings } = await loadClient();
+
+      await fetchAuthSettings();
+
+      const [, init] = fetchMock.mock.calls[0];
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      expect(init.signal.aborted).toBe(false);
+    });
+
+    it('aborts a request that has not answered after 5 seconds', async () => {
+      configure();
+      vi.stubGlobal('fetch', vi.fn((_url, { signal }) => hangsUntilAborted(signal)));
+      const request = await startRequest();
+
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(request.settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      const error = await request.outcome;
+      expect(request.settled).toBe(true);
+      expect(error.name).toBe('AbortError');
+    });
+
+    it('also gives up on an answer whose body never arrives', async () => {
+      configure();
+      vi.stubGlobal('fetch', vi.fn(async (_url, { signal }) => ({
+        ok: true,
+        status: 200,
+        json: () => hangsUntilAborted(signal),
+      })));
+      const request = await startRequest();
+
+      await vi.advanceTimersByTimeAsync(5000);
+
+      const error = await request.outcome;
+      expect(error.name).toBe('AbortError');
+    });
+
+    it('leaves no timer running once the backend has answered', async () => {
+      configure();
+      stubFetch(answer(SETTINGS));
+      const { fetchAuthSettings } = await loadClient();
+
+      await fetchAuthSettings();
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('leaves no timer running when the backend refuses or the request fails', async () => {
+      configure();
+      const { fetchAuthSettings } = await loadClient();
+
+      stubFetch(answer({}, 503));
+      await fetchAuthSettings().catch(() => {});
+      expect(vi.getTimerCount()).toBe(0);
+
+      vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+      await fetchAuthSettings().catch(() => {});
+      expect(vi.getTimerCount()).toBe(0);
+    });
+  });
 });

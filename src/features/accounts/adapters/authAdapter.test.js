@@ -422,6 +422,7 @@ describe('createAuthAdapter', () => {
 
     it.each([
       ['a network failure', new TypeError('Failed to fetch'), 'NETWORK'],
+      ['a request that timed out', new DOMException('signal is aborted without reason', 'AbortError'), 'NETWORK'],
       ['a refusal for too many requests', new BackendRequestError(429), 'RATE_LIMITED'],
       ['a refusal of the key', new BackendRequestError(401), 'FORBIDDEN'],
       ['a server error', new BackendRequestError(503), 'UNKNOWN'],

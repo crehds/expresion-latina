@@ -51,6 +51,15 @@ describe('toResultCode', () => {
     expect(toResultCode({ message: 'AbortError: signal is aborted', code: '' })).toBe('NETWORK');
   });
 
+  it('maps a request that was aborted, such as one that timed out, to NETWORK', () => {
+    // fetch rejects with a DOMException, whose numeric `code` (20) keeps the
+    // message rule above from recognising it: its name is what says "abort".
+    const aborted = new DOMException('signal is aborted without reason', 'AbortError');
+
+    expect(aborted.code).toBe(20);
+    expect(toResultCode(aborted)).toBe('NETWORK');
+  });
+
   it.each([
     ['a Postgres insufficient_privilege', { code: '42501', message: 'x' }],
     ['an auth 401', { name: 'AuthApiError', status: 401, message: 'x' }],

@@ -12,6 +12,9 @@
  */
 import { BackendNotConfiguredError, BackendRequestError } from './errors';
 
+// How long the public Auth settings request may take before it is aborted.
+const AUTH_SETTINGS_TIMEOUT_MS = 5000;
+
 const isFilled = (value) => typeof value === 'string' && value.trim() !== '';
 
 function readConfig() {
@@ -111,8 +114,10 @@ export function getSupabaseClient() {
  * It fails closed. It rejects, without a request, while the kill switch is off
  * or the URL cannot be parsed; it rejects with `BackendRequestError` on a status
  * that is not a success, and with whatever `fetch` or `json()` raised
- * otherwise. A caller that shows something only when the settings say so shows
- * nothing in every one of those cases.
+ * otherwise. A backend that does not answer within `AUTH_SETTINGS_TIMEOUT_MS`
+ * is given up on: the request is aborted and this rejects with the `AbortError`
+ * of the abort. A caller that shows something only when the settings say so
+ * shows nothing in every one of those cases.
  */
 export async function fetchAuthSettings() {
   const config = readConfig();
@@ -120,9 +125,21 @@ export async function fetchAuthSettings() {
     throw new BackendNotConfiguredError();
   }
   const endpoint = new URL(`${config.url.replace(/\/+$/, '')}/auth/v1/settings`);
-  const response = await fetch(endpoint, { headers: { apikey: config.key } });
-  if (!response.ok) {
-    throw new BackendRequestError(response.status);
+  // Without a limit, a request that hangs would hold the caller back for as
+  // long as the browser lets it. The timer runs until the body is read too, and
+  // it is cleared whichever way this ends.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUTH_SETTINGS_TIMEOUT_MS);
+  try {
+    const response = await fetch(endpoint, {
+      headers: { apikey: config.key },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new BackendRequestError(response.status);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return response.json();
 }

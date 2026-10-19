@@ -44,6 +44,10 @@ const AUTH_CODES = new Map([
 
 function isNetworkFailure(error) {
   return error instanceof TypeError
+    // fetch rejects an aborted request (a timeout, a cancel) with a
+    // DOMException. Its numeric `code` keeps the message rule below from
+    // recognising it, so the name is what is read.
+    || error.name === 'AbortError'
     // auth-js wraps every transport failure and 502/503/504 this way.
     || error.name === 'AuthRetryableFetchError'
     || (!error.code && FETCH_FAILURE_MESSAGE.test(error.message ?? ''));
