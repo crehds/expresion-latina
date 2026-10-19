@@ -125,3 +125,67 @@ describe('App with a pending consent', () => {
     expect(screen.queryByRole('button', { name: /Mapa/ })).not.toBeInTheDocument();
   });
 });
+
+describe('App account routes', () => {
+  const ROUTES = ['/login', '/auth/callback'];
+
+  it.each(ROUTES)('renders the not-found page at %s while the backend is off', async (path) => {
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: /no encontramos/i }, { timeout: 5000 }))
+      .toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Ingresar' })).not.toBeInTheDocument();
+  });
+
+  describe('while the backend is on', () => {
+    const signedOut = {
+      status: 'signed-out',
+      session: null,
+      profile: null,
+      errorCode: null,
+      start: vi.fn(async () => {}),
+      refresh: vi.fn(async () => {}),
+      signOut: vi.fn(async () => {}),
+    };
+    const auth = { getProviders: vi.fn(async () => ({ ok: true, data: { google: false } })) };
+
+    function renderOn(path) {
+      return render(
+        <MemoryRouter initialEntries={[path]}>
+          <BackendContext.Provider value={{ enabled: true, services: { auth } }}>
+            <SessionContext.Provider value={signedOut}>
+              <App />
+            </SessionContext.Provider>
+          </BackendContext.Provider>
+        </MemoryRouter>,
+      );
+    }
+
+    it('renders the login page at /login', async () => {
+      renderOn('/login');
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Ingresar' }, { timeout: 5000 }))
+        .toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /Aviso de privacidad/ })).toBeInTheDocument();
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the auth callback page at /auth/callback', async () => {
+      renderOn('/auth/callback');
+
+      expect(await screen.findByRole('link', { name: 'Ir a ingresar' }, { timeout: 5000 }))
+        .toHaveAttribute('href', '/login');
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('still renders the public routes', async () => {
+      renderOn('/contact');
+
+      expect(await screen.findByRole('button', { name: /Mapa/ }, { timeout: 5000 })).toBeInTheDocument();
+    });
+  });
+});
