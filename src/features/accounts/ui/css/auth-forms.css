@@ -1,0 +1,164 @@
+/*
+ * The sign-in page controls: the consent checkbox, the two forms and the
+ * Google button. Colors, radii and spacing come from the shared tokens, and
+ * the buttons look like the ones of the consent screen (consent-gate.css).
+ *
+ * A form is a column that stretches its children, so the fields and the button
+ * take the whole width a phone has and stop at a readable measure on a desktop.
+ *
+ * The root font is 10px and text only grows where a class says so (.text-md),
+ * so these set their own size, and the inputs and buttons inherit it.
+ */
+.auth-form,
+.auth-google,
+.auth-consent,
+.auth-form__done {
+  font-size: 1.6rem;
+  line-height: 2.4rem;
+}
+
+.auth-form,
+.auth-google {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-width: 44rem;
+}
+
+/* Consent checkbox */
+.auth-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  min-height: 4.4rem;
+  padding: var(--space-2xs) 0;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.auth-consent__box {
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.auth-consent__box:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Links on this site are underlined text; the accent is reserved for hover. */
+.auth-consent__link {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.auth-consent__link:hover,
+.auth-consent__link:focus-visible {
+  color: var(--accent);
+}
+
+/* Fields */
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.auth-field__label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.auth-field__input {
+  min-height: 4.4rem;
+  padding: 1.2rem 1.6rem;
+  border: 1px solid var(--surface-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+.auth-field__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Read from aria-invalid, which the form sets after a failed check. :invalid
+ * would also match an untouched empty field.
+ */
+.auth-field__input[aria-invalid="true"] {
+  border-color: var(--accent);
+}
+
+.auth-field__hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1.4rem;
+  line-height: 2rem;
+}
+
+.auth-field__error,
+.auth-form__alert {
+  margin: 0;
+  padding-left: var(--space-xs);
+  border-left: 3px solid var(--accent);
+  color: var(--text-primary);
+}
+
+.auth-field__error {
+  font-size: 1.4rem;
+  line-height: 2rem;
+}
+
+/* The message that takes the place of the sign-up form. */
+.auth-form__done {
+  max-width: 44rem;
+  margin: 0;
+  padding-left: var(--space-xs);
+  border-left: 3px solid var(--accent);
+  color: var(--text-primary);
+}
+
+.auth-form__done:focus {
+  outline: none;
+}
+
+/* Buttons */
+.auth-button {
+  min-height: 4.4rem;
+  padding: 1.2rem 2rem;
+  border: 1px solid var(--surface-border-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.auth-button--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.auth-button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.auth-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.auth-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
