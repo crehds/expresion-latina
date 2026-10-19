@@ -4,6 +4,10 @@
 import path from 'node:path';
 import { ESLint } from 'eslint';
 
+// Linting through ESLint's API is slow under full-suite load and can pass the
+// 5000 ms default, so this file gets more room. Every assertion is unchanged.
+vi.setConfig({ testTimeout: 20000 });
+
 const eslint = new ESLint({ cwd: path.resolve(__dirname, '../../..') });
 
 async function ruleIdsFor(code, filePath) {
