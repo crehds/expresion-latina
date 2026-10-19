@@ -21,6 +21,7 @@ const Contact = lazy(() => import('./pages/Contact/Contact'));
 const Login = lazy(() => import('./pages/Login/Login'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback/AuthCallback'));
 const AuthConfirm = lazy(() => import('./pages/AuthConfirm/AuthConfirm'));
+const Account = lazy(() => import('./pages/Account/Account'));
 const Privacy = lazy(() => import('./pages/Privacy/Privacy'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
@@ -48,6 +49,7 @@ export default function App() {
               path="/auth/confirm"
               element={<BackendRoute><AuthConfirm /></BackendRoute>}
             />
+            <Route path="/account" element={<BackendRoute><Account /></BackendRoute>} />
             {/*
               * The notice is static and the consent gate lets it through, so a
               * member whose consent is pending can read what they are asked to

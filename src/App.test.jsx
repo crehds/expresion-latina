@@ -140,7 +140,7 @@ describe('App with a pending consent', () => {
 });
 
 describe('App account routes', () => {
-  const ROUTES = ['/login', '/auth/callback', '/auth/confirm', '/privacy'];
+  const ROUTES = ['/login', '/auth/callback', '/auth/confirm', '/privacy', '/account'];
 
   it.each(ROUTES)('renders the not-found page at %s while the backend is off', async (path) => {
     render(
@@ -221,6 +221,42 @@ describe('App account routes', () => {
         .toBeInTheDocument();
       expect(screen.getByText(/^Versión \d{4}-\d{2}-\d{2}$/)).toBeInTheDocument();
       expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the account page at /account for a signed-in member', async () => {
+      const signedIn = {
+        ...signedOut,
+        status: 'signed-in',
+        session: { userId: 'user-1', email: 'ana@example.test' },
+        profile: {
+          id: 'user-1',
+          fullName: 'Ana Perez',
+          consentVersion: '2026-01-01',
+          consentAt: '2026-10-01T10:00:00+00:00',
+          isAdmin: false,
+        },
+      };
+      render(
+        <MemoryRouter initialEntries={['/account']}>
+          <BackendContext.Provider value={{ enabled: true, services: { auth } }}>
+            <SessionContext.Provider value={signedIn}>
+              <App />
+            </SessionContext.Provider>
+          </BackendContext.Provider>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Mi cuenta' }, { timeout: 5000 }))
+        .toBeInTheDocument();
+      expect(screen.getByText('ana@example.test')).toBeInTheDocument();
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('sends a visitor from /account to the login page', async () => {
+      renderOn('/account');
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Ingresar' }, { timeout: 5000 }))
+        .toBeInTheDocument();
     });
 
     it('asks the backend for nothing and starts no session at /privacy', async () => {
