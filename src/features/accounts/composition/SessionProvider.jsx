@@ -16,6 +16,7 @@ import {
 } from 'react';
 import BackendContext from '../../../shared/backend/BackendContext';
 import { hasStoredSession } from '../../../shared/backend/client';
+import { RESULT_CODES } from '../../../shared/backend/resultCodes';
 
 const noop = async () => {};
 
@@ -136,6 +137,15 @@ export function SessionProvider({ children }) {
         if (!loaded && epochRef.current === epoch) {
           startRef.current = null;
         }
+      }, (error) => {
+        // A load that threw is a failed load too: the caller hears about it, the
+        // status says so, and a later start() tries again instead of replaying
+        // this rejection forever.
+        if (epochRef.current === epoch) {
+          startRef.current = null;
+          setState(failure(RESULT_CODES.UNKNOWN));
+        }
+        throw error;
       });
     }
     return startRef.current;

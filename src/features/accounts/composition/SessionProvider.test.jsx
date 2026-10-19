@@ -241,6 +241,24 @@ describe('SessionProvider while the backend is enabled', () => {
       expect(status()).toBe('signed-in');
       expect(seen.current.errorCode).toBeNull();
     });
+
+    it('can be retried after a load that threw, instead of replaying the same rejection', async () => {
+      hasStoredSession.mockReturnValue(false);
+      const getSession = vi.fn()
+        .mockRejectedValueOnce(new Error('session store unavailable'))
+        .mockResolvedValueOnce(ok(SESSION));
+      renderWith({ auth: fakeAuth({ getSession }) });
+
+      await act(async () => {
+        await expect(seen.current.start()).rejects.toThrow('session store unavailable');
+      });
+      expect(status()).toBe('error');
+      expect(seen.current.errorCode).toBe('UNKNOWN');
+
+      await act(async () => { await seen.current.start(); });
+      expect(status()).toBe('signed-in');
+      expect(getSession).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('auth changes', () => {

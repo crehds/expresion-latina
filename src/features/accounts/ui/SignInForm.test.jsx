@@ -106,7 +106,8 @@ describe('SignInForm', () => {
 
     expect(await screen.findByText('home page')).toBeInTheDocument();
     expect(auth.signInWithPassword).toHaveBeenCalledTimes(1);
-    expect(start).toHaveBeenCalledTimes(1);
+    // Once more after the first failure, and no more than that.
+    expect(start).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

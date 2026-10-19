@@ -24,6 +24,24 @@ import { SIGN_IN_MESSAGES, authErrorMessage } from './authCopy';
 import useAuthRequest from './useAuthRequest';
 import './css/auth-forms.css';
 
+// The password was accepted and supabase-js already holds the session, so a
+// session that fails to load is not a failed sign-in: the member goes on and
+// sees no error, because showing one would send them to type the same password
+// again. Nothing else starts the session on the home page, so a rejected start
+// is tried once more (the provider lets a failed load be retried); a second
+// failure is left for the next page load, which reads the stored session.
+async function startSession(session) {
+  try {
+    await session.start();
+  } catch {
+    try {
+      await session.start();
+    } catch {
+      // Left for the next page load.
+    }
+  }
+}
+
 export default function SignInForm() {
   const { services } = useContext(BackendContext);
   const session = useSession();
@@ -60,15 +78,7 @@ export default function SignInForm() {
     const outcome = await run(async () => {
       const result = await auth.signInWithPassword({ email, password });
       if (result.ok) {
-        try {
-          await session.start();
-        } catch {
-          // The password was accepted and supabase-js already holds the session,
-          // so this is not a failed sign-in: the member goes on, and the session
-          // provider and the sign-in page pick the session up as they would
-          // after a reload. Showing an error here would send them to type the
-          // same password again.
-        }
+        await startSession(session);
       }
       return result;
     });
