@@ -1,0 +1,59 @@
+/*
+ * The frame comes from .page. What is left is the one button, the message
+ * marked like the messages of the sign-in forms, and the forms' own measure.
+ */
+.auth-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.auth-confirm__panel {
+  width: 100%;
+  max-width: 44rem;
+}
+
+.auth-confirm__message {
+  max-width: 44rem;
+  margin: 0;
+  padding-left: var(--space-xs);
+  border-left: 3px solid var(--accent);
+  color: var(--text-primary);
+}
+
+.auth-confirm__button,
+.auth-confirm__link {
+  display: inline-block;
+  min-height: 4.4rem;
+  padding: 1.2rem 2rem;
+  border: 1px solid var(--surface-border-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1.6rem;
+  line-height: 2.4rem;
+  cursor: pointer;
+}
+
+.auth-confirm__button {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.auth-confirm__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.auth-confirm__link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.auth-confirm__button:focus-visible,
+.auth-confirm__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

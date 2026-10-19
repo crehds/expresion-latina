@@ -10,6 +10,7 @@
   max-width: 44rem;
 }
 
+.login__forgot,
 .login__switch {
   display: flex;
   flex-wrap: wrap;

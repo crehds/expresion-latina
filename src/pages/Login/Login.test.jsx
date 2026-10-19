@@ -12,6 +12,7 @@ function fakeAuth(overrides = {}) {
     signInWithPassword: vi.fn(async () => ok()),
     signUp: vi.fn(async () => ok({ confirmationPending: true })),
     signInWithGoogle: vi.fn(async () => ok()),
+    requestPasswordReset: vi.fn(async () => ok()),
     getProviders: vi.fn(async () => ok({ google: false })),
     ...overrides,
   };
@@ -30,9 +31,13 @@ function fakeSession(overrides = {}) {
   };
 }
 
-function renderLogin({ auth = fakeAuth(), session = fakeSession() } = {}) {
+function renderLogin({
+  auth = fakeAuth(),
+  session = fakeSession(),
+  entry = '/login',
+} = {}) {
   render(
-    <MemoryRouter initialEntries={['/login']}>
+    <MemoryRouter initialEntries={[entry]}>
       <BackendContext.Provider value={{ enabled: true, services: { auth } }}>
         <SessionContext.Provider value={session}>
           <Routes>
@@ -145,6 +150,73 @@ describe('Login', () => {
 
       expect(await screen.findByRole('status')).toHaveTextContent('Te enviamos un correo');
       expect(auth.signUp).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('forgotten password', () => {
+    const forgot = () => screen.getByRole('button', { name: '¿Olvidaste tu contraseña?' });
+
+    it('offers the way to it under the sign-in form, and not on the sign-up form', async () => {
+      const user = userEvent.setup();
+      renderLogin();
+
+      expect(isBefore(screen.getByLabelText('Contraseña'), forgot())).toBe(true);
+
+      await user.click(switchButton('Crear cuenta'));
+
+      expect(screen.queryByRole('button', { name: '¿Olvidaste tu contraseña?' }))
+        .not.toBeInTheDocument();
+    });
+
+    it('swaps the sign-in for the reset request, without the consent box or Google', async () => {
+      const user = userEvent.setup();
+      renderLogin({ auth: fakeAuth({ getProviders: vi.fn(async () => ok({ google: true })) }) });
+      await screen.findByRole('button', { name: 'Continuar con Google' });
+
+      await user.click(forgot());
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Restablecer contraseña' }))
+        .toBeInTheDocument();
+      expect(screen.getByLabelText('Correo')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Enviar enlace' })).toBeInTheDocument();
+      expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Continuar con Google' })).not.toBeInTheDocument();
+    });
+
+    it('asks for the link and answers the same way for any address', async () => {
+      const user = userEvent.setup();
+      const { auth } = renderLogin();
+      await user.click(forgot());
+
+      await user.type(screen.getByLabelText('Correo'), 'ana@example.test');
+      await user.click(screen.getByRole('button', { name: 'Enviar enlace' }));
+
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        'Si existe una cuenta con ese correo, te enviamos un enlace para restablecer tu contraseña.',
+      );
+      expect(auth.requestPasswordReset).toHaveBeenCalledWith({ email: 'ana@example.test' });
+    });
+
+    it('goes back to the sign-in form', async () => {
+      const user = userEvent.setup();
+      renderLogin();
+      await user.click(forgot());
+
+      await user.click(switchButton('Ingresar'));
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Ingresar' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /Aviso de privacidad/ })).toBeInTheDocument();
+    });
+
+    it('opens on the reset request when an expired link sent the member here for a new one', () => {
+      const entry = { pathname: '/login', state: { forgotPassword: true } };
+      renderLogin({ entry });
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Restablecer contraseña' }))
+        .toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Enviar enlace' })).toBeInTheDocument();
     });
   });
 

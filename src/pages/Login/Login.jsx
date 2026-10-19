@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 import { Page } from '../../components';
 import { useSession } from '../../features/accounts/composition/SessionProvider';
 import ConsentCheckbox from '../../features/accounts/ui/ConsentCheckbox';
 import GoogleButton from '../../features/accounts/ui/GoogleButton';
+import PasswordResetForm from '../../features/accounts/ui/PasswordResetForm';
 import SignInForm from '../../features/accounts/ui/SignInForm';
 import SignUpForm from '../../features/accounts/ui/SignUpForm';
 
 import './css/login.css';
+
+const TITLES = {
+  signIn: 'Ingresar',
+  signUp: 'Crear cuenta',
+  reset: 'Restablecer contraseña',
+};
 
 /**
  * Where a visitor signs in, creates an account or continues with Google
@@ -21,10 +28,15 @@ import './css/login.css';
  * who has none must not be left waiting for something that never starts. A
  * member who is already signed in is sent to the home page. Whatever consent is
  * still pending after a sign-in is the consent gate's job, not this page's.
+ *
+ * A member who forgot the password asks for a reset link from here: that view
+ * leaves out the consent box and Google, which have nothing to do with it.
  */
 export default function Login() {
   const { status, start } = useSession();
-  const [signingUp, setSigningUp] = useState(false);
+  const location = useLocation();
+  // An expired recovery link sends the member here to ask for a new one.
+  const [view, setView] = useState(location.state?.forgotPassword ? 'reset' : 'signIn');
   const [consentAccepted, setConsentAccepted] = useState(false);
 
   useEffect(() => {
@@ -35,21 +47,41 @@ export default function Login() {
     return <Navigate to="/" replace />;
   }
 
+  const signingUp = view === 'signUp';
+  const resetting = view === 'reset';
+
   return (
-    <Page title={signingUp ? 'Crear cuenta' : 'Ingresar'} className="login">
+    <Page title={TITLES[view]} className="login">
       <div className="login__panel">
-        <ConsentCheckbox checked={consentAccepted} onChange={setConsentAccepted} />
-        {signingUp ? <SignUpForm consentAccepted={consentAccepted} /> : <SignInForm />}
-        <GoogleButton consentAccepted={consentAccepted} />
+        {resetting ? <PasswordResetForm /> : (
+          <>
+            <ConsentCheckbox checked={consentAccepted} onChange={setConsentAccepted} />
+            {signingUp ? <SignUpForm consentAccepted={consentAccepted} /> : <SignInForm />}
+            {!signingUp && (
+              <p className="login__forgot">
+                <button
+                  type="button"
+                  className="login__switch-button"
+                  onClick={() => setView('reset')}
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </p>
+            )}
+            <GoogleButton consentAccepted={consentAccepted} />
+          </>
+        )}
         <p className="login__switch">
-          {signingUp ? '¿Ya tienes cuenta?' : '¿Aún no tienes cuenta?'}
+          {signingUp && '¿Ya tienes cuenta?'}
+          {resetting && '¿Recordaste tu contraseña?'}
+          {view === 'signIn' && '¿Aún no tienes cuenta?'}
           {' '}
           <button
             type="button"
             className="login__switch-button"
-            onClick={() => setSigningUp(!signingUp)}
+            onClick={() => setView(view === 'signIn' ? 'signUp' : 'signIn')}
           >
-            {signingUp ? 'Ingresar' : 'Crear cuenta'}
+            {view === 'signIn' ? 'Crear cuenta' : 'Ingresar'}
           </button>
         </p>
       </div>

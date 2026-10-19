@@ -140,7 +140,7 @@ describe('App with a pending consent', () => {
 });
 
 describe('App account routes', () => {
-  const ROUTES = ['/login', '/auth/callback', '/privacy'];
+  const ROUTES = ['/login', '/auth/callback', '/auth/confirm', '/privacy'];
 
   it.each(ROUTES)('renders the not-found page at %s while the backend is off', async (path) => {
     render(
@@ -193,6 +193,25 @@ describe('App account routes', () => {
       expect(await screen.findByRole('link', { name: 'Ir a ingresar' }, { timeout: 5000 }))
         .toHaveAttribute('href', '/login');
       expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the email link page at /auth/confirm, and verifies nothing on its own', async () => {
+      const verifyEmailLink = vi.fn();
+      const services = { auth: { verifyEmailLink } };
+      render(
+        <MemoryRouter initialEntries={['/auth/confirm?token_hash=hash-1&type=recovery']}>
+          <BackendContext.Provider value={{ enabled: true, services }}>
+            <SessionContext.Provider value={signedOut}>
+              <App />
+            </SessionContext.Provider>
+          </BackendContext.Provider>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByRole('button', { name: 'Continuar' }, { timeout: 5000 }))
+        .toBeInTheDocument();
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+      expect(verifyEmailLink).not.toHaveBeenCalled();
     });
 
     it('renders the privacy notice at /privacy', async () => {
