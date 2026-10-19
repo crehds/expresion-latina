@@ -4,7 +4,7 @@ const BASE = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data:",
   'frame-src https://www.google.com',
 ];
@@ -25,7 +25,7 @@ describe('buildCsp', () => {
     expect(buildCsp({ supabaseUrl: undefined })).toBe(
       "default-src 'self'; script-src 'self'; "
       + "style-src 'self' https://fonts.googleapis.com; "
-      + "font-src 'self' https://fonts.gstatic.com; "
+      + "font-src 'self' https://fonts.gstatic.com data:; "
       + "img-src 'self' data:; frame-src https://www.google.com; "
       + "connect-src 'self'; object-src 'none'; base-uri 'self'; "
       + "form-action 'self'",
@@ -36,7 +36,7 @@ describe('buildCsp', () => {
     expect(buildCsp({ supabaseUrl: 'https://abc.supabase.co' })).toBe(
       "default-src 'self'; script-src 'self'; "
       + "style-src 'self' https://fonts.googleapis.com; "
-      + "font-src 'self' https://fonts.gstatic.com; "
+      + "font-src 'self' https://fonts.gstatic.com data:; "
       + "img-src 'self' data:; frame-src https://www.google.com; "
       + "connect-src 'self' https://abc.supabase.co; object-src 'none'; "
       + "base-uri 'self'; form-action 'self'",

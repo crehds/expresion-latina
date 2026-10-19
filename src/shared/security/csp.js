@@ -60,7 +60,8 @@ export function buildCsp({ supabaseUrl } = {}) {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    // data: because the build inlines the small icon fonts of index.css.
+    "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data:",
     'frame-src https://www.google.com',
     connectSrc,
