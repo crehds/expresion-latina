@@ -18,3 +18,31 @@ schemas = ["public", "graphql_public"]
 [db]
 # Match the Postgres major version of the hosted project.
 major_version = 17
+
+[auth]
+# Where Auth sends the browser back to after a sign-in or an email link: the
+# Vite dev server (server.port in vite.config.js).
+site_url = "http://localhost:3000"
+# Exact URLs the app may be sent back to, besides the site_url host. 127.0.0.1
+# is listed because it is another origin for the same dev server.
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000/auth/callback",
+]
+# The sign-up form checks the same two rules before it asks the server
+# (PASSWORD_MIN_LENGTH in src/features/accounts/domain/signupValidation.js);
+# a test fails if they drift apart. The server stays the authority.
+minimum_password_length = 8
+password_requirements = "letters_digits"
+
+[auth.email]
+# An email account cannot sign in until its address is confirmed (spec: Account
+# Registration). The CLI default is false. The links arrive in Mailpit.
+enable_confirmations = true
+
+[auth.external.google]
+# Off until someone gives the local stack a Google OAuth client; see "Local
+# auth" in supabase/README.md. Never put the secret in this file.
+enabled = false
+# client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+# secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"

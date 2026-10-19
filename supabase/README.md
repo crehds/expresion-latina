@@ -6,8 +6,8 @@ runs `supabase link` and `supabase db push` -- this project's own scripts
 never do that (see `scripts/db/test-db.mjs`).
 
 The sections below cover local development first (Prerequisites through
-"Email sign-up requires a consent version"), then everything needed to
-run this against a real, hosted project ("Production runbook" onward).
+"Local auth"), then everything needed to run this against a real, hosted
+project ("Production runbook" onward).
 
 ## Prerequisites
 
@@ -79,6 +79,34 @@ update public.profiles set is_admin = true where id = (
   select id from auth.users where email = 'owner@example.com'
 );
 ```
+
+## Local auth
+
+`config.toml` sets the local Auth service up the way the app expects:
+
+- **Confirmations are on.** An email account cannot sign in until it has
+  followed the link in its confirmation email. The local stack sends no
+  real email: every message lands in Mailpit (the URL `status` prints,
+  `http://127.0.0.1:54324` by default; its API lists them at
+  `/api/v1/messages`).
+- **Password rule.** At least 8 characters, with a letter and a digit
+  (`minimum_password_length` and `password_requirements`). The sign-up
+  form checks the same rule before it asks the server, and a test fails
+  if the two drift apart. A hosted project keeps these settings, and
+  **Confirm email**, in its own dashboard (Authentication): set the same
+  values there.
+- **Redirects.** `site_url` and `additional_redirect_urls` allow the Vite
+  dev server (`http://localhost:3000`, and `http://127.0.0.1:3000` for the
+  callback) to receive a sign-in or an email link.
+- **Google is off** until the stack is given a Google OAuth client; until
+  then its button ends on an "Unsupported provider" error page. To try it,
+  create the client as in "Google sign-in" below, with the local Auth
+  callback (`http://127.0.0.1:54321/auth/v1/callback` by default) as an
+  authorized redirect URI. Export `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
+  and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` in the shell that starts the
+  stack, uncomment the two `env(...)` lines of `[auth.external.google]` and
+  set `enabled = true`, then restart the stack. Keep those edits out of
+  commits.
 
 ## Production runbook
 
