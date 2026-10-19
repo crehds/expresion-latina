@@ -1,0 +1,248 @@
+import { createAuthAdapter } from './authAdapter';
+
+const RAW_SESSION = {
+  access_token: 'secret-access',
+  refresh_token: 'secret-refresh',
+  user: { id: 'user-1', email: 'ana@example.test', phone: '123' },
+};
+
+const PROFILE_ROW = {
+  id: 'user-1',
+  full_name: 'Ana Perez',
+  consent_version: '2026-01-01',
+  consent_at: '2026-10-01T10:00:00+00:00',
+  is_admin: false,
+};
+
+// A fake supabase client: every call is recorded and answers what the test set.
+function fakeClient({
+  session = RAW_SESSION,
+  sessionError = null,
+  profile = PROFILE_ROW,
+  profileError = null,
+  rpcError = null,
+  signOutError = null,
+} = {}) {
+  const calls = {};
+  const unsubscribe = vi.fn();
+  const query = {
+    select: vi.fn((columns) => { calls.select = columns; return query; }),
+    eq: vi.fn((column, value) => { calls.eq = [column, value]; return query; }),
+    maybeSingle: vi.fn(async () => ({ data: profile, error: profileError })),
+  };
+  return {
+    calls,
+    unsubscribe,
+    auth: {
+      getSession: vi.fn(async () => ({ data: { session }, error: sessionError })),
+      onAuthStateChange: vi.fn((callback) => {
+        calls.authCallback = callback;
+        return { data: { subscription: { unsubscribe } } };
+      }),
+      signOut: vi.fn(async () => ({ error: signOutError })),
+    },
+    from: vi.fn((table) => { calls.table = table; return query; }),
+    rpc: vi.fn(async (name, args) => {
+      calls.rpc = [name, args];
+      return { data: null, error: rpcError };
+    }),
+  };
+}
+
+const adapterFor = (client) => createAuthAdapter(vi.fn(async () => client));
+
+describe('createAuthAdapter', () => {
+  it('does not ask for the client when it is created', () => {
+    const getClient = vi.fn();
+
+    createAuthAdapter(getClient);
+
+    expect(getClient).not.toHaveBeenCalled();
+  });
+
+  describe('getSession', () => {
+    it('returns only the user id and email, never a token', async () => {
+      const result = await adapterFor(fakeClient()).getSession();
+
+      expect(result).toEqual({ ok: true, data: { userId: 'user-1', email: 'ana@example.test' } });
+      expect(JSON.stringify(result)).not.toMatch(/secret|123/);
+    });
+
+    it('returns null data when nobody is signed in', async () => {
+      const result = await adapterFor(fakeClient({ session: null })).getSession();
+
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
+    it('maps an auth error to a code only', async () => {
+      const sessionError = { name: 'AuthRetryableFetchError', message: 'private detail', status: 0 };
+
+      const result = await adapterFor(fakeClient({ sessionError })).getSession();
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
+  describe('subscribe', () => {
+    it('hands the callback the minimal session, or null on sign-out', async () => {
+      const client = fakeClient();
+      const callback = vi.fn();
+
+      const result = await adapterFor(client).subscribe(callback);
+      client.calls.authCallback('SIGNED_IN', RAW_SESSION);
+      client.calls.authCallback('SIGNED_OUT', null);
+
+      expect(result.ok).toBe(true);
+      expect(callback).toHaveBeenNthCalledWith(1, { userId: 'user-1', email: 'ana@example.test' });
+      expect(callback).toHaveBeenNthCalledWith(2, null);
+    });
+
+    it('returns a function that unsubscribes', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).subscribe(vi.fn());
+      result.data();
+
+      expect(client.unsubscribe).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getOwnProfile', () => {
+    it('reads the own profiles row and maps it to camelCase', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).getOwnProfile('user-1');
+
+      expect(client.calls.table).toBe('profiles');
+      expect(client.calls.select).toBe('id, full_name, consent_version, consent_at, is_admin');
+      expect(client.calls.eq).toEqual(['id', 'user-1']);
+      expect(result).toEqual({
+        ok: true,
+        data: {
+          id: 'user-1',
+          fullName: 'Ana Perez',
+          consentVersion: '2026-01-01',
+          consentAt: '2026-10-01T10:00:00+00:00',
+          isAdmin: false,
+        },
+      });
+    });
+
+    it('keeps a pending profile pending: consentAt stays null', async () => {
+      const pending = {
+        ...PROFILE_ROW, full_name: '', consent_version: null, consent_at: null,
+      };
+
+      const result = await adapterFor(fakeClient({ profile: pending })).getOwnProfile('user-1');
+
+      expect(result.data.consentAt).toBeNull();
+      expect(result.data.consentVersion).toBeNull();
+    });
+
+    it('returns null data when there is no row', async () => {
+      const result = await adapterFor(fakeClient({ profile: null })).getOwnProfile('user-1');
+
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
+    it('maps a PostgREST error to a code only', async () => {
+      const profileError = { code: '42501', message: 'row-level security detail' };
+
+      const result = await adapterFor(fakeClient({ profile: null, profileError }))
+        .getOwnProfile('user-1');
+
+      expect(result).toEqual({ ok: false, code: 'FORBIDDEN' });
+    });
+  });
+
+  describe('recordConsent', () => {
+    it('calls record_consent with its p_version parameter', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).recordConsent('2026-01-01');
+
+      expect(client.calls.rpc).toEqual(['record_consent', { p_version: '2026-01-01' }]);
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
+    it('maps an unknown version (22023) to INVALID', async () => {
+      const rpcError = { code: '22023', message: 'unknown privacy notice version: x' };
+
+      const result = await adapterFor(fakeClient({ rpcError })).recordConsent('x');
+
+      expect(result).toEqual({ ok: false, code: 'INVALID' });
+    });
+  });
+
+  describe('deleteMyAccount', () => {
+    it('calls delete_my_account without arguments', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).deleteMyAccount();
+
+      expect(client.calls.rpc).toEqual(['delete_my_account', undefined]);
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
+    it('maps a missing account (P0002) to NOT_FOUND', async () => {
+      const rpcError = { code: 'P0002', message: 'no account was deleted' };
+
+      const result = await adapterFor(fakeClient({ rpcError })).deleteMyAccount();
+
+      expect(result).toEqual({ ok: false, code: 'NOT_FOUND' });
+    });
+  });
+
+  describe('signOut', () => {
+    it('signs out through the client', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).signOut();
+
+      expect(client.auth.signOut).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
+    it('maps a sign-out error to a code only', async () => {
+      const signOutError = { name: 'AuthApiError', status: 403, message: 'x' };
+
+      const result = await adapterFor(fakeClient({ signOutError })).signOut();
+
+      expect(result).toEqual({ ok: false, code: 'FORBIDDEN' });
+    });
+  });
+
+  describe('when the client cannot be obtained', () => {
+    const methods = [
+      ['getSession', (a) => a.getSession()],
+      ['subscribe', (a) => a.subscribe(vi.fn())],
+      ['getOwnProfile', (a) => a.getOwnProfile('user-1')],
+      ['recordConsent', (a) => a.recordConsent('2026-01-01')],
+      ['deleteMyAccount', (a) => a.deleteMyAccount()],
+      ['signOut', (a) => a.signOut()],
+    ];
+
+    it.each(methods)('%s resolves to NETWORK when the dynamic import fails', async (_name, call) => {
+      const adapter = createAuthAdapter(
+        () => Promise.reject(new TypeError('Failed to fetch dynamically imported module')),
+      );
+
+      await expect(call(adapter)).resolves.toEqual({ ok: false, code: 'NETWORK' });
+    });
+
+    it.each(methods)('%s resolves to UNKNOWN for any other failure and never throws', async (_name, call) => {
+      const adapter = createAuthAdapter(
+        () => Promise.reject(new Error('The backend is not configured')),
+      );
+
+      await expect(call(adapter)).resolves.toEqual({ ok: false, code: 'UNKNOWN' });
+    });
+
+    it('resolves to a code when the client throws mid-call', async () => {
+      const client = fakeClient();
+      client.auth.getSession = vi.fn(async () => { throw new TypeError('Failed to fetch'); });
+
+      await expect(adapterFor(client).getSession()).resolves.toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+});
