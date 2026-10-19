@@ -11,7 +11,11 @@
  *  2. A build with a (fake) Supabase project configured, which widens
  *     `connect-src` to that origin. On the public routes nothing may call that
  *     origin and the supabase-js chunk must not even be requested, because no
- *     session is stored: the feature stays lazy until it is needed.
+ *     session is stored: the feature stays lazy until it is needed. This build
+ *     also visits the login page, which uses the backend by design: it loads
+ *     supabase-js and asks the (fake, here aborted) origin which providers are
+ *     on, so on that page those requests are expected and only the policy
+ *     violations count.
  *
  * It reads the tracked content as it is and writes nothing tracked: each build
  * goes to a temporary directory that is removed afterwards. Requests to any
@@ -48,11 +52,17 @@ const FAKE_SUPABASE_ORIGIN = 'https://abcd1234.supabase.co';
 // Marker of the supabase-js bundle (auth-js's client class survives minifying).
 const SUPABASE_JS_MARKER = 'GoTrueClient';
 
+// The pages that exist only while the feature is on. `heading` is what proves
+// the page rendered under the policy, and that it is not a blank or a not-found
+// page.
+const ACCOUNT_ROUTES = [{ path: '/login', heading: 'Ingresar' }];
+
 const VARIANTS = [
   {
     name: 'feature off (default build)',
     env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_PUBLISHABLE_KEY: '' },
     supabaseOrigin: null,
+    accountRoutes: [],
   },
   {
     name: 'feature on (Supabase configured)',
@@ -61,6 +71,7 @@ const VARIANTS = [
       VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_e2e_fake',
     },
     supabaseOrigin: FAKE_SUPABASE_ORIGIN,
+    accountRoutes: ACCOUNT_ROUTES,
   },
 ];
 
@@ -96,7 +107,13 @@ async function visitRoutes(browser, baseUrl, variant, routes, supabaseChunks) {
   const context = await browser.newContext();
   const page = await context.newPage();
   const { origin } = new URL(baseUrl);
-  let route = '';
+  // The public routes first, then the account pages this build has. The latter
+  // use the backend, so the "no backend request" check is not theirs.
+  const visits = [
+    ...routes.map((path) => ({ path, usesBackend: false })),
+    ...variant.accountRoutes.map((account) => ({ ...account, usesBackend: true })),
+  ];
+  let visit = { path: '', usesBackend: false };
 
   await context.addInitScript(() => {
     window.cspViolations = [];
@@ -110,31 +127,42 @@ async function visitRoutes(browser, baseUrl, variant, routes, supabaseChunks) {
 
   page.on('console', (message) => {
     if (message.type() === 'error' && /content security policy/i.test(message.text())) {
-      problems.push(`${route}: error de consola sobre la política: ${message.text()}`);
+      problems.push(`${visit.path}: error de consola sobre la política: ${message.text()}`);
     }
   });
   page.on('request', (request) => {
+    if (visit.usesBackend) {
+      return;
+    }
     const { origin: target, pathname } = new URL(request.url());
     if (variant.supabaseOrigin && target === variant.supabaseOrigin) {
-      problems.push(`${route}: pidió ${request.url()} sin una sesión guardada.`);
+      problems.push(`${visit.path}: pidió ${request.url()} sin una sesión guardada.`);
     }
     if (target === origin && supabaseChunks.some((chunk) => pathname.endsWith(chunk))) {
-      problems.push(`${route}: cargó el paquete de supabase-js (${pathname}) sin una sesión guardada.`);
+      problems.push(`${visit.path}: cargó el paquete de supabase-js (${pathname}) sin una sesión guardada.`);
     }
   });
 
-  for (const path of routes) {
-    route = path;
+  for (const next of visits) {
+    visit = next;
     // eslint-disable-next-line no-await-in-loop
-    await page.goto(`${baseUrl}${path.slice(1)}`, { waitUntil: 'networkidle' });
+    await page.goto(`${baseUrl}${next.path.slice(1)}`, { waitUntil: 'networkidle' });
     // eslint-disable-next-line no-await-in-loop
     const rendered = await page.locator('#root > *').count();
     if (!rendered) {
-      problems.push(`${path}: la página no mostró nada.`);
+      problems.push(`${next.path}: la página no mostró nada.`);
+    }
+    if (next.heading) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await page.getByRole('heading', { level: 1, name: next.heading }).waitFor({ timeout: 10000 });
+      } catch {
+        problems.push(`${next.path}: la página no mostró el encabezado "${next.heading}".`);
+      }
     }
     // eslint-disable-next-line no-await-in-loop
     const violations = await page.evaluate(() => window.cspViolations);
-    violations.forEach((violation) => problems.push(`${path}: violación de la política: ${violation}`));
+    violations.forEach((violation) => problems.push(`${next.path}: violación de la política: ${violation}`));
   }
 
   await context.close();
@@ -177,7 +205,7 @@ async function checkVariant(browser, variant, routes) {
     });
     const [baseUrl] = server.resolvedUrls.local;
 
-    console.log(`Visitando ${routes.length} rutas: ${variant.name}...`);
+    console.log(`Visitando ${routes.length + variant.accountRoutes.length} rutas: ${variant.name}...`);
     return await visitRoutes(browser, baseUrl, variant, routes, supabaseChunks);
   } finally {
     Object.entries(previous).forEach(([key, value]) => {
@@ -221,7 +249,10 @@ async function main() {
     return;
   }
 
-  console.log('\nNinguna ruta pública viola la política de seguridad, con la función apagada y encendida.');
+  console.log(
+    '\nNinguna ruta pública viola la política de seguridad, con la función apagada y encendida, '
+    + 'ni tampoco la página de ingreso con la función encendida.',
+  );
 }
 
 await main();
