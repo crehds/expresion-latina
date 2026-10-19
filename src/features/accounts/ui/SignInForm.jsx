@@ -23,26 +23,9 @@ import { validateSignIn } from '../domain/signupValidation';
 import AuthField from './AuthField';
 import { SIGN_IN_MESSAGES, authErrorMessage } from './authCopy';
 import ResendConfirmation from './ResendConfirmation';
+import startSession from './startSession';
 import useAuthRequest from './useAuthRequest';
 import './css/auth-forms.css';
-
-// The password was accepted and supabase-js already holds the session, so a
-// session that fails to load is not a failed sign-in: the member goes on and
-// sees no error, because showing one would send them to type the same password
-// again. Nothing else starts the session on the home page, so a rejected start
-// is tried once more (the provider lets a failed load be retried); a second
-// failure is left for the next page load, which reads the stored session.
-async function startSession(session) {
-  try {
-    await session.start();
-  } catch {
-    try {
-      await session.start();
-    } catch {
-      // Left for the next page load.
-    }
-  }
-}
 
 export default function SignInForm() {
   const { services } = useContext(BackendContext);

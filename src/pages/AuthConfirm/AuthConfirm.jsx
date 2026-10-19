@@ -8,6 +8,7 @@ import { useSession } from '../../features/accounts/composition/SessionProvider'
 import NewPassword from '../../features/accounts/ui/NewPassword';
 import ResendConfirmation from '../../features/accounts/ui/ResendConfirmation';
 import { authErrorMessage } from '../../features/accounts/ui/authCopy';
+import startSession from '../../features/accounts/ui/startSession';
 
 import './css/auth-confirm.css';
 
@@ -113,12 +114,9 @@ export default function AuthConfirm() {
       return;
     }
 
-    try {
-      await session.start();
-    } catch {
-      // The link was good and supabase-js holds the session; the provider picks
-      // it up on the next page, as after a reload.
-    }
+    // The link was good and supabase-js holds the session; a rejected start is
+    // retried once and otherwise left for the next page load (see startSession).
+    await startSession(session);
     if (link.type === 'email') {
       navigate('/', { replace: true });
     } else {
