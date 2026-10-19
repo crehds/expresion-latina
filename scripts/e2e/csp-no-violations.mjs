@@ -12,10 +12,14 @@
  *     `connect-src` to that origin. On the public routes nothing may call that
  *     origin and the supabase-js chunk must not even be requested, because no
  *     session is stored: the feature stays lazy until it is needed. This build
- *     also visits the login page, which uses the backend by design: it loads
+ *     also visits the privacy notice, which is static and so held to the same
+ *     rule, and the login page, which uses the backend by design: it loads
  *     supabase-js and asks the (fake, here aborted) origin which providers are
  *     on, so on that page those requests are expected and only the policy
  *     violations count.
+ *
+ * The privacy notice exists only while the feature is on, so the first build
+ * also visits it, expecting the not-found page.
  *
  * It reads the tracked content as it is and writes nothing tracked: each build
  * goes to a temporary directory that is removed afterwards. Requests to any
@@ -52,17 +56,23 @@ const FAKE_SUPABASE_ORIGIN = 'https://abcd1234.supabase.co';
 // Marker of the supabase-js bundle (auth-js's client class survives minifying).
 const SUPABASE_JS_MARKER = 'GoTrueClient';
 
-// The pages that exist only while the feature is on. `heading` is what proves
-// the page rendered under the policy, and that it is not a blank or a not-found
-// page.
-const ACCOUNT_ROUTES = [{ path: '/login', heading: 'Ingresar' }];
+// The pages that depend on the feature switch. `heading` is what proves the
+// page rendered under the policy, and that it is the right page and not a blank
+// one. `usesBackend` says whether the page talks to Supabase by design: the
+// login page does, the privacy notice never does.
+const NOT_FOUND_HEADING = 'No encontramos esta página';
+const PRIVACY_PATH = '/privacy';
+const PRIVACY_HEADING = 'Aviso de privacidad';
 
+// The privacy notice goes before the login page: the login page's retries of a
+// request that fails can land after its visit, and the check that attributes a
+// request to a visit must not blame the page visited next.
 const VARIANTS = [
   {
     name: 'feature off (default build)',
     env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_PUBLISHABLE_KEY: '' },
     supabaseOrigin: null,
-    accountRoutes: [],
+    featureRoutes: [{ path: PRIVACY_PATH, heading: NOT_FOUND_HEADING, usesBackend: false }],
   },
   {
     name: 'feature on (Supabase configured)',
@@ -71,7 +81,10 @@ const VARIANTS = [
       VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_e2e_fake',
     },
     supabaseOrigin: FAKE_SUPABASE_ORIGIN,
-    accountRoutes: ACCOUNT_ROUTES,
+    featureRoutes: [
+      { path: PRIVACY_PATH, heading: PRIVACY_HEADING, usesBackend: false },
+      { path: '/login', heading: 'Ingresar', usesBackend: true },
+    ],
   },
 ];
 
@@ -107,11 +120,12 @@ async function visitRoutes(browser, baseUrl, variant, routes, supabaseChunks) {
   const context = await browser.newContext();
   const page = await context.newPage();
   const { origin } = new URL(baseUrl);
-  // The public routes first, then the account pages this build has. The latter
-  // use the backend, so the "no backend request" check is not theirs.
+  // The public routes first, then the pages that depend on the feature switch.
+  // Those that use the backend by design are not held to the "no backend
+  // request" check.
   const visits = [
     ...routes.map((path) => ({ path, usesBackend: false })),
-    ...variant.accountRoutes.map((account) => ({ ...account, usesBackend: true })),
+    ...variant.featureRoutes,
   ];
   let visit = { path: '', usesBackend: false };
 
@@ -205,7 +219,7 @@ async function checkVariant(browser, variant, routes) {
     });
     const [baseUrl] = server.resolvedUrls.local;
 
-    console.log(`Visitando ${routes.length + variant.accountRoutes.length} rutas: ${variant.name}...`);
+    console.log(`Visitando ${routes.length + variant.featureRoutes.length} rutas: ${variant.name}...`);
     return await visitRoutes(browser, baseUrl, variant, routes, supabaseChunks);
   } finally {
     Object.entries(previous).forEach(([key, value]) => {
@@ -251,7 +265,8 @@ async function main() {
 
   console.log(
     '\nNinguna ruta pública viola la política de seguridad, con la función apagada y encendida, '
-    + 'ni tampoco la página de ingreso con la función encendida.',
+    + 'ni tampoco el aviso de privacidad (no encontrado con la función apagada, sin pedir nada al '
+    + 'backend con la función encendida) ni la página de ingreso con la función encendida.',
   );
 }
 

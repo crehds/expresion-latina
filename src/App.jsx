@@ -20,6 +20,7 @@ const Schedules = lazy(() => import('./pages/Schedules/Schedules'));
 const Contact = lazy(() => import('./pages/Contact/Contact'));
 const Login = lazy(() => import('./pages/Login/Login'));
 const AuthCallback = lazy(() => import('./pages/AuthCallback/AuthCallback'));
+const Privacy = lazy(() => import('./pages/Privacy/Privacy'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 export default function App() {
@@ -41,6 +42,12 @@ export default function App() {
               path="/auth/callback"
               element={<BackendRoute><AuthCallback /></BackendRoute>}
             />
+            {/*
+              * The notice is static and the consent gate lets it through, so a
+              * member whose consent is pending can read what they are asked to
+              * accept.
+              */}
+            <Route path="/privacy" element={<BackendRoute><Privacy /></BackendRoute>} />
             {/*
               * Last, and matching whatever the ones above did not. Without it an
               * address nobody recognises rendered the nav and the footer with
