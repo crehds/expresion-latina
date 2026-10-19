@@ -52,16 +52,23 @@ describe('cspPlugin', () => {
     expect(tag.injectTo).toBe('head-prepend');
   });
 
-  it('fails when the plugin is created with a malformed or non-http(s) URL', () => {
-    expect(() => cspPlugin({ supabaseUrl: 'not a url' })).toThrow(/Invalid Supabase URL/);
-    expect(() => cspPlugin({ supabaseUrl: 'ftp://abcd1234.supabase.co' })).toThrow(/http or https/);
+  it('can be created with a malformed URL, so the dev server and the tests still load the config', () => {
+    expect(() => cspPlugin({ supabaseUrl: 'not-a-url' })).not.toThrow();
+    expect(() => cspPlugin({ supabaseUrl: 'ftp://abcd1234.supabase.co' })).not.toThrow();
   });
 
-  it('builds the policy once, when created', () => {
-    const plugin = cspPlugin({ supabaseUrl: SUPABASE_URL });
+  it('fails the build, in configResolved, on a malformed or non-http(s) URL', () => {
+    expect(() => cspPlugin({ supabaseUrl: 'not a url' }).configResolved()).toThrow(
+      /Invalid Supabase URL/,
+    );
+    expect(() => cspPlugin({ supabaseUrl: 'ftp://abcd1234.supabase.co' }).configResolved()).toThrow(
+      /http or https/,
+    );
+  });
 
-    expect(plugin.transformIndexHtml(HTML)[0].attrs.content)
-      .toBe(plugin.transformIndexHtml(HTML)[0].attrs.content);
+  it('accepts a valid or missing URL in configResolved', () => {
+    expect(() => cspPlugin({ supabaseUrl: SUPABASE_URL }).configResolved()).not.toThrow();
+    expect(() => cspPlugin({}).configResolved()).not.toThrow();
   });
 
   it('keeps the policy safe inside a double-quoted HTML attribute', () => {
