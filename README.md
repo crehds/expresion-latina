@@ -112,8 +112,10 @@ Uncaught SyntaxError: Unexpected token '<'
 because it is parsing HTML as JavaScript. `manifest.json` fails the same way.
 That is the signature of a base-path mismatch, not of a broken bundle.
 
-Client-side routes work because Vercel rewrites unmatched paths to
-`index.html`. Deep links need no shim of their own.
+Client-side routes work because `vercel.json` rewrites every path that matches
+no file to `index.html`. Vercel serves real files first, so assets are
+unaffected. Vercel's Vite preset does not do this on its own, so deep links
+break without that rewrite.
 
 ### Node version
 
