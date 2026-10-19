@@ -1,0 +1,62 @@
+# Pings the keepalive RPC every day so the free Supabase project never
+# reaches its 7-day no-database-activity pause (Design D7; spec: "Weekly
+# Keep-Alive Ping", "Keep-Alive Failure Detection"). Dormant until the
+# owner has created the Supabase project and set the two repository
+# secrets below -- see supabase/README.md's "Keep-alive ping" section.
+# Once the project is live, also set the KEEPALIVE_STRICT repository
+# variable to "true" to switch to strict mode, where a missing secret
+# fails the run instead of silently going back to dormant -- see the
+# same README section.
+name: Keep-alive ping
+
+on:
+  schedule:
+    # Daily at 12:00 UTC. The exact time is arbitrary; what matters is
+    # the margin against Supabase's 7-day pause threshold. At the
+    # previous twice-a-week schedule, one failed or dropped run could
+    # already leave a 7-day gap between successful pings -- exactly the
+    # pause threshold, no room for anything else to go wrong. At one run
+    # a day, the ping script's own curl retries would have to fail
+    # outright on six consecutive days before that same 7-day gap could
+    # open.
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+# Least privilege: the only repository content this job reads is its own
+# ping script (checked out below, sparse and read-only), and it sends one
+# HTTPS request -- so contents: read is enough and no write access is
+# ever needed.
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping public.keepalive()
+    runs-on: ubuntu-latest
+    # A hung request should never run until the workflow's own default
+    # limit; this bounds the whole job to 5 minutes. curl's own
+    # --connect-timeout/--max-time in the script, even added up across
+    # every retry attempt, stay well inside it, with room left over for
+    # the checkout step below.
+    timeout-minutes: 5
+
+    steps:
+      # actions/checkout@v4 is GitHub's own first-party action; a sparse,
+      # non-cone checkout of just this one script keeps the job's only
+      # repository read as small as possible, and persist-credentials:
+      # false means the job never holds a token that could push or
+      # otherwise write back. curl still ships on the ubuntu-latest
+      # runner image, so there is nothing else to set up.
+      - name: Check out the ping script
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci/keepalive-ping.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Ping the keepalive RPC
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          KEEPALIVE_STRICT: ${{ vars.KEEPALIVE_STRICT }}
+        run: bash scripts/ci/keepalive-ping.sh

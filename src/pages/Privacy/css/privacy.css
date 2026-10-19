@@ -1,0 +1,46 @@
+/*
+ * The frame comes from .page. The body keeps the text at a measure that can be
+ * read: a notice is read through, and the 120rem a page may take is far too
+ * wide for that. The sections are set apart by space, not by lines.
+ */
+.privacy__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 72rem;
+}
+
+.privacy__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.privacy__heading {
+  margin: 0;
+  color: var(--text-primary);
+  /* Balanced wrapping keeps a heading from leaving one word on its own line. */
+  text-wrap: balance;
+}
+
+.privacy__text,
+.privacy__list {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.privacy__list {
+  padding-left: var(--space-md);
+}
+
+/*
+ * The site resets list-style on every li (reset.css). A notice wants its
+ * bullets, and keeping them also keeps the list a list for every screen reader.
+ */
+.privacy__list li {
+  list-style: disc;
+}
+
+.privacy__list li + li {
+  margin-top: var(--space-2xs);
+}

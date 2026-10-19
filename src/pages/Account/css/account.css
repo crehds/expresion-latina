@@ -1,0 +1,73 @@
+/*
+ * The frame comes from .page. The body keeps the sections at the measure the
+ * forms use and sets them apart by space. The link and the message follow the
+ * ones of the confirmation page (auth-confirm.css).
+ */
+.account__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 44rem;
+}
+
+.account__section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.account__heading,
+.account__text {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.account__details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.account__details dt {
+  color: var(--text-secondary);
+}
+
+.account__details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.account__message {
+  max-width: 44rem;
+  margin: 0;
+  padding-left: var(--space-xs);
+  border-left: 3px solid var(--accent);
+  color: var(--text-primary);
+}
+
+.account__link,
+.account__button {
+  display: inline-block;
+  min-height: 4.4rem;
+  padding: 1.2rem 2rem;
+  border: 1px solid var(--surface-border-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1.6rem;
+  line-height: 2.4rem;
+  cursor: pointer;
+}
+
+.account__link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.account__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

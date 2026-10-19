@@ -1,34 +1,56 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig({
-  plugins: [react()],
+import activationGuardPlugin from './src/composition/activationGuardPlugin';
+import { CONTACT, CONTROLLER } from './src/features/accounts/domain/privacyContacts';
+import cspPlugin from './src/shared/security/cspPlugin';
 
-  // The site is served from the root of its domain on Vercel. Changing this
-  // without changing the host produces a blank page whose only symptom is
-  // "Unexpected token '<'", because the host answers the missing asset with
-  // index.html and the browser parses it as JavaScript.
-  base: '/',
+export default defineConfig(({ mode }) => {
+  // Only VITE_-prefixed variables: the same ones the client bundle can see.
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
 
-  build: {
-    outDir: 'build',
-    // Kept from the previous toolchain so nothing downstream has to be told
-    // about a new directory name.
-    emptyOutDir: true,
-  },
+  return {
+    // The CSP plugin applies to the build only; see cspPlugin.js.
+    plugins: [
+      react(),
+      cspPlugin({ supabaseUrl: env.VITE_SUPABASE_URL }),
+      // Refuses a production build that turns the accounts on while the privacy
+      // notice still has its placeholders; see activationGuardPlugin.js.
+      activationGuardPlugin({
+        vercelEnv: process.env.VERCEL_ENV,
+        supabaseUrl: env.VITE_SUPABASE_URL,
+        supabaseKey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        values: { CONTROLLER, CONTACT },
+        file: 'src/features/accounts/domain/privacyContacts.js',
+      }),
+    ],
 
-  server: {
-    port: 3000,
-    open: false,
-  },
+    // The site is served from the root of its domain on Vercel. Changing this
+    // without changing the host produces a blank page whose only symptom is
+    // 404s on the module script and manifest; vercel.json never rewrites
+    // /assets/ or dotted paths to index.html.
+    base: '/',
 
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: './src/setupTests.js',
-    // The importer runs on node --test through npm run test:data; it has no
-    // DOM and no bundler, and must stay independent of this config.
-    include: ['src/**/*.{test,spec}.{js,jsx}'],
-    css: false,
-  },
+    build: {
+      outDir: 'build',
+      // Kept from the previous toolchain so nothing downstream has to be told
+      // about a new directory name.
+      emptyOutDir: true,
+    },
+
+    server: {
+      port: 3000,
+      open: false,
+    },
+
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: './src/setupTests.js',
+      // The importer runs on node --test through npm run test:data; it has no
+      // DOM and no bundler, and must stay independent of this config.
+      include: ['src/**/*.{test,spec}.{js,jsx}'],
+      css: false,
+    },
+  };
 });

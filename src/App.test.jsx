@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 
 import App from './App';
+import SessionContext from './features/accounts/composition/SessionProvider';
+import BackendContext, { BackendProvider } from './shared/backend/BackendContext';
 
 // Every page is behind React.lazy, so rendering is not finished until the
 // route's chunk has resolved. Waiting here keeps that resolution inside the
@@ -70,5 +72,223 @@ describe('App', () => {
     await renderAt('/contact');
 
     expect(screen.getByRole('button', { name: /Info/ })).toBeInTheDocument();
+  });
+});
+
+describe('App with the backend disabled', () => {
+  // The default build: no env vars, so no kill switch to flip and nothing to create.
+  it('renders the public routes as before and creates no services', async () => {
+    const createServices = vi.fn();
+    render(
+      <MemoryRouter initialEntries={['/contact']}>
+        <BackendProvider createServices={createServices}>
+          <App />
+        </BackendProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: /Mapa/ }, { timeout: 5000 }))
+      .toBeInTheDocument();
+    expect(screen.getByText('Encuéntranos')).toHaveAttribute('aria-current', 'page');
+    expect(createServices).not.toHaveBeenCalled();
+  });
+});
+
+describe('App with a pending consent', () => {
+  const pendingSession = {
+    status: 'signed-in',
+    session: { userId: 'user-1', email: 'ana@example.test' },
+    profile: {
+      id: 'user-1', fullName: '', consentVersion: null, consentAt: null, isAdmin: false,
+    },
+    errorCode: null,
+    start: vi.fn(),
+    refresh: vi.fn(),
+    signOut: vi.fn(),
+  };
+
+  function renderPending(path) {
+    window.sessionStorage.clear();
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <BackendContext.Provider value={{ enabled: true, services: { auth: {} } }}>
+          <SessionContext.Provider value={pendingSession}>
+            <App />
+          </SessionContext.Provider>
+        </BackendContext.Provider>
+      </MemoryRouter>,
+    );
+  }
+
+  it('replaces the page with the consent screen and keeps the header', async () => {
+    renderPending('/contact');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Necesitamos tu consentimiento' }))
+      .toBeInTheDocument();
+    expect(screen.getByText('Inicio')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mapa/ })).not.toBeInTheDocument();
+  });
+
+  it('lets the member read the privacy notice instead of the consent screen', async () => {
+    renderPending('/privacy');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Aviso de privacidad' }, { timeout: 5000 }))
+      .toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Necesitamos tu consentimiento' }))
+      .not.toBeInTheDocument();
+  });
+});
+
+describe('App account routes', () => {
+  const ROUTES = ['/login', '/auth/callback', '/auth/confirm', '/privacy', '/account'];
+
+  it.each(ROUTES)('renders the not-found page at %s while the backend is off', async (path) => {
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: /no encontramos/i }, { timeout: 5000 }))
+      .toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Ingresar' })).not.toBeInTheDocument();
+  });
+
+  describe('while the backend is on', () => {
+    const signedOut = {
+      status: 'signed-out',
+      session: null,
+      profile: null,
+      errorCode: null,
+      start: vi.fn(async () => {}),
+      refresh: vi.fn(async () => {}),
+      signOut: vi.fn(async () => {}),
+    };
+    const auth = { getProviders: vi.fn(async () => ({ ok: true, data: { google: false } })) };
+
+    function renderOn(path) {
+      return render(
+        <MemoryRouter initialEntries={[path]}>
+          <BackendContext.Provider value={{ enabled: true, services: { auth } }}>
+            <SessionContext.Provider value={signedOut}>
+              <App />
+            </SessionContext.Provider>
+          </BackendContext.Provider>
+        </MemoryRouter>,
+      );
+    }
+
+    it('renders the login page at /login', async () => {
+      renderOn('/login');
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Ingresar' }, { timeout: 5000 }))
+        .toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /Aviso de privacidad/ })).toBeInTheDocument();
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the auth callback page at /auth/callback', async () => {
+      renderOn('/auth/callback');
+
+      expect(await screen.findByRole('link', { name: 'Ir a ingresar' }, { timeout: 5000 }))
+        .toHaveAttribute('href', '/login');
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the email link page at /auth/confirm, and verifies nothing on its own', async () => {
+      const verifyEmailLink = vi.fn();
+      const services = { auth: { verifyEmailLink } };
+      render(
+        <MemoryRouter initialEntries={['/auth/confirm?token_hash=hash-1&type=recovery']}>
+          <BackendContext.Provider value={{ enabled: true, services }}>
+            <SessionContext.Provider value={signedOut}>
+              <App />
+            </SessionContext.Provider>
+          </BackendContext.Provider>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByRole('button', { name: 'Continuar' }, { timeout: 5000 }))
+        .toBeInTheDocument();
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+      expect(verifyEmailLink).not.toHaveBeenCalled();
+    });
+
+    it('renders the privacy notice at /privacy', async () => {
+      renderOn('/privacy');
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Aviso de privacidad' }, { timeout: 5000 }))
+        .toBeInTheDocument();
+      expect(screen.getByText(/^Versión \d{4}-\d{2}-\d{2}$/)).toBeInTheDocument();
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the account page at /account for a signed-in member', async () => {
+      const signedIn = {
+        ...signedOut,
+        status: 'signed-in',
+        session: { userId: 'user-1', email: 'ana@example.test' },
+        profile: {
+          id: 'user-1',
+          fullName: 'Ana Perez',
+          consentVersion: '2026-01-01',
+          consentAt: '2026-10-01T10:00:00+00:00',
+          isAdmin: false,
+        },
+      };
+      render(
+        <MemoryRouter initialEntries={['/account']}>
+          <BackendContext.Provider value={{ enabled: true, services: { auth } }}>
+            <SessionContext.Provider value={signedIn}>
+              <App />
+            </SessionContext.Provider>
+          </BackendContext.Provider>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Mi cuenta' }, { timeout: 5000 }))
+        .toBeInTheDocument();
+      expect(screen.getByText('ana@example.test')).toBeInTheDocument();
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('sends a visitor from /account to the login page', async () => {
+      renderOn('/account');
+
+      expect(await screen.findByRole('heading', { level: 1, name: 'Ingresar' }, { timeout: 5000 }))
+        .toBeInTheDocument();
+    });
+
+    it('asks the backend for nothing and starts no session at /privacy', async () => {
+      const session = {
+        ...signedOut,
+        start: vi.fn(async () => {}),
+        refresh: vi.fn(async () => {}),
+      };
+      const services = {
+        auth: { getProviders: vi.fn(async () => ({ ok: true, data: { google: false } })) },
+      };
+      render(
+        <MemoryRouter initialEntries={['/privacy']}>
+          <BackendContext.Provider value={{ enabled: true, services }}>
+            <SessionContext.Provider value={session}>
+              <App />
+            </SessionContext.Provider>
+          </BackendContext.Provider>
+        </MemoryRouter>,
+      );
+
+      await screen.findByRole('heading', { level: 1, name: 'Aviso de privacidad' }, { timeout: 5000 });
+
+      expect(session.start).not.toHaveBeenCalled();
+      expect(session.refresh).not.toHaveBeenCalled();
+      expect(services.auth.getProviders).not.toHaveBeenCalled();
+    });
+
+    it('still renders the public routes', async () => {
+      renderOn('/contact');
+
+      expect(await screen.findByRole('button', { name: /Mapa/ }, { timeout: 5000 })).toBeInTheDocument();
+    });
   });
 });

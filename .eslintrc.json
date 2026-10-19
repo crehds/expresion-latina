@@ -7,6 +7,12 @@
   "extends": ["airbnb", "plugin:react/jsx-runtime"],
   "overrides": [
     {
+      "files": ["src/shared/backend/**", "src/**/adapters/**"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
       "files": ["src/**/*.test.{js,jsx}", "src/setupTests.js"],
       "globals": {
         "describe": "readonly",
@@ -76,6 +82,18 @@
   },
   "plugins": ["react"],
   "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@supabase/supabase-js",
+            "message": "Import @supabase/supabase-js only from src/shared/backend/ or a feature adapters/ folder; everything else reaches the backend through them."
+          }
+        ]
+      }
+    ],
+    "react/no-danger": "error",
     "no-console": [
       "warn",
       {

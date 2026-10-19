@@ -1,0 +1,61 @@
+# Supabase CLI configuration for the local development and test stack.
+#
+# Only the settings this project depends on are listed. Everything else uses
+# the defaults of the pinned CLI (scripts/db/test-db.mjs and
+# .github/workflows/db-tests.yml), so a deliberate change shows up here as a
+# visible diff instead of being lost among ~400 lines of generated defaults.
+# Reference: https://supabase.com/docs/guides/local-development/cli/config
+project_id = "expresion-latina"
+
+[api]
+# The Data API exposes only these schemas. `private` must never be listed:
+# its helpers are reachable only through the policies and functions that use
+# them.
+schemas = ["public", "graphql_public"]
+# `auto_expose_new_tables` is deliberately left at the cloud default, so the
+# catalog privilege guard tests the same default grants production applies.
+
+[db]
+# Match the Postgres major version of the hosted project.
+major_version = 17
+
+[auth]
+# Where Auth sends the browser back to after a sign-in or an email link: the
+# Vite dev server (server.port in vite.config.js).
+site_url = "http://localhost:3000"
+# Exact URLs the app may be sent back to, besides the site_url host. 127.0.0.1
+# is listed because it is another origin for the same dev server.
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000/auth/callback",
+]
+# The sign-up form checks the same two rules before it asks the server
+# (PASSWORD_MIN_LENGTH in src/features/accounts/domain/signupValidation.js);
+# a test fails if they drift apart. The server stays the authority.
+minimum_password_length = 8
+password_requirements = "letters_digits"
+
+[auth.email]
+# An email account cannot sign in until its address is confirmed (spec: Account
+# Registration). The CLI default is false. The links arrive in Mailpit.
+enable_confirmations = true
+
+# The two emails carry a link to the app's own page, built from the site URL and
+# the token hash (src/pages/AuthConfirm). That page verifies the token when the
+# member presses a button, so a mail link scanner cannot spend it, and the link
+# works in any browser. A hosted project keeps its own copy of both templates in
+# the dashboard (supabase/README.md, "Hosted email templates").
+[auth.email.template.confirmation]
+subject = "Confirma tu cuenta de Expresión Latina"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Restablece tu contraseña de Expresión Latina"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.external.google]
+# Off until someone gives the local stack a Google OAuth client; see "Local
+# auth" in supabase/README.md. Never put the secret in this file.
+enabled = false
+# client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+# secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"

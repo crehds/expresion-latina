@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Restablece tu contraseña de Expresión Latina</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f4f4f4;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; background-color:#ffffff; border-radius:8px;">
+            <tr>
+              <td style="padding:32px 28px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#222222;">
+                <p style="margin:0 0 20px; font-size:20px; font-weight:bold;">Expresión Latina</p>
+                <p style="margin:0 0 16px;">Hola,</p>
+                <p style="margin:0 0 24px;">Recibimos una solicitud para restablecer la contraseña de tu cuenta de Expresión Latina.</p>
+                <p style="margin:0 0 24px;">
+                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block; padding:12px 24px; background-color:#c8102e; color:#ffffff; text-decoration:none; border-radius:24px; font-weight:bold;">Restablecer mi contraseña</a>
+                </p>
+                <p style="margin:0 0 8px;">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+                <p style="margin:0 0 24px; font-size:14px; line-height:20px; word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery</p>
+                <p style="margin:0 0 8px;">Este enlace dura 1 hora y solo se puede usar una vez.</p>
+                <p style="margin:0; color:#666666;">Si no pediste esto, ignora este mensaje.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

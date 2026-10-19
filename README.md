@@ -23,16 +23,18 @@ Verified on Node 24.21.0 and npm 11.
 
 ## Scripts
 
-| Script                  | What it does                              |
-| ----------------------- | ----------------------------------------- |
-| `npm run dev`           | Dev server on http://localhost:3000       |
-| `npm run build`         | Production bundle into `build/`           |
-| `npm run preview`       | Serves the built bundle locally           |
-| `npm test`              | App tests, once                           |
-| `npm run test:watch`    | App tests in watch mode                   |
-| `npm run test:data`     | Importer tests, on node's own test runner |
-| `npm run data:template` | Writes the spreadsheet to edit            |
-| `npm run data:import`   | Applies an edited spreadsheet             |
+| Script                    | What it does                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `npm run dev`             | Dev server on http://localhost:3000                                          |
+| `npm run build`           | Production bundle into `build/`                                              |
+| `npm run preview`         | Serves the built bundle locally                                              |
+| `npm test`                | App tests, once                                                              |
+| `npm run test:watch`      | App tests in watch mode                                                      |
+| `npm run test:data`       | Importer tests, on node's own test runner                                    |
+| `npm run test:db`         | Database tests on the local Supabase stack (needs Docker; erases local data) |
+| `npm run test:db-scripts` | Tests for the helper scripts in `scripts/db`                                 |
+| `npm run data:template`   | Writes the spreadsheet to edit                                               |
+| `npm run data:import`     | Applies an edited spreadsheet                                                |
 
 ## Seeing the layout
 
@@ -82,6 +84,12 @@ stay on screen.
 
 Leave the variable empty and no request is made at all.
 
+> Production builds ship a Content-Security-Policy that allows only `'self'`
+> (plus the Supabase origin) for requests and `'self' data:` for images. A
+> cross-origin posters API, and the host of its poster images, must be added to
+> `connect-src` and `img-src` in `src/shared/security/csp.js`. Otherwise the
+> browser blocks them and the carousel silently keeps the bundled posters.
+
 > Vite only exposes variables prefixed with `VITE_`, and it
 > inlines them into the bundle at build time. They are public once deployed,
 > so never put a secret there.
@@ -99,19 +107,20 @@ root-relative asset paths. That happens by default: `package.json` deliberately
 carries no `homepage` field, and `base` in `vite.config.js` is `/`.
 
 Do not change either without changing the host to match. A base path the host
-does not serve from produces a blank page with no useful error: the browser
-requests `/some-prefix/assets/index-abc123.js`, the host has no such file, its
-SPA fallback answers with `index.html`, and the browser reports
+does not serve from produces a blank page: the browser requests
+`/some-prefix/assets/index-abc123.js`, the host has no such file, and the
+module script and `manifest.json` come back as 404s in the network tab and in
+Vercel's logs. The app never starts, so nothing else is reported. That is the
+signature of a base-path mismatch, not of a broken bundle. (A host with a
+catch-all fallback would instead answer with `index.html` and the console would
+show `Uncaught SyntaxError: Unexpected token '<'`.)
 
-```
-Uncaught SyntaxError: Unexpected token '<'
-```
-
-because it is parsing HTML as JavaScript. `manifest.json` fails the same way.
-That is the signature of a base-path mismatch, not of a broken bundle.
-
-Client-side routes work because Vercel rewrites unmatched paths to
-`index.html`. Deep links need no shim of their own.
+Client-side routes work because `vercel.json` rewrites them to `index.html`.
+The rule skips `/assets/` and every path containing a dot, so a missing file
+(for example a hashed chunk requested by a tab opened before a redeploy) stays
+a 404 instead of becoming an HTML page that the browser refuses as a script.
+Vercel's Vite preset does not add the rewrite on its own, so deep links break
+without it. Client routes must therefore never contain a dot.
 
 ### Node version
 
