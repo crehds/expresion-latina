@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 
 import { Page } from '../../components';
 import { CURRENT_NOTICE_VERSION } from '../../features/accounts/domain/noticeVersion';
+import { CONTACT, CONTROLLER } from '../../features/accounts/domain/privacyContacts';
 import {
   ATTENDANCE_CONFIRMATION_DAYS,
   DORMANT_ACCOUNT_YEARS,
@@ -10,12 +11,6 @@ import {
 } from '../../features/accounts/domain/retentionTerms';
 
 import './css/privacy.css';
-
-// The owner fills these two in before the feature goes live (owner decision
-// 2026-10-19); the feature stays off until then. The brackets are part of the
-// text so that nobody can take them for a name.
-const CONTROLLER = '[RESPONSABLE]';
-const CONTACT = '[CONTACTO]';
 
 // A figure with its unit in the right number: "1 hora", "24 horas".
 const amount = (count, one, many) => `${count} ${count === 1 ? one : many}`;

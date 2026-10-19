@@ -259,6 +259,14 @@ deployments build with them unset, so the feature stays off and
 previews never touch the real database. The same two values, as
 repository secrets, are what `.github/workflows/keepalive.yml` uses.
 
+Before setting them in Production, replace the two bracketed placeholders
+of the privacy notice (`CONTROLLER` and `CONTACT` in
+`src/features/accounts/domain/privacyContacts.js`): a Vercel production
+build (`VERCEL_ENV=production`, which Vercel sets at build time while
+"Automatically expose System Environment Variables" is on) that has both
+variables and a placeholder fails with a message naming that file. Local,
+preview and backend-off builds are not affected.
+
 ### Kill switch
 
 While `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` are unset (or

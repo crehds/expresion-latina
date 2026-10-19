@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
+import activationGuardPlugin from './src/composition/activationGuardPlugin';
+import { CONTACT, CONTROLLER } from './src/features/accounts/domain/privacyContacts';
 import cspPlugin from './src/shared/security/cspPlugin';
 
 export default defineConfig(({ mode }) => {
@@ -9,7 +11,19 @@ export default defineConfig(({ mode }) => {
 
   return {
     // The CSP plugin applies to the build only; see cspPlugin.js.
-    plugins: [react(), cspPlugin({ supabaseUrl: env.VITE_SUPABASE_URL })],
+    plugins: [
+      react(),
+      cspPlugin({ supabaseUrl: env.VITE_SUPABASE_URL }),
+      // Refuses a production build that turns the accounts on while the privacy
+      // notice still has its placeholders; see activationGuardPlugin.js.
+      activationGuardPlugin({
+        vercelEnv: process.env.VERCEL_ENV,
+        supabaseUrl: env.VITE_SUPABASE_URL,
+        supabaseKey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        values: { CONTROLLER, CONTACT },
+        file: 'src/features/accounts/domain/privacyContacts.js',
+      }),
+    ],
 
     // The site is served from the root of its domain on Vercel. Changing this
     // without changing the host produces a blank page whose only symptom is
