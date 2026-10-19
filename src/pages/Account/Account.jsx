@@ -67,7 +67,7 @@ export default function Account() {
         <p className="text-md account__message" role="alert">
           No pudimos cargar tu cuenta. Inténtalo de nuevo.
         </p>
-        <button type="button" className="auth-button account__button" onClick={() => start()}>
+        <button type="button" className="auth-button account__button" onClick={() => startSession({ start })}>
           Reintentar
         </button>
       </Page>

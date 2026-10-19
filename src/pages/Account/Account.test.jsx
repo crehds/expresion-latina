@@ -170,6 +170,27 @@ describe('Account', () => {
     });
   });
 
+  describe('retrying the load', () => {
+    it('goes through the shared start helper, so a rejected start stays quiet', async () => {
+      const user = userEvent.setup();
+      const start = vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValue(new Error('store unavailable'));
+      renderAccount({
+        start,
+        initial: {
+          status: 'error', session: SESSION, profile: null, errorCode: 'NETWORK',
+        },
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+      // One call on mount, then the click and the helper's own second attempt.
+      await waitFor(() => expect(start).toHaveBeenCalledTimes(3));
+      expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar tu cuenta.');
+    });
+  });
+
   describe('signed in', () => {
     it('shows the name, the email and the consent on record, with the date in Lima time', () => {
       renderAccount({
