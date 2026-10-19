@@ -53,25 +53,31 @@ export function SessionProvider({ children }) {
   const unsubscribeRef = useRef(null);
   const epochRef = useRef(0);
 
+  // Resolves to false only when the profile read failed (the load can be
+  // retried). A read for a session that is no longer the current one, or that
+  // outlived an unmount, is dropped: it must never write state.
   const loadProfile = useCallback(async (session, epoch) => {
     const result = await auth.getOwnProfile(session.userId);
-    if (epochRef.current !== epoch) {
-      return;
+    const isCurrent = epochRef.current === epoch
+      && sessionRef.current?.userId === session.userId;
+    if (!isCurrent) {
+      return true;
     }
     setState(result.ok
       ? {
         status: 'signed-in', session, profile: result.data, errorCode: null,
       }
       : failure(result.code, session));
+    return result.ok;
   }, [auth]);
 
   const apply = useCallback(async (session, epoch) => {
     sessionRef.current = session;
     if (!session) {
       setState(SIGNED_OUT);
-      return;
+      return true;
     }
-    await loadProfile(session, epoch);
+    return loadProfile(session, epoch);
   }, [loadProfile]);
 
   const load = useCallback(async (epoch) => {
@@ -91,29 +97,31 @@ export function SessionProvider({ children }) {
     // supabase-js must not be called from inside its own auth callback (it can
     // deadlock), so a change is applied on the next task. The initial event and
     // token refreshes repeat the loaded user and are ignored.
-    const subscribed = await auth.subscribe((session) => {
-      setTimeout(() => {
-        const sameUser = (session?.userId ?? null) === (sessionRef.current?.userId ?? null);
-        if (epochRef.current === epoch && !sameUser) {
-          apply(session, epoch);
+    // A retry after a failed profile read keeps the subscription it already has.
+    if (!unsubscribeRef.current) {
+      const subscribed = await auth.subscribe((session) => {
+        setTimeout(() => {
+          const sameUser = (session?.userId ?? null) === (sessionRef.current?.userId ?? null);
+          if (epochRef.current === epoch && !sameUser) {
+            apply(session, epoch);
+          }
+        }, 0);
+      });
+      if (isStale()) {
+        if (subscribed.ok) {
+          subscribed.data();
         }
-      }, 0);
-    });
-    if (isStale()) {
-      if (subscribed.ok) {
-        subscribed.data();
+        return true;
       }
-      return true;
+      if (!subscribed.ok) {
+        sessionRef.current = null;
+        setState(failure(subscribed.code));
+        return false;
+      }
+      unsubscribeRef.current = subscribed.data;
     }
-    if (!subscribed.ok) {
-      sessionRef.current = null;
-      setState(failure(subscribed.code));
-      return false;
-    }
-    unsubscribeRef.current = subscribed.data;
 
-    await apply(current.data, epoch);
-    return true;
+    return apply(current.data, epoch);
   }, [auth, apply]);
 
   const start = useCallback(() => {
@@ -123,7 +131,8 @@ export function SessionProvider({ children }) {
     if (!startRef.current) {
       const epoch = epochRef.current;
       startRef.current = load(epoch).then((loaded) => {
-        // A failed load can be retried; a finished one is shared from now on.
+        // A failed load (session, subscription or profile) can be retried; a
+        // successful one is shared from now on.
         if (!loaded && epochRef.current === epoch) {
           startRef.current = null;
         }

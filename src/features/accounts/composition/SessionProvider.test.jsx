@@ -209,6 +209,24 @@ describe('SessionProvider while the backend is enabled', () => {
       expect(auth.getOwnProfile).toHaveBeenCalledTimes(1);
     });
 
+    it('can be retried after the profile read failed, without subscribing twice', async () => {
+      hasStoredSession.mockReturnValue(false);
+      const getOwnProfile = vi.fn()
+        .mockResolvedValueOnce(fail('NETWORK'))
+        .mockResolvedValueOnce(ok(PROFILE));
+      const { auth } = renderWith({ auth: fakeAuth({ getOwnProfile }) });
+
+      await act(async () => { await seen.current.start(); });
+      expect(status()).toBe('error');
+      expect(seen.current.errorCode).toBe('NETWORK');
+
+      await act(async () => { await seen.current.start(); });
+
+      expect(status()).toBe('signed-in');
+      expect(seen.current.profile).toEqual(PROFILE);
+      expect(auth.subscribe).toHaveBeenCalledTimes(1);
+    });
+
     it('can be retried after a failed load', async () => {
       hasStoredSession.mockReturnValue(false);
       const getSession = vi.fn()
@@ -274,23 +292,79 @@ describe('SessionProvider while the backend is enabled', () => {
       expect(auth.unsubscribe).toHaveBeenCalledTimes(1);
     });
 
-    it('does not leave a subscription behind when it unmounts mid-load', async () => {
+    it('does not leave a subscription behind when it unmounts while subscribing', async () => {
       hasStoredSession.mockReturnValue(true);
+      const unsubscribe = vi.fn();
       let release;
       const auth = fakeAuth({
-        getSession: vi.fn(() => new Promise((resolve) => {
-          release = () => resolve(ok(SESSION));
+        unsubscribe,
+        subscribe: vi.fn(() => new Promise((resolve) => {
+          release = () => resolve(ok(unsubscribe));
         })),
       });
       const { unmount } = renderWith({ auth });
-      await waitForStatus('loading');
+      await waitFor(() => expect(auth.subscribe).toHaveBeenCalledTimes(1));
 
       unmount();
+      expect(unsubscribe).not.toHaveBeenCalled();
       await act(async () => { release(); });
 
-      await waitFor(() => {
-        expect(auth.unsubscribe).toHaveBeenCalledTimes(auth.subscribe.mock.calls.length);
-      });
+      await waitFor(() => expect(unsubscribe).toHaveBeenCalledTimes(1));
+      expect(auth.getOwnProfile).not.toHaveBeenCalled();
+    });
+
+    it('ends in error with the code when it cannot subscribe, and a later start retries', async () => {
+      hasStoredSession.mockReturnValue(true);
+      const subscribe = vi.fn()
+        .mockResolvedValueOnce(fail('NETWORK'))
+        .mockResolvedValueOnce(ok(vi.fn()));
+      renderWith({ auth: fakeAuth({ subscribe }) });
+
+      await waitForStatus('error');
+      expect(seen.current.errorCode).toBe('NETWORK');
+      expect(seen.current.session).toBeNull();
+
+      await act(async () => { await seen.current.start(); });
+
+      expect(status()).toBe('signed-in');
+      expect(subscribe).toHaveBeenCalledTimes(2);
+    });
+
+    it('never writes a profile read for a session that has since ended', async () => {
+      hasStoredSession.mockReturnValue(true);
+      let releaseA;
+      const getOwnProfile = vi.fn(() => new Promise((resolve) => {
+        releaseA = () => resolve(ok(PROFILE));
+      }));
+      const { auth } = renderWith({ auth: fakeAuth({ getOwnProfile }) });
+      await waitFor(() => expect(getOwnProfile).toHaveBeenCalledTimes(1));
+
+      act(() => { auth.emit(null); });
+      await waitForStatus('signed-out');
+      await act(async () => { releaseA(); });
+
+      expect(status()).toBe('signed-out');
+      expect(seen.current.profile).toBeNull();
+      expect(seen.current.session).toBeNull();
+    });
+
+    it('never writes a profile read for a user who has since been replaced', async () => {
+      hasStoredSession.mockReturnValue(true);
+      let releaseA;
+      const getOwnProfile = vi.fn()
+        .mockImplementationOnce(() => new Promise((resolve) => {
+          releaseA = () => resolve(ok(PROFILE));
+        }))
+        .mockResolvedValueOnce(ok({ ...PROFILE, id: 'user-2', fullName: 'Luis' }));
+      const { auth } = renderWith({ auth: fakeAuth({ getOwnProfile }) });
+      await waitFor(() => expect(getOwnProfile).toHaveBeenCalledTimes(1));
+
+      act(() => { auth.emit(OTHER_SESSION); });
+      await waitFor(() => expect(seen.current.profile?.fullName).toBe('Luis'));
+      await act(async () => { releaseA(); });
+
+      expect(seen.current.profile.fullName).toBe('Luis');
+      expect(seen.current.session).toEqual(OTHER_SESSION);
     });
   });
 
