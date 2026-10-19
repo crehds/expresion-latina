@@ -40,6 +40,19 @@ password_requirements = "letters_digits"
 # Registration). The CLI default is false. The links arrive in Mailpit.
 enable_confirmations = true
 
+# The two emails carry a link to the app's own page, built from the site URL and
+# the token hash (src/pages/AuthConfirm). That page verifies the token when the
+# member presses a button, so a mail link scanner cannot spend it, and the link
+# works in any browser. A hosted project keeps its own copy of both templates in
+# the dashboard (supabase/README.md, "Hosted email templates").
+[auth.email.template.confirmation]
+subject = "Confirma tu cuenta de Expresión Latina"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Restablece tu contraseña de Expresión Latina"
+content_path = "./supabase/templates/recovery.html"
+
 [auth.external.google]
 # Off until someone gives the local stack a Google OAuth client; see "Local
 # auth" in supabase/README.md. Never put the secret in this file.

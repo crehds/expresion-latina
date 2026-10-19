@@ -10,4 +10,12 @@
  */
 export const AUTH_CALLBACK_PATH = '/auth/callback';
 
+/**
+ * The page the links of the confirmation and recovery emails open. The email
+ * templates (`supabase/templates`) build `{{ .SiteURL }}` + this path with the
+ * token hash, so they never go through the redirect allowlist; a test ties the
+ * templates to this path.
+ */
+export const AUTH_CONFIRM_PATH = '/auth/confirm';
+
 export const authCallbackUrl = () => `${window.location.origin}${AUTH_CALLBACK_PATH}`;

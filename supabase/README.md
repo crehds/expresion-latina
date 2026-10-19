@@ -98,6 +98,18 @@ update public.profiles set is_admin = true where id = (
 - **Redirects.** `site_url` and `additional_redirect_urls` allow the Vite
   dev server (`http://localhost:3000`, and `http://127.0.0.1:3000` for the
   callback) to receive a sign-in or an email link.
+- **Email templates.** `templates/confirmation.html` and
+  `templates/recovery.html`, wired in `config.toml` with their Spanish
+  subjects, replace the default emails. Their links point at the app's own
+  `/auth/confirm` page, built from `{{ .SiteURL }}` and `{{ .TokenHash }}`
+  (never `{{ .ConfirmationURL }}`), so the link works in any browser and
+  does not depend on the redirect allowlist. The page verifies the token
+  only when the member presses a button, so a mail link scanner cannot spend
+  it. They promise a link that lasts 1 hour, the default `otp_expiry`
+  (3600 s); a test fails if `config.toml` changes it or the templates drift.
+  The stack mounts the files when it starts: restart it after editing one.
+  The Auth service also limits how often one address can be sent a
+  confirmation or reset email (`max_frequency`, 1 second by default).
 - **Google is off** until the stack is given a Google OAuth client; until
   then its button ends on an "Unsupported provider" error page. To try it,
   create the client as in "Google sign-in" below, with the local Auth
@@ -107,13 +119,17 @@ update public.profiles set is_admin = true where id = (
   stack, uncomment the two `env(...)` lines of `[auth.external.google]` and
   set `enabled = true`, then restart the stack. Keep those edits out of
   commits.
-- **Real sign-up journey.** `npm run test:e2e:auth` drives a real sign-up
-  through the local stack, in a browser: it builds the site against the
-  stack, signs a new `e2e-auth-<time>@example.test` account up on the login
-  page, reads the confirmation email from Mailpit, follows its link, checks
-  that the member ends on the home page signed in with the consent recorded
-  in the database, and signs in again with the password. It deletes that
-  account and its email afterwards, whether it passes or not. It needs the
+- **Real sign-up and reset journey.** `npm run test:e2e:auth` drives a real
+  sign-up through the local stack, in a browser: it builds the site against
+  the stack, signs a new `e2e-auth-<time>@example.test` account up on the
+  login page, reads the confirmation email from Mailpit, opens its
+  `/auth/confirm` link and presses "Confirmar mi correo", checks that the
+  member ends on the home page signed in with the consent recorded in the
+  database, and signs in again with the password. Then it asks for a
+  password reset from the login page, opens the link of the recovery email,
+  presses "Continuar", sets a new password, and checks that the new password
+  signs in and the old one does not. It deletes that account and its emails
+  afterwards, whether it passes or not. It needs the
   stack running (see "Bootstrapping") and port 3000 free, and it is not part
   of `npm run test:e2e` or of CI, which has no stack.
 
@@ -128,7 +144,8 @@ something this repository's own scripts do on their own.
 Rough order: create the Supabase project, push these migrations, sign up
 once and promote yourself to admin (see "Email sign-up requires a
 consent version" above), configure SMTP and the email rate limit,
-configure Google sign-in and the redirect allowlist, set the environment
+configure Google sign-in, paste the email templates and set the Site URL,
+set the redirect allowlist, set the environment
 variables and repository secrets, then verify the keep-alive ping. The
 sections below also cover the kill switch, checking the scheduled
 purges, and teardown.
@@ -190,6 +207,28 @@ real sign-ups. Configure custom SMTP instead:
 4. Supabase Dashboard -> **Authentication -> Providers -> Google**:
    paste the Client ID and Client Secret from step 1, then enable the
    provider.
+
+### Hosted email templates
+
+The templates in `templates/` only reach the local stack. A hosted project
+keeps its own copy, so paste them in by hand, or members get Supabase's
+default English emails whose links do not go to `/auth/confirm`:
+
+1. Supabase Dashboard -> **Authentication -> Emails -> Templates**. For
+   **Confirm sign up**, set the subject to
+   `Confirma tu cuenta de Expresión Latina` and the body to the contents of
+   `templates/confirmation.html`. For **Reset password**, set the subject to
+   `Restablece tu contraseña de Expresión Latina` and the body to
+   `templates/recovery.html`.
+2. Supabase Dashboard -> **Authentication -> URL Configuration**: set the
+   **Site URL** to the production origin (for example
+   `https://www.example.com`, no trailing slash). The templates build their
+   links from it, so a wrong Site URL sends members to the wrong place. Add
+   the production origin to **Redirect URLs** too (see "Redirect
+   allowlist" below).
+3. Leave the email link lifetime (the email OTP expiration of the Auth
+   settings) at its default of 3600 seconds: the templates tell members
+   the link lasts 1 hour.
 
 ### Redirect allowlist
 
