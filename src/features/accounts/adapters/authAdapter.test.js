@@ -472,6 +472,19 @@ describe('createAuthAdapter', () => {
       expect(result).toEqual({ ok: true, data: null });
     });
 
+    it('works without a redirect target, which is what the app sends', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).resendConfirmation({ email: 'ana@example.test' });
+
+      expect(client.calls.resend).toStrictEqual({
+        type: 'signup',
+        email: 'ana@example.test',
+        options: { emailRedirectTo: undefined },
+      });
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
     it.each([
       ['over_email_send_rate_limit', 429, 'RATE_LIMITED'],
       ['over_request_rate_limit', 429, 'RATE_LIMITED'],

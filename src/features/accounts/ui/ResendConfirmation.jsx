@@ -14,7 +14,6 @@ import {
   useContext, useEffect, useRef, useState,
 } from 'react';
 import BackendContext from '../../../shared/backend/BackendContext';
-import { authCallbackUrl } from '../domain/authRedirect';
 import { validateResetRequest } from '../domain/signupValidation';
 import AuthField from './AuthField';
 import { RESEND_SENT, RESET_REQUEST_MESSAGES, authErrorMessage } from './authCopy';
@@ -54,10 +53,8 @@ export default function ResendConfirmation({ initialEmail = '' }) {
       return;
     }
 
-    const outcome = await run(() => auth.resendConfirmation({
-      email,
-      redirectTo: authCallbackUrl(),
-    }));
+    // No redirect target: the confirmation email template decides the link.
+    const outcome = await run(() => auth.resendConfirmation({ email }));
     if (outcome.ok) {
       setSent(true);
     }

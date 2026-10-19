@@ -53,10 +53,8 @@ describe('ResendConfirmation', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent(SENT);
     expect(resendConfirmation).toHaveBeenCalledTimes(1);
-    expect(resendConfirmation).toHaveBeenCalledWith({
-      email: 'ana@example.test',
-      redirectTo: `${window.location.origin}/auth/callback`,
-    });
+    // Only the address: the confirmation template decides where the link points.
+    expect(resendConfirmation).toHaveBeenCalledWith({ email: 'ana@example.test' });
     expect(screen.queryByRole('button', { name: 'Reenviar correo de confirmación' }))
       .not.toBeInTheDocument();
   });

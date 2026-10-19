@@ -142,7 +142,8 @@ export function createAuthAdapter(getClient, { fetchSettings = null } = {}) {
     // Sends the confirmation email of a sign-up again, for a member whose link
     // expired or never arrived. GoTrue answers the same way for an address with
     // no pending sign-up, so the result says nothing about the account. Like the
-    // reset, where the link points is up to the email template.
+    // reset, where the link points is up to the email template. `redirectTo` is
+    // optional: the app sends none, and it only matters to a template that uses it.
     resendConfirmation: ({ email, redirectTo }) => run(
       (client) => client.auth.resend({
         type: 'signup',
