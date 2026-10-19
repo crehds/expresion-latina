@@ -8,7 +8,9 @@
  * password is sent exactly as typed. A failed call shows the fixed message of its
  * result code in an alert, never what the backend said or the password. After
  * a success the member's other devices are signed out (a failure of that step is
- * ignored: the password changed). The parent decides what follows (`onDone`).
+ * ignored: the password changed, and the wait is bounded so a hung call cannot
+ * hide the success). The form stays busy until the parent is told (`onDone`),
+ * which decides what follows.
  */
 import PropTypes from 'prop-types';
 import { useContext, useRef, useState } from 'react';
@@ -19,6 +21,22 @@ import { NEW_PASSWORD_MESSAGES, PASSWORD_HINT, authErrorMessage } from './authCo
 import useAuthRequest from './useAuthRequest';
 import './css/auth-forms.css';
 
+// How long the success waits for the other devices to be signed out.
+const SIGN_OUT_OTHERS_WAIT_MS = 5000;
+
+// Resolves when the call ends, however it ends, or when the wait runs out.
+function settleWithin(action, ms) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    const done = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    // Calling inside the executor turns a synchronous throw into a rejection.
+    new Promise((run) => { run(action()); }).then(done, done);
+  });
+}
+
 export default function NewPassword({ onDone }) {
   const { services } = useContext(BackendContext);
   const {
@@ -28,6 +46,7 @@ export default function NewPassword({ onDone }) {
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [errors, setErrors] = useState({});
+  const [finishing, setFinishing] = useState(false);
   const passwordRef = useRef(null);
   const confirmationRef = useRef(null);
 
@@ -50,17 +69,17 @@ export default function NewPassword({ onDone }) {
       return;
     }
 
+    // The form stays busy from the submit until the parent is told.
+    setFinishing(true);
     const outcome = await run(() => auth.updatePassword({ password }));
     if (outcome.ok) {
       // The password did change, so this step can only end in success: whether
-      // the other devices were signed out does not turn it into an error.
-      try {
-        await auth.signOutOthers();
-      } catch {
-        // Ignored on purpose.
-      }
+      // the other devices were signed out (or how long that took) does not turn
+      // it into an error.
+      await settleWithin(() => auth.signOutOthers(), SIGN_OUT_OTHERS_WAIT_MS);
       onDone();
     }
+    setFinishing(false);
   };
 
   return (
@@ -89,7 +108,7 @@ export default function NewPassword({ onDone }) {
         error={messageFor('confirmation')}
         inputRef={confirmationRef}
       />
-      <button type="submit" className="auth-button auth-button--primary" disabled={busy}>
+      <button type="submit" className="auth-button auth-button--primary" disabled={busy || finishing}>
         Cambiar contraseña
       </button>
     </form>

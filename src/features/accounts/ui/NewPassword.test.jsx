@@ -97,6 +97,52 @@ describe('NewPassword', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
+    describe('while the other devices are being signed out', () => {
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      async function submitWithFakeTimers(signOutOthers) {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const rendered = renderForm({ signOutOthers });
+        await fillAndSubmit(user);
+        return { user, ...rendered };
+      }
+
+      it('keeps the button disabled and gives up waiting after five seconds', async () => {
+        const { onDone } = await submitWithFakeTimers(vi.fn(() => new Promise(() => {})));
+
+        await waitFor(() => expect(submit()).toBeDisabled());
+        expect(onDone).not.toHaveBeenCalled();
+        await act(async () => { vi.advanceTimersByTime(4000); });
+        expect(onDone).not.toHaveBeenCalled();
+        expect(submit()).toBeDisabled();
+
+        await act(async () => { vi.advanceTimersByTime(1500); });
+
+        expect(onDone).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      });
+
+      it('cannot be submitted a second time meanwhile', async () => {
+        const hung = vi.fn(() => new Promise(() => {}));
+        const { updatePassword, user } = await submitWithFakeTimers(hung);
+
+        await waitFor(() => expect(submit()).toBeDisabled());
+        await user.click(submit());
+        await user.type(confirmation(), '{Enter}');
+
+        expect(updatePassword).toHaveBeenCalledTimes(1);
+      });
+
+      it('tells the parent right away when it is fast', async () => {
+        const { onDone } = await submitWithFakeTimers(vi.fn(async () => ok()));
+
+        await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+      });
+    });
+
     it('signs nobody out when the password did not change', async () => {
       const user = userEvent.setup();
       const { signOutOthers } = renderForm({
