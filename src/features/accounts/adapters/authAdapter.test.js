@@ -14,6 +14,11 @@ const PROFILE_ROW = {
   is_admin: false,
 };
 
+const OAUTH_URL = 'https://abcd1234.supabase.co/auth/v1/authorize?provider=google&code_challenge=secret-challenge';
+
+// What auth-js answers with when a call fails: no user and no session.
+const NO_USER = { user: null, session: null };
+
 // A fake supabase client: every call is recorded and answers what the test set.
 function fakeClient({
   session = RAW_SESSION,
@@ -22,6 +27,10 @@ function fakeClient({
   profileError = null,
   rpcError = null,
   signOutError = null,
+  signUpSession = null,
+  signUpError = null,
+  signInError = null,
+  oauthError = null,
 } = {}) {
   const calls = {};
   const unsubscribe = vi.fn();
@@ -40,6 +49,24 @@ function fakeClient({
         return { data: { subscription: { unsubscribe } } };
       }),
       signOut: vi.fn(async () => ({ error: signOutError })),
+      signUp: vi.fn(async (credentials) => {
+        calls.signUp = credentials;
+        return signUpError
+          ? { data: NO_USER, error: signUpError }
+          : { data: { user: RAW_SESSION.user, session: signUpSession }, error: null };
+      }),
+      signInWithPassword: vi.fn(async (credentials) => {
+        calls.signInWithPassword = credentials;
+        return signInError
+          ? { data: NO_USER, error: signInError }
+          : { data: { user: RAW_SESSION.user, session: RAW_SESSION }, error: null };
+      }),
+      signInWithOAuth: vi.fn(async (credentials) => {
+        calls.signInWithOAuth = credentials;
+        return oauthError
+          ? { data: { provider: 'google', url: null, flowId: null }, error: oauthError }
+          : { data: { provider: 'google', url: OAUTH_URL, flowId: null }, error: null };
+      }),
     },
     from: vi.fn((table) => { calls.table = table; return query; }),
     rpc: vi.fn(async (name, args) => {
@@ -212,6 +239,149 @@ describe('createAuthAdapter', () => {
     });
   });
 
+  // auth-js errors as GoTrue answers with them (error-codes.d.ts).
+  const authError = (code, status) => ({
+    name: 'AuthApiError', code, status, message: 'private detail ana@example.test',
+  });
+  const offline = { name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' };
+
+  const SIGN_UP = {
+    email: 'ana@example.test',
+    password: 'abcdefg1',
+    fullName: 'Ana Perez',
+    consentVersion: '2026-01-01',
+    redirectTo: 'https://app.example.test/auth/callback',
+  };
+
+  describe('signUp', () => {
+    it('sends the credentials, the name and the accepted version as sign-up data', async () => {
+      const client = fakeClient();
+
+      await adapterFor(client).signUp(SIGN_UP);
+
+      expect(client.calls.signUp).toStrictEqual({
+        email: 'ana@example.test',
+        password: 'abcdefg1',
+        options: {
+          data: { full_name: 'Ana Perez', consent_version: '2026-01-01' },
+          emailRedirectTo: 'https://app.example.test/auth/callback',
+        },
+      });
+    });
+
+    it('reports a pending confirmation when no session came back', async () => {
+      const result = await adapterFor(fakeClient()).signUp(SIGN_UP);
+
+      expect(result).toEqual({ ok: true, data: { confirmationPending: true } });
+    });
+
+    it('reports no pending confirmation when a session came back, and returns no token', async () => {
+      const result = await adapterFor(fakeClient({ signUpSession: RAW_SESSION })).signUp(SIGN_UP);
+
+      expect(result).toEqual({ ok: true, data: { confirmationPending: false } });
+      expect(JSON.stringify(result)).not.toMatch(/secret|123/);
+    });
+
+    it.each(['user_already_exists', 'email_exists'])(
+      'answers an address that is already registered (%s) like a new one',
+      async (code) => {
+        const signUpError = authError(code, 422);
+
+        const result = await adapterFor(fakeClient({ signUpError })).signUp(SIGN_UP);
+
+        expect(result).toEqual({ ok: true, data: { confirmationPending: true } });
+        expect(JSON.stringify(result)).not.toMatch(/ana@example|private detail|exists/);
+      },
+    );
+
+    it.each([
+      ['weak_password', 422, 'WEAK_PASSWORD'],
+      ['over_email_send_rate_limit', 429, 'RATE_LIMITED'],
+      ['over_request_rate_limit', 429, 'RATE_LIMITED'],
+      ['signup_disabled', 422, 'UNKNOWN'],
+    ])('maps the auth error %s (HTTP %i) to %s', async (code, status, expected) => {
+      const result = await adapterFor(fakeClient({ signUpError: authError(code, status) }))
+        .signUp(SIGN_UP);
+
+      expect(result).toEqual({ ok: false, code: expected });
+    });
+
+    it('maps a transport failure to NETWORK', async () => {
+      const result = await adapterFor(fakeClient({ signUpError: offline })).signUp(SIGN_UP);
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
+  describe('signInWithPassword', () => {
+    it('signs in with the email and the password and returns no session', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).signInWithPassword({
+        email: 'ana@example.test', password: 'abcdefg1',
+      });
+
+      expect(client.calls.signInWithPassword).toStrictEqual({
+        email: 'ana@example.test', password: 'abcdefg1',
+      });
+      expect(result).toEqual({ ok: true, data: null });
+      expect(JSON.stringify(result)).not.toMatch(/secret|123/);
+    });
+
+    it.each([
+      ['invalid_credentials', 400, 'INVALID_CREDENTIALS'],
+      ['email_not_confirmed', 400, 'EMAIL_NOT_CONFIRMED'],
+      ['over_request_rate_limit', 429, 'RATE_LIMITED'],
+      ['user_already_exists', 422, 'UNKNOWN'],
+    ])('maps the auth error %s (HTTP %i) to %s', async (code, status, expected) => {
+      const result = await adapterFor(fakeClient({ signInError: authError(code, status) }))
+        .signInWithPassword({ email: 'ana@example.test', password: 'abcdefg1' });
+
+      expect(result).toEqual({ ok: false, code: expected });
+    });
+
+    it('maps a transport failure to NETWORK', async () => {
+      const result = await adapterFor(fakeClient({ signInError: offline }))
+        .signInWithPassword({ email: 'ana@example.test', password: 'abcdefg1' });
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
+  describe('signInWithGoogle', () => {
+    it('starts the Google flow with the redirect target and returns nothing', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).signInWithGoogle({
+        redirectTo: 'https://app.example.test/auth/callback',
+      });
+
+      expect(client.calls.signInWithOAuth).toStrictEqual({
+        provider: 'google',
+        options: { redirectTo: 'https://app.example.test/auth/callback' },
+      });
+      expect(result).toEqual({ ok: true, data: null });
+      expect(JSON.stringify(result)).not.toMatch(/secret|authorize/);
+    });
+
+    it.each([
+      ['over_request_rate_limit', 429, 'RATE_LIMITED'],
+      ['oauth_provider_not_supported', 400, 'UNKNOWN'],
+    ])('maps the auth error %s (HTTP %i) to %s', async (code, status, expected) => {
+      const result = await adapterFor(fakeClient({ oauthError: authError(code, status) }))
+        .signInWithGoogle({ redirectTo: 'https://app.example.test/auth/callback' });
+
+      expect(result).toEqual({ ok: false, code: expected });
+    });
+
+    it('maps a transport failure to NETWORK', async () => {
+      const result = await adapterFor(fakeClient({ oauthError: offline }))
+        .signInWithGoogle({ redirectTo: 'https://app.example.test/auth/callback' });
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
   describe('when the client cannot be obtained', () => {
     const methods = [
       ['getSession', (a) => a.getSession()],
@@ -220,6 +390,9 @@ describe('createAuthAdapter', () => {
       ['recordConsent', (a) => a.recordConsent('2026-01-01')],
       ['deleteMyAccount', (a) => a.deleteMyAccount()],
       ['signOut', (a) => a.signOut()],
+      ['signUp', (a) => a.signUp(SIGN_UP)],
+      ['signInWithPassword', (a) => a.signInWithPassword({ email: 'ana@example.test', password: 'x' })],
+      ['signInWithGoogle', (a) => a.signInWithGoogle({ redirectTo: 'https://app.example.test/auth/callback' })],
     ];
 
     it.each(methods)('%s resolves to NETWORK when the dynamic import fails', async (_name, call) => {
