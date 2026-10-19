@@ -84,6 +84,12 @@ stay on screen.
 
 Leave the variable empty and no request is made at all.
 
+> Production builds ship a Content-Security-Policy that allows only `'self'`
+> (plus the Supabase origin) for requests and `'self' data:` for images. A
+> cross-origin posters API, and the host of its poster images, must be added to
+> `connect-src` and `img-src` in `src/shared/security/csp.js`. Otherwise the
+> browser blocks them and the carousel silently keeps the bundled posters.
+
 > Vite only exposes variables prefixed with `VITE_`, and it
 > inlines them into the bundle at build time. They are public once deployed,
 > so never put a secret there.
