@@ -3,12 +3,19 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import createServices from './composition/createServices';
+import { SessionProvider } from './features/accounts/composition/SessionProvider';
+import { BackendProvider } from './shared/backend/BackendContext';
 
 const root = createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <BrowserRouter basename={import.meta.env.BASE_URL}>
-      <App />
+      <BackendProvider createServices={createServices}>
+        <SessionProvider>
+          <App />
+        </SessionProvider>
+      </BackendProvider>
     </BrowserRouter>
   </React.StrictMode>,
 );

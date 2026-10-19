@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 
 import { Footer, Header } from './components';
 import Loader from './components/Loader/Loader';
+import ConsentGate from './features/accounts/ui/ConsentGate';
 
 import './styles/reset.css';
 import './styles/brand.css';
@@ -23,21 +24,23 @@ export default function App() {
     <div className="App">
       <Header />
       <Suspense fallback={<Loader loaderName="grid" />}>
-        <Routes>
-          <Route index element={<Home />} />
-          <Route path="/teachers" element={<Teachers />} />
-          <Route path="/teachers/:teacherId" element={<Teachers />} />
-          <Route path="/dances/*" element={<DanceGenres />} />
-          <Route path="/schedules" element={<Schedules />} />
-          <Route path="/contact" element={<Contact />} />
-          {/*
-            * Last, and matching whatever the ones above did not. Without it an
-            * address nobody recognises rendered the nav and the footer with
-            * nothing between them, which reads as a broken site rather than a
-            * wrong turn.
-            */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <ConsentGate>
+          <Routes>
+            <Route index element={<Home />} />
+            <Route path="/teachers" element={<Teachers />} />
+            <Route path="/teachers/:teacherId" element={<Teachers />} />
+            <Route path="/dances/*" element={<DanceGenres />} />
+            <Route path="/schedules" element={<Schedules />} />
+            <Route path="/contact" element={<Contact />} />
+            {/*
+              * Last, and matching whatever the ones above did not. Without it an
+              * address nobody recognises rendered the nav and the footer with
+              * nothing between them, which reads as a broken site rather than a
+              * wrong turn.
+              */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ConsentGate>
       </Suspense>
       <Footer />
     </div>

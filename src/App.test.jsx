@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 
 import App from './App';
+import SessionContext from './features/accounts/composition/SessionProvider';
+import BackendContext, { BackendProvider } from './shared/backend/BackendContext';
 
 // Every page is behind React.lazy, so rendering is not finished until the
 // route's chunk has resolved. Waiting here keeps that resolution inside the
@@ -70,5 +72,56 @@ describe('App', () => {
     await renderAt('/contact');
 
     expect(screen.getByRole('button', { name: /Info/ })).toBeInTheDocument();
+  });
+});
+
+describe('App with the backend disabled', () => {
+  // The default build: no env vars, so no kill switch to flip and nothing to create.
+  it('renders the public routes as before and creates no services', async () => {
+    const createServices = vi.fn();
+    render(
+      <MemoryRouter initialEntries={['/contact']}>
+        <BackendProvider createServices={createServices}>
+          <App />
+        </BackendProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: /Mapa/ }, { timeout: 5000 }))
+      .toBeInTheDocument();
+    expect(screen.getByText('Encuéntranos')).toHaveAttribute('aria-current', 'page');
+    expect(createServices).not.toHaveBeenCalled();
+  });
+});
+
+describe('App with a pending consent', () => {
+  const pendingSession = {
+    status: 'signed-in',
+    session: { userId: 'user-1', email: 'ana@example.test' },
+    profile: {
+      id: 'user-1', fullName: '', consentVersion: null, consentAt: null, isAdmin: false,
+    },
+    errorCode: null,
+    start: vi.fn(),
+    refresh: vi.fn(),
+    signOut: vi.fn(),
+  };
+
+  it('replaces the page with the consent screen and keeps the header', async () => {
+    window.sessionStorage.clear();
+    render(
+      <MemoryRouter initialEntries={['/contact']}>
+        <BackendContext.Provider value={{ enabled: true, services: { auth: {} } }}>
+          <SessionContext.Provider value={pendingSession}>
+            <App />
+          </SessionContext.Provider>
+        </BackendContext.Provider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Necesitamos tu consentimiento' }))
+      .toBeInTheDocument();
+    expect(screen.getByText('Inicio')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mapa/ })).not.toBeInTheDocument();
   });
 });
