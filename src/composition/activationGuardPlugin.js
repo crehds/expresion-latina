@@ -11,7 +11,8 @@
  *    which Vercel sets at build time).
  * 2. The backend is configured (a Supabase URL and a publishable key, neither
  *    blank): the account pages exist in this build.
- * 3. A value is still a bracketed placeholder.
+ * 3. A value is still unfilled: a bracketed placeholder, empty, only
+ *    whitespace, or not text at all.
  *
  * Any other build is untouched: a local build, a preview deployment, the e2e
  * builds and any build with the backend off, which has no account pages.
@@ -27,10 +28,11 @@ const PRODUCTION = 'production';
 
 const isBlank = (value) => typeof value !== 'string' || value.trim() === '';
 
-// A value that is not text counts as unfilled, never as filled in.
-const isPlaceholder = (value) => typeof value !== 'string' || /^\s*\[.*\]\s*$/.test(value);
+// A value that is not text, is empty or only whitespace, or is still a bracketed
+// placeholder counts as unfilled, never as filled in.
+const isPlaceholder = (value) => isBlank(value) || /^\s*\[.*\]\s*$/.test(value);
 
-/** The names of the values that are still a bracketed placeholder, in order. */
+/** The names of the values that are still unfilled (see above), in order. */
 export function findPlaceholders(values = {}) {
   return Object.entries(values)
     .filter(([, value]) => isPlaceholder(value))
@@ -63,9 +65,9 @@ export default function activationGuardPlugin({
       if (left.length > 0) {
         throw new Error(
           'This production build has the backend configured, but the privacy notice still has '
-          + `placeholders in brackets: ${left.join(', ')}. Replace them in ${file} with the real `
-          + 'data controller and contact (see the activation steps in supabase/README.md), then '
-          + 'deploy again.',
+          + `unfilled values (placeholders in brackets or blanks): ${left.join(', ')}. `
+          + `Replace them in ${file} with the real data controller and contact (see the `
+          + 'activation steps in supabase/README.md), then deploy again.',
         );
       }
     },

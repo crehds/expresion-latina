@@ -22,7 +22,9 @@ describe('findPlaceholders', () => {
     ['Academia S.A.C.', false],
     ['privacidad@example.test', false],
     ['Academia [Lima]', false],
-    ['', false],
+    ['', true],
+    ['   ', true],
+    ['\t\n', true],
   ])('treats %j as a placeholder: %s', (value, expected) => {
     expect(findPlaceholders({ CONTACT: value })).toEqual(expected ? ['CONTACT'] : []);
   });
@@ -101,6 +103,13 @@ describe('activationGuardPlugin', () => {
 
     expect(message).toContain('CONTACT');
     expect(message).not.toContain('CONTROLLER');
+  });
+
+  it('fails a production build with the backend on while a value is blank', () => {
+    expect(() => guard({ ...LIVE, values: { ...FILLED, CONTACT: '  ' } }).configResolved())
+      .toThrow(/CONTACT/);
+    expect(() => guard({ ...LIVE, values: { ...FILLED, CONTROLLER: '' } }).configResolved())
+      .toThrow(/CONTROLLER/);
   });
 
   it('lets a production build with the backend on through once both are filled in', () => {
