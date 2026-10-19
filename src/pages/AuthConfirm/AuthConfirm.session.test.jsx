@@ -1,8 +1,8 @@
 // The confirmation page with the real SessionProvider: what the member ends up
 // as when the link verified but loading the session into the app failed. The
 // unit tests of AuthConfirm fake the whole session; this one fakes only the auth
-// adapter, the way supabase-js behaves (a verified link stores the session and
-// tells every subscriber).
+// adapter, the way supabase-js stores a verified link's session (the subscriber is
+// deliberately not told, so the retry is the only way in).
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -26,7 +26,6 @@ const ok = (data = null) => ({ ok: true, data });
 function fakeSupabaseAuth({ loadFailures = 0 } = {}) {
   let remainingFailures = loadFailures;
   let stored = null;
-  let listener = null;
   return {
     getSession: vi.fn(async () => {
       if (remainingFailures > 0) {
@@ -35,14 +34,13 @@ function fakeSupabaseAuth({ loadFailures = 0 } = {}) {
       }
       return ok(stored);
     }),
-    subscribe: vi.fn(async (callback) => {
-      listener = callback;
-      return ok(() => { listener = null; });
-    }),
+    subscribe: vi.fn(async () => ok(() => {})),
     getOwnProfile: vi.fn(async () => ok(PROFILE)),
+    // A verified link stores the session but, here, does not tell the subscriber:
+    // only a second read of the stored session can sign the member in, so the
+    // tests below fail if the retry in startSession goes away.
     verifyEmailLink: vi.fn(async () => {
       stored = SESSION;
-      listener?.(SESSION);
       return ok();
     }),
     updatePassword: vi.fn(async () => ok()),
@@ -76,12 +74,14 @@ describe('AuthConfirm with the real session provider', () => {
 
   it('ends signed in on the home page when starting the session rejects once after a good email link', async () => {
     const user = userEvent.setup();
-    renderApp(fakeSupabaseAuth({ loadFailures: 1 }), '/auth/confirm?token_hash=hash-1&type=email');
+    const auth = fakeSupabaseAuth({ loadFailures: 1 });
+    renderApp(auth, '/auth/confirm?token_hash=hash-1&type=email');
 
     await user.click(screen.getByRole('button', { name: 'Confirmar mi correo' }));
 
     expect(await screen.findByTestId('home-status')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('home-status')).toHaveTextContent('signed-in'));
+    expect(auth.getSession).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
