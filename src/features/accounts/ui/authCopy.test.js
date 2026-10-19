@@ -13,7 +13,9 @@ import {
   DEFAULT_ERROR,
   NEW_PASSWORD_MESSAGES,
   PASSWORD_HINT,
+  RESEND_SENT,
   RESET_REQUEST_MESSAGES,
+  RESET_REQUEST_SENT,
   SIGN_IN_MESSAGES,
   SIGN_UP_MESSAGES,
   authErrorMessage,
@@ -131,6 +133,13 @@ describe('the sign-up and sign-in field messages', () => {
   it('tells a password problem the same way in the sign-up and in the new password form', () => {
     expect(NEW_PASSWORD_MESSAGES.password).toEqual(SIGN_UP_MESSAGES.password);
     expect(RESET_REQUEST_MESSAGES.email).toEqual(SIGN_UP_MESSAGES.email);
+  });
+
+  it('tells a reset request and a resend the same thing whether or not the account exists', () => {
+    expect(RESET_REQUEST_SENT)
+      .toBe('Si existe una cuenta con ese correo, te enviamos un enlace para restablecer tu contraseña.');
+    expect(RESEND_SENT)
+      .toBe('Si tu cuenta está pendiente de confirmación, te enviamos un nuevo correo.');
   });
 
   it('says the limits it enforces', () => {

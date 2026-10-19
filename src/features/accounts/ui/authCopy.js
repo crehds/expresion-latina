@@ -16,6 +16,10 @@ const PASSWORD_RULE = `${PASSWORD_MIN_LENGTH} caracteres, con letras y números.
 export const PASSWORD_HINT = `Mínimo ${PASSWORD_RULE}`;
 export const CONSENT_REQUIRED = 'Acepta el Aviso de privacidad para continuar.';
 export const CONFIRMATION_SENT = 'Te enviamos un correo para confirmar tu cuenta. Revisa tu bandeja de entrada.';
+// The same words whether or not the address has an account, so neither form can
+// be used to find out who is a member.
+export const RESET_REQUEST_SENT = 'Si existe una cuenta con ese correo, te enviamos un enlace para restablecer tu contraseña.';
+export const RESEND_SENT = 'Si tu cuenta está pendiente de confirmación, te enviamos un nuevo correo.';
 export const DEFAULT_ERROR = 'No pudimos completar la acción. Inténtalo de nuevo.';
 
 // A Map, so that an inherited name such as "constructor" is never a code.

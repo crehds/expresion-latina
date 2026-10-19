@@ -18,9 +18,11 @@ import { useContext, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackendContext from '../../../shared/backend/BackendContext';
 import { useSession } from '../composition/SessionProvider';
+import { RESULT_CODES } from '../../../shared/backend/resultCodes';
 import { validateSignIn } from '../domain/signupValidation';
 import AuthField from './AuthField';
 import { SIGN_IN_MESSAGES, authErrorMessage } from './authCopy';
+import ResendConfirmation from './ResendConfirmation';
 import useAuthRequest from './useAuthRequest';
 import './css/auth-forms.css';
 
@@ -88,33 +90,38 @@ export default function SignInForm() {
   };
 
   return (
-    <form className="auth-form" noValidate onSubmit={handleSubmit}>
-      {errorCode && (
-        <p className="auth-form__alert" role="alert">{authErrorMessage(errorCode)}</p>
+    <>
+      <form className="auth-form" noValidate onSubmit={handleSubmit}>
+        {errorCode && (
+          <p className="auth-form__alert" role="alert">{authErrorMessage(errorCode)}</p>
+        )}
+        <AuthField
+          label="Correo"
+          name="email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={setEmail}
+          error={messageFor('email')}
+          inputRef={emailRef}
+        />
+        <AuthField
+          label="Contraseña"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={setPassword}
+          error={messageFor('password')}
+          inputRef={passwordRef}
+        />
+        <button type="submit" className="auth-button auth-button--primary" disabled={busy}>
+          Ingresar
+        </button>
+      </form>
+      {errorCode === RESULT_CODES.EMAIL_NOT_CONFIRMED && (
+        <ResendConfirmation initialEmail={email} />
       )}
-      <AuthField
-        label="Correo"
-        name="email"
-        type="email"
-        autoComplete="email"
-        value={email}
-        onChange={setEmail}
-        error={messageFor('email')}
-        inputRef={emailRef}
-      />
-      <AuthField
-        label="Contraseña"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-        value={password}
-        onChange={setPassword}
-        error={messageFor('password')}
-        inputRef={passwordRef}
-      />
-      <button type="submit" className="auth-button auth-button--primary" disabled={busy}>
-        Ingresar
-      </button>
-    </form>
+    </>
   );
 }

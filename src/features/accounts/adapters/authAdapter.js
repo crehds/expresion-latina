@@ -139,6 +139,19 @@ export function createAuthAdapter(getClient, { fetchSettings = null } = {}) {
       () => null,
     ),
 
+    // Sends the confirmation email of a sign-up again, for a member whose link
+    // expired or never arrived. GoTrue answers the same way for an address with
+    // no pending sign-up, so the result says nothing about the account. Like the
+    // reset, where the link points is up to the email template.
+    resendConfirmation: ({ email, redirectTo }) => run(
+      (client) => client.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: redirectTo },
+      }),
+      () => null,
+    ),
+
     // Sets a new password for the signed-in member (including the one a recovery
     // link has just signed in). The password goes out with the request and never
     // comes back, not even in a failure.

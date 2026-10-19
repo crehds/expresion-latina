@@ -35,6 +35,7 @@ function fakeClient({
   resetError = null,
   updateError = null,
   verifyError = null,
+  resendError = null,
 } = {}) {
   const calls = {};
   const unsubscribe = vi.fn();
@@ -80,6 +81,10 @@ function fakeClient({
         return updateError
           ? { data: { user: null }, error: updateError }
           : { data: { user: RAW_SESSION.user }, error: null };
+      }),
+      resend: vi.fn(async (credentials) => {
+        calls.resend = credentials;
+        return resendError ? { data: NO_USER, error: resendError } : { data: NO_USER, error: null };
       }),
       verifyOtp: vi.fn(async (params) => {
         calls.verifyOtp = params;
@@ -450,6 +455,43 @@ describe('createAuthAdapter', () => {
     });
   });
 
+  describe('resendConfirmation', () => {
+    const REQUEST = { email: 'ana@example.test', redirectTo: 'https://app.example.test/auth/callback' };
+
+    it('asks for a new sign-up confirmation email for the address and returns nothing', async () => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).resendConfirmation(REQUEST);
+
+      expect(client.auth.resend).toHaveBeenCalledTimes(1);
+      expect(client.calls.resend).toStrictEqual({
+        type: 'signup',
+        email: 'ana@example.test',
+        options: { emailRedirectTo: 'https://app.example.test/auth/callback' },
+      });
+      expect(result).toEqual({ ok: true, data: null });
+    });
+
+    it.each([
+      ['over_email_send_rate_limit', 429, 'RATE_LIMITED'],
+      ['over_request_rate_limit', 429, 'RATE_LIMITED'],
+      ['email_address_invalid', 400, 'UNKNOWN'],
+    ])('maps the auth error %s (HTTP %i) to %s and never echoes the address', async (code, status, expected) => {
+      const result = await adapterFor(fakeClient({ resendError: authError(code, status) }))
+        .resendConfirmation(REQUEST);
+
+      expect(result).toEqual({ ok: false, code: expected });
+      expect(JSON.stringify(result)).not.toMatch(/ana@example|private detail/);
+    });
+
+    it('maps a transport failure to NETWORK', async () => {
+      const result = await adapterFor(fakeClient({ resendError: offline }))
+        .resendConfirmation(REQUEST);
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+    });
+  });
+
   describe('updatePassword', () => {
     it('sets the new password for the signed-in member and returns nothing', async () => {
       const client = fakeClient();
@@ -633,6 +675,7 @@ describe('createAuthAdapter', () => {
       ['signInWithPassword', (a) => a.signInWithPassword({ email: 'ana@example.test', password: 'x' })],
       ['signInWithGoogle', (a) => a.signInWithGoogle({ redirectTo: 'https://app.example.test/auth/callback' })],
       ['requestPasswordReset', (a) => a.requestPasswordReset({ email: 'ana@example.test', redirectTo: 'https://app.example.test/auth/confirm' })],
+      ['resendConfirmation', (a) => a.resendConfirmation({ email: 'ana@example.test', redirectTo: 'https://app.example.test/auth/callback' })],
       ['updatePassword', (a) => a.updatePassword({ password: 'abcdefg1' })],
       ['verifyEmailLink', (a) => a.verifyEmailLink({ tokenHash: 'hash-1', type: 'recovery' })],
     ];

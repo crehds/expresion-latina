@@ -1,5 +1,5 @@
 import {
-  act, render, screen, waitFor,
+  act, render, screen, waitFor, within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -251,6 +251,58 @@ describe('SignInForm', () => {
 
       expect(await screen.findByText('home page')).toBeInTheDocument();
       expect(signInWithPassword).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('when the address is not confirmed yet', () => {
+    const unconfirmed = () => vi.fn(async () => fail('EMAIL_NOT_CONFIRMED'));
+    const resendForm = () => screen.getByRole('form', { name: 'Reenviar confirmación' });
+
+    it('offers to send the confirmation email again, with the typed address', async () => {
+      const user = userEvent.setup();
+      const resendConfirmation = vi.fn(async () => ok());
+      renderForm({
+        auth: fakeAuth({ signInWithPassword: unconfirmed(), resendConfirmation }),
+      });
+
+      await fillAndSubmit(user);
+      await user.click(await within(await screen.findByRole('form', { name: 'Reenviar confirmación' }))
+        .findByRole('button', { name: 'Reenviar correo de confirmación' }));
+
+      expect(within(resendForm()).queryByRole('button', { name: 'Reenviar correo de confirmación' }))
+        .not.toBeInTheDocument();
+      expect(await within(resendForm()).findByRole('status'))
+        .toHaveTextContent('Si tu cuenta está pendiente de confirmación, te enviamos un nuevo correo.');
+      expect(resendConfirmation).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'ana@example.test' }),
+      );
+    });
+
+    it.each(['INVALID_CREDENTIALS', 'NETWORK', 'RATE_LIMITED', 'UNKNOWN'])('does not offer it after %s', async (code) => {
+      const user = userEvent.setup();
+      renderForm({
+        auth: fakeAuth({ signInWithPassword: vi.fn(async () => fail(code)) }),
+      });
+
+      await fillAndSubmit(user);
+
+      await screen.findByRole('alert');
+      expect(screen.queryByRole('form', { name: 'Reenviar confirmación' })).not.toBeInTheDocument();
+    });
+
+    it('takes the offer away when the next sign-in attempt starts', async () => {
+      const user = userEvent.setup();
+      const signInWithPassword = vi.fn()
+        .mockResolvedValueOnce(fail('EMAIL_NOT_CONFIRMED'))
+        .mockResolvedValueOnce(fail('INVALID_CREDENTIALS'));
+      renderForm({ auth: fakeAuth({ signInWithPassword }) });
+      await fillAndSubmit(user);
+      await screen.findByRole('form', { name: 'Reenviar confirmación' });
+
+      await user.click(submit());
+
+      await waitFor(() => expect(screen.queryByRole('form', { name: 'Reenviar confirmación' }))
+        .not.toBeInTheDocument());
     });
   });
 
