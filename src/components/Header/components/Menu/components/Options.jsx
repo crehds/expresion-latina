@@ -35,8 +35,10 @@ const OPTIONS = [{
 ];
 
 // The entries the session adds after the five public ones. While the backend is
-// off (status "disabled") and while the session loads there are none: a visitor
-// must not be offered a sign-in that is about to turn into an account link.
+// off (status "disabled") and while a session loads there are none: a visitor
+// must not be offered a sign-in that is about to turn into an account link. A
+// stored session starts as "loading", so "idle" only means that nothing is
+// stored or loaded, and a visitor can sign in.
 // "/admin/members" arrives with the admin pages (T7) and answers not-found until
 // then.
 function sessionOptions({ status, profile }) {

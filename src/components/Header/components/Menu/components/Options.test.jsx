@@ -1,8 +1,29 @@
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import SessionContext from '../../../../../features/accounts/composition/SessionProvider';
+import BackendContext from '../../../../../shared/backend/BackendContext';
+import { hasStoredSession } from '../../../../../shared/backend/client';
+import SessionContext, { SessionProvider } from '../../../../../features/accounts/composition/SessionProvider';
 import Options from './Options';
+
+vi.mock('../../../../../shared/backend/client', async (importOriginal) => ({
+  ...(await importOriginal()),
+  hasStoredSession: vi.fn(() => false),
+}));
+
+// Every entry name ever rendered, even one replaced right away.
+const rendered = vi.hoisted(() => []);
+vi.mock('./Option', async (importOriginal) => {
+  const { default: Real } = await importOriginal();
+  return {
+    default: ({
+      location, name, onNavigate, path,
+    }) => {
+      rendered.push(name);
+      return <Real location={location} name={name} onNavigate={onNavigate} path={path} />;
+    },
+  };
+});
 
 const FIVE = ['Inicio', 'Profesores', 'Clases', 'Horario', 'Encuéntranos'];
 
@@ -84,5 +105,29 @@ describe('Options', () => {
     });
 
     expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  describe('with the real session provider', () => {
+    function renderWithProvider(stored) {
+      hasStoredSession.mockReturnValue(stored);
+      rendered.length = 0;
+      const auth = { getSession: vi.fn(() => new Promise(() => {})) };
+      render(
+        <MemoryRouter>
+          <BackendContext.Provider value={{ enabled: true, services: { auth } }}>
+            <SessionProvider><Options onNavigate={vi.fn()} /></SessionProvider>
+          </BackendContext.Provider>
+        </MemoryRouter>,
+      );
+      return rendered;
+    }
+
+    it('never shows "Ingresar" while a stored session loads', () => {
+      expect(renderWithProvider(true)).not.toContain('Ingresar');
+    });
+
+    it('shows "Ingresar" when no session is stored', () => {
+      expect(renderWithProvider(false)).toContain('Ingresar');
+    });
   });
 });

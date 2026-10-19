@@ -38,6 +38,9 @@ const IDLE = {
 const SIGNED_OUT = {
   status: 'signed-out', session: null, profile: null, errorCode: null,
 };
+const LOADING = {
+  status: 'loading', session: null, profile: null, errorCode: null,
+};
 const failure = (code, session = null) => ({
   status: 'error', session, profile: null, errorCode: code,
 });
@@ -45,7 +48,8 @@ const failure = (code, session = null) => ({
 export function SessionProvider({ children }) {
   const { enabled, services } = useContext(BackendContext);
   const auth = enabled && services ? services.auth : null;
-  const [state, setState] = useState(IDLE);
+  // A stored session is loaded right away, so it starts as loading, not idle.
+  const [state, setState] = useState(() => (auth && hasStoredSession() ? LOADING : IDLE));
 
   // The session the state was last loaded for, the shared load, the auth
   // subscription, and a counter that retires work started before an unmount.

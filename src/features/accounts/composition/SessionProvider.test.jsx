@@ -47,10 +47,13 @@ function fakeAuth(overrides = {}) {
 }
 
 const seen = { current: null };
+// Every status the provider rendered, in order, the first render included.
+const renders = [];
 
 function Probe() {
   const value = useSession();
   seen.current = value;
+  renders.push(value.status);
   return (
     <output data-testid="status">{value.status}</output>
   );
@@ -72,6 +75,7 @@ const waitForStatus = (expected) => waitFor(() => expect(status()).toBe(expected
 beforeEach(() => {
   hasStoredSession.mockReset();
   seen.current = null;
+  renders.length = 0;
 });
 
 describe('useSession without a provider', () => {
@@ -111,6 +115,22 @@ describe('SessionProvider while the backend is disabled', () => {
 });
 
 describe('SessionProvider while the backend is enabled', () => {
+  it('renders as loading from the very first render when a session is stored', async () => {
+    hasStoredSession.mockReturnValue(true);
+    renderWith();
+
+    expect(renders[0]).toBe('loading');
+    expect(renders).not.toContain('idle');
+    await waitForStatus('signed-in');
+  });
+
+  it('renders as idle from the very first render when no session is stored', () => {
+    hasStoredSession.mockReturnValue(false);
+    renderWith();
+
+    expect(renders).toEqual(['idle']);
+  });
+
   it('stays idle and loads nothing when no session is stored', () => {
     hasStoredSession.mockReturnValue(false);
     const { auth } = renderWith();
