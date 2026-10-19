@@ -1,0 +1,70 @@
+# Runs the pgTAP suite against the local Supabase stack for every change
+# that touches supabase/, scripts/db/ or package.json. This is the only
+# place the Database Security Contract (RLS, grants, the catalog privilege
+# guard) gets proven: Vitest only mocks the Supabase client and cannot
+# exercise real Postgres RLS.
+name: DB tests
+
+on:
+  pull_request:
+    paths:
+      - supabase/**
+      - scripts/db/**
+      - package.json
+      - .github/workflows/db-tests.yml
+  push:
+    branches: [develop, main]
+    paths:
+      - supabase/**
+      - scripts/db/**
+      - package.json
+      - .github/workflows/db-tests.yml
+
+# Least privilege: this job only reads the repository and talks to the
+# Supabase CLI's own Docker containers, so it needs no write access at all.
+permissions:
+  contents: read
+
+jobs:
+  pgtap:
+    name: pgTAP (supabase test db)
+    runs-on: ubuntu-latest
+    # The stack pull, `db start` and pgTAP run are usually a couple of
+    # minutes; this bounds a stuck Docker pull or a hung container instead
+    # of running until the workflow's own default limit.
+    timeout-minutes: 30
+
+    steps:
+      - name: Traer el repositorio
+        uses: actions/checkout@v4
+
+      # Only for the helper-script unit tests below: they import node:assert
+      # and node:test directly and have no dependency on the installed
+      # packages, so this step runs no `npm ci` -- verified by reading
+      # scripts/db/__tests__/*.test.mjs, which imports only node builtins
+      # and sibling files under scripts/db/.
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Correr los tests de scripts/db
+        run: node --test scripts/db/__tests__/*.test.mjs
+
+      # Pinned to the exact same CLI build `npm run test:db` uses locally
+      # (scripts/db/test-db.mjs), so a pgTAP failure reproduces identically
+      # in both places. Bump the version in both places together.
+      - name: Preparar Supabase CLI
+        uses: supabase/setup-cli@v3.0.1
+        with:
+          version: 2.117.0
+
+      # A fresh GitHub-hosted runner never has a previous database volume,
+      # so `db start` alone already applies every migration on disk; unlike
+      # `npm run test:db` locally, there is nothing here for `db reset` to
+      # undo.
+      - name: Iniciar la base de datos local
+        run: supabase db start
+
+      - name: Correr el suite pgTAP
+        run: supabase test db

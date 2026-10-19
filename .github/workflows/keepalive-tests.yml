@@ -1,0 +1,52 @@
+# Proves scripts/ci/keepalive-ping.sh -- the same script
+# .github/workflows/keepalive.yml runs on its daily schedule -- against
+# every branch of its own logic (KEEPALIVE_STRICT validation, and every
+# HTTP/transport outcome) using a local stub server, before a change to
+# either file ever reaches a scheduled run.
+name: Keep-alive tests
+
+on:
+  pull_request:
+    paths:
+      - scripts/ci/**
+      - .github/workflows/keepalive.yml
+      - .github/workflows/keepalive-tests.yml
+  push:
+    branches: [develop, main]
+    paths:
+      - scripts/ci/**
+      - .github/workflows/keepalive.yml
+      - .github/workflows/keepalive-tests.yml
+
+# Least privilege: this job only reads the repository and talks to a
+# stub HTTP server it starts on 127.0.0.1 itself, so it needs no write
+# access at all.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test the keep-alive ping script
+    runs-on: ubuntu-latest
+    # The suite itself budgets under a minute (curl's own retry backoff
+    # is the slowest part of it); this bounds a hung runner instead of
+    # running until the workflow's own default limit.
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # No dependency on the installed npm packages: the test file
+      # imports only node:test, node:assert and other node builtins (the
+      # same rule scripts/db/__tests__ follows, see
+      # .github/workflows/db-tests.yml), so this step runs no `npm ci`.
+      - name: Prepare Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Run the keep-alive script tests
+        run: node --test scripts/ci/__tests__/*.test.mjs
