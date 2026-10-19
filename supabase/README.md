@@ -128,10 +128,61 @@ update public.profiles set is_admin = true where id = (
   database, and signs in again with the password. Then it asks for a
   password reset from the login page, opens the link of the recovery email,
   presses "Continuar", sets a new password, and checks that the new password
-  signs in and the old one does not. It deletes that account and its emails
-  afterwards, whether it passes or not. It needs the
+  signs in and the old one does not. Last it drives the account page: the
+  menu shows "Mi cuenta" and no "Ingresar", the page shows the name, the
+  email and the consent on record, "Cerrar sesión" brings "Ingresar" back, a
+  new sign-in reaches the page again, and "Eliminar mi cuenta" erases the
+  auth user and its profile (checked in the database) so that account can no
+  longer sign in. It deletes the account and its emails afterwards (if the
+  journey did not already), whether it passes or not. It needs the
   stack running (see "Bootstrapping") and port 3000 free, and it is not part
   of `npm run test:e2e` or of CI, which has no stack.
+
+### Manual checklist (Mailpit)
+
+`npm run test:e2e:auth` is the automated version of the first four steps and
+of the last one. Run this by hand after changing an email template, the Auth
+settings in `config.toml` or the account pages. Start the stack and the app
+(`npm run dev`, with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
+pointing at it), and keep Mailpit open (`http://127.0.0.1:54324`).
+
+1. **Sign-up confirmation.** On `/login` press "Crear cuenta", fill the form,
+   tick the privacy checkbox and submit. Expect: the message "Te enviamos un
+   correo para confirmar tu cuenta." In Mailpit, one email with the subject
+   "Confirma tu cuenta de Expresión Latina" whose link starts with
+   `http://localhost:3000/auth/confirm?token_hash=`. Open it: the page shows
+   "Confirmar correo" and nothing is verified yet (no session is stored). Press
+   "Confirmar mi correo": you land on the home page signed in, the menu shows
+   "Mi cuenta", and no consent screen appears.
+2. **Used or expired link.** Open the same link again and press the button.
+   Expect: "El enlace venció o ya se usó." and the form "Reenviar correo de
+   confirmación".
+3. **Resend.** Sign up with a second address, do not confirm it, then open the
+   expired-link page or try to sign in. Press "Reenviar correo de confirmación"
+   and expect "Si tu cuenta está pendiente de confirmación, te enviamos un
+   nuevo correo." plus a new email in Mailpit. For an address that never
+   signed up the message is the same, and no email arrives.
+4. **Password reset.** On `/login` press "¿Olvidaste tu contraseña?", type the
+   email and press "Enviar enlace". Expect "Si existe una cuenta con ese
+   correo, te enviamos un enlace para restablecer tu contraseña." (the same
+   text for an unknown address, with no email) and an email with the subject
+   "Restablece tu contraseña de Expresión Latina". Open its link, press
+   "Continuar", and set a new password twice: "Tu contraseña se actualizó."
+   The old password no longer signs in, the new one does. A used or expired
+   recovery link shows "El enlace venció o ya se usó." with "Pedir un enlace
+   nuevo".
+5. **Other devices.** Sign in on two browsers, change the password in one
+   from `/account` ("Cambiar contraseña"). Expect "Tu contraseña se
+   actualizó." there, and the other browser to be signed out the next time it
+   refreshes its session.
+6. **Sign out.** On `/account` press "Cerrar sesión": you go to the home page
+   and the menu shows "Ingresar". The other browser stays signed in.
+7. **Account deletion.** On `/account` press "Eliminar mi cuenta", then "Cancelar"
+   (nothing changes), then again "Eliminar mi cuenta" and "Sí, eliminar mi
+   cuenta". Expect "Tu cuenta fue eliminada." with a single link "Ir al
+   inicio" (not the login page). In the database the `auth.users` row and
+   its `public.profiles` row are gone, and signing in with that account
+   answers "Correo o contraseña incorrectos."
 
 ## Production runbook
 

@@ -18,9 +18,11 @@
  *     on, so on that page those requests are expected and only the policy
  *     violations count.
  *
- * The privacy notice and the email link page (/auth/confirm, visited with no
- * token, so it shows its invalid-link state) exist only while the feature is
- * on, so the first build also visits them, expecting the not-found page.
+ * The privacy notice, the email link page (/auth/confirm, visited with no
+ * token, so it shows its invalid-link state) and the account page (/account,
+ * which sends a visitor with no session to the login page) exist only while the
+ * feature is on, so the first build also visits them, expecting the not-found
+ * page.
  *
  * It reads the tracked content as it is and writes nothing tracked: each build
  * goes to a temporary directory that is removed afterwards. Requests to any
@@ -67,6 +69,9 @@ const PRIVACY_HEADING = 'Aviso de privacidad';
 // Opened with no token, so it shows its invalid-link state without any request.
 const CONFIRM_PATH = '/auth/confirm';
 const CONFIRM_HEADING = 'Enlace no válido';
+// With the feature off it is not found; with it on and no session it redirects
+// to the login page.
+const ACCOUNT_PATH = '/account';
 
 // The privacy notice goes before the login page: the login page's retries of a
 // request that fails can land after its visit, and the check that attributes a
@@ -79,6 +84,7 @@ const VARIANTS = [
     featureRoutes: [
       { path: PRIVACY_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
       { path: CONFIRM_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
+      { path: ACCOUNT_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
     ],
   },
   {
@@ -92,6 +98,9 @@ const VARIANTS = [
       { path: PRIVACY_PATH, heading: PRIVACY_HEADING, usesBackend: false },
       { path: CONFIRM_PATH, heading: CONFIRM_HEADING, usesBackend: false },
       { path: '/login', heading: 'Ingresar', usesBackend: true },
+      // No session is stored, so the account page starts one (it loads supabase-js
+      // by design) and sends the visitor to the login page.
+      { path: ACCOUNT_PATH, heading: 'Ingresar', usesBackend: true },
     ],
   },
 ];
@@ -275,7 +284,7 @@ async function main() {
     '\nNinguna ruta pública viola la política de seguridad, con la función apagada y encendida, '
     + 'ni tampoco el aviso de privacidad ni la página del enlace del correo (no encontrados con la '
     + 'función apagada, sin pedir nada al backend con la función encendida) ni la página de '
-    + 'ingreso con la función encendida.',
+    + 'ingreso ni la de la cuenta, que sin sesión lleva al ingreso, con la función encendida.',
   );
 }
 

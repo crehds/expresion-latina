@@ -14,8 +14,12 @@
  * real "wrong credentials" answer map to its message. Last, the reset leg: it
  * asks for a reset from the login page, opens the link of the recovery email,
  * presses "Continuar", sets a new password, and checks that the new password
- * signs in and the old one does not. A `securitypolicyviolation` anywhere in
- * the journey is a failure.
+ * signs in and the old one does not. Then the account leg: the menu offers "Mi
+ * cuenta" and no "Ingresar", the account page shows the name, the email and the
+ * consent on record, "Cerrar sesión" brings "Ingresar" back, a new sign-in
+ * reaches the page again, and "Eliminar mi cuenta" erases the auth user and its
+ * profile, after which that account can no longer sign in. A
+ * `securitypolicyviolation` anywhere in the journey is a failure.
  *
  * The page is served on port 3000 and browsed as http://localhost:3000, never
  * 127.0.0.1: supabase/config.toml names that origin as the site URL and in the
@@ -25,7 +29,8 @@
  * It needs the local stack (Docker) and, unlike the other checks, is not part
  * of `npm run test:e2e` or of CI. It creates one account, e2e-auth-<time>@
  * example.test, and removes it again, with its profile and its email, whether
- * the journey passes or not.
+ * the journey passes or not (the account leg deletes it itself; the cleanup
+ * then finds nothing left to remove).
  *
  * Usage: npm run test:e2e:auth
  */
@@ -337,8 +342,89 @@ async function resetPassword(page) {
   await signedInAs(page, EMAIL);
 }
 
+// The signed-in member's menu, which in a desktop-wide window is the inline bar.
+const mainMenu = (page) => page.getByRole('navigation', { name: 'Principal' });
+
+async function accountLeg(page) {
+  console.log('Comprobando el menú de un miembro con sesión...');
+  await mainMenu(page).getByRole('link', { name: 'Mi cuenta' }).waitFor();
+  assert.equal(
+    await mainMenu(page).getByRole('link', { name: 'Ingresar' }).count(),
+    0,
+    'el menú ofrece "Ingresar" a un miembro que ya ingresó',
+  );
+
+  console.log('Abriendo la página de la cuenta...');
+  await mainMenu(page).getByRole('link', { name: 'Mi cuenta' }).click();
+  await page.waitForURL(`${SITE}/account`);
+  await page.getByRole('heading', { level: 1, name: 'Mi cuenta' }).waitFor();
+  await page.getByText(NAME, { exact: true }).waitFor();
+  await page.getByText(EMAIL, { exact: true }).waitFor();
+  await page.getByText(`Aceptaste el aviso de privacidad versión ${NOTICE_VERSION} el `).waitFor();
+
+  console.log('Cerrando la sesión de este dispositivo...');
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+  await expectHome(page, 'el cierre de sesión');
+  await mainMenu(page).getByRole('link', { name: 'Ingresar' }).waitFor();
+  assert.equal(
+    await mainMenu(page).getByRole('link', { name: 'Mi cuenta' }).count(),
+    0,
+    'el menú sigue ofreciendo "Mi cuenta" después de cerrar la sesión',
+  );
+  assert.equal(
+    await page.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY),
+    null,
+    'cerrar la sesión no borró la sesión guardada',
+  );
+
+  console.log('Ingresando otra vez desde el menú y volviendo a la cuenta...');
+  await mainMenu(page).getByRole('link', { name: 'Ingresar' }).click();
+  await page.getByRole('heading', { level: 1, name: 'Ingresar' }).waitFor();
+  await page.getByLabel('Correo', { exact: true }).fill(EMAIL);
+  await page.getByLabel('Contraseña', { exact: true }).fill(NEW_PASSWORD);
+  await page.getByRole('button', { name: 'Ingresar' }).click();
+  await expectHome(page, 'el ingreso desde el menú');
+  await mainMenu(page).getByRole('link', { name: 'Mi cuenta' }).click();
+  await page.getByRole('heading', { level: 1, name: 'Mi cuenta' }).waitFor();
+
+  const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
+  assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de eliminarla');
+
+  console.log('Eliminando la cuenta con su confirmación...');
+  await page.getByRole('button', { name: 'Eliminar mi cuenta' }).click();
+  await page.getByRole('button', { name: 'Sí, eliminar mi cuenta' }).click();
+  try {
+    await page.getByText('Tu cuenta fue eliminada.').waitFor();
+  } catch {
+    throw new Error(`no apareció el aviso de la cuenta eliminada${await visibleAlerts(page)}`);
+  }
+  await page.getByRole('link', { name: 'Ir al inicio' }).waitFor();
+  assert.equal(new URL(page.url()).pathname, '/account', 'la página salió de la cuenta eliminada');
+
+  console.log('Comprobando que la cuenta y su perfil ya no están en la base...');
+  assert.equal(
+    psql(`select count(*) from auth.users where id = '${userId}'`),
+    '0',
+    'la cuenta sigue en auth.users después de eliminarla',
+  );
+  assert.equal(
+    psql(`select count(*) from public.profiles where id = '${userId}'`),
+    '0',
+    'el perfil sigue en la base después de eliminar la cuenta',
+  );
+
+  console.log('Comprobando que ya no se puede ingresar con esa cuenta...');
+  await page.goto(`${SITE}/login`);
+  await page.getByLabel('Correo', { exact: true }).fill(EMAIL);
+  await page.getByLabel('Contraseña', { exact: true }).fill(NEW_PASSWORD);
+  await page.getByRole('button', { name: 'Ingresar' }).click();
+  await page.getByRole('alert').filter({ hasText: 'Correo o contraseña incorrectos.' }).waitFor();
+}
+
 // Removes exactly the account this run created (its profile goes with it, by
-// cascade) and its emails, and says so if it could not.
+// cascade) and its emails, and says so if it could not. The account leg may have
+// deleted the account already: that is not a problem, only an account that is
+// still there afterwards is.
 async function cleanUp(problems) {
   try {
     psql(`delete from auth.users where email = '${EMAIL}'`);
@@ -419,6 +505,7 @@ async function main() {
     await confirmByEmail(page);
     await signInAgain(page);
     await resetPassword(page);
+    await accountLeg(page);
   } catch (cause) {
     problems.push(cause.message);
   } finally {
@@ -450,7 +537,8 @@ async function main() {
   console.log(
     '\nEl registro real funciona: cuenta creada, correo confirmado con el botón, consentimiento '
     + 'guardado, enlace usado rechazado, ingreso con la contraseña, contraseña restablecida con '
-    + 'el correo de recuperación y ninguna violación de la política de seguridad.',
+    + 'el correo de recuperación, página de la cuenta, cierre de sesión, cuenta eliminada y ninguna '
+    + 'violación de la política de seguridad.',
   );
 }
 
