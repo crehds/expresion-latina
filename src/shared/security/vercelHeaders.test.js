@@ -10,8 +10,27 @@ describe('vercel.json', () => {
     expect(Object.keys(config).sort()).toEqual(['headers', 'rewrites']);
   });
 
-  it('rewrites every path that matches no file to index.html so deep links work', () => {
-    expect(config.rewrites).toEqual([{ source: '/(.*)', destination: '/index.html' }]);
+  it('rewrites client routes to index.html but never /assets/ or a path with a dot', () => {
+    expect(config.rewrites).toEqual([
+      { source: '/((?!assets/)[^.]*)', destination: '/index.html' },
+    ]);
+  });
+
+  // Approximates path-to-regexp (not installed here) for this group-only source.
+  const rewriteMatcher = new RegExp(`^${config.rewrites[0].source}$`);
+
+  it.each([
+    ['/', true],
+    ['/schedules', true],
+    ['/teachers/some-slug', true],
+    ['/auth/callback', true],
+    ['/assets/index-abc123.js', false],
+    ['/assets/', false],
+    ['/manifest.json', false],
+    ['/logoELico.ico', false],
+    ['/some-prefix/assets/index-abc123.js', false],
+  ])('rewrite of %s is %s', (path, rewritten) => {
+    expect(rewriteMatcher.test(path)).toBe(rewritten);
   });
 
   it('sets exactly the three security headers on every path', () => {

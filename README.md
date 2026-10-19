@@ -101,21 +101,20 @@ root-relative asset paths. That happens by default: `package.json` deliberately
 carries no `homepage` field, and `base` in `vite.config.js` is `/`.
 
 Do not change either without changing the host to match. A base path the host
-does not serve from produces a blank page with no useful error: the browser
-requests `/some-prefix/assets/index-abc123.js`, the host has no such file, its
-SPA fallback answers with `index.html`, and the browser reports
+does not serve from produces a blank page: the browser requests
+`/some-prefix/assets/index-abc123.js`, the host has no such file, and the
+module script and `manifest.json` come back as 404s in the network tab and in
+Vercel's logs. The app never starts, so nothing else is reported. That is the
+signature of a base-path mismatch, not of a broken bundle. (A host with a
+catch-all fallback would instead answer with `index.html` and the console would
+show `Uncaught SyntaxError: Unexpected token '<'`.)
 
-```
-Uncaught SyntaxError: Unexpected token '<'
-```
-
-because it is parsing HTML as JavaScript. `manifest.json` fails the same way.
-That is the signature of a base-path mismatch, not of a broken bundle.
-
-Client-side routes work because `vercel.json` rewrites every path that matches
-no file to `index.html`. Vercel serves real files first, so assets are
-unaffected. Vercel's Vite preset does not do this on its own, so deep links
-break without that rewrite.
+Client-side routes work because `vercel.json` rewrites them to `index.html`.
+The rule skips `/assets/` and every path containing a dot, so a missing file
+(for example a hashed chunk requested by a tab opened before a redeploy) stays
+a 404 instead of becoming an HTML page that the browser refuses as a script.
+Vercel's Vite preset does not add the rewrite on its own, so deep links break
+without it. Client routes must therefore never contain a dot.
 
 ### Node version
 

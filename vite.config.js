@@ -13,8 +13,8 @@ export default defineConfig(({ mode }) => {
 
     // The site is served from the root of its domain on Vercel. Changing this
     // without changing the host produces a blank page whose only symptom is
-    // "Unexpected token '<'", because the host answers the missing asset with
-    // index.html and the browser parses it as JavaScript.
+    // 404s on the module script and manifest; vercel.json never rewrites
+    // /assets/ or dotted paths to index.html.
     base: '/',
 
     build: {
