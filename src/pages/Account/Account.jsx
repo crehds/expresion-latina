@@ -5,7 +5,9 @@ import { Page } from '../../components';
 import { useSession } from '../../features/accounts/composition/SessionProvider';
 import DeleteAccount from '../../features/accounts/ui/DeleteAccount';
 import NewPassword from '../../features/accounts/ui/NewPassword';
+import { authErrorMessage } from '../../features/accounts/ui/authCopy';
 import startSession from '../../features/accounts/ui/startSession';
+import { RESULT_CODES } from '../../shared/backend/resultCodes';
 
 import './css/account.css';
 
@@ -38,6 +40,8 @@ export default function Account() {
   // Set before this device signs out, so the signed-out status that follows goes
   // home (the button's destination) and not to the login page.
   const leavingRef = useRef(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutFailed, setSignOutFailed] = useState(false);
 
   useEffect(() => {
     startSession({ start });
@@ -78,10 +82,23 @@ export default function Account() {
     );
   }
 
+  // A failed sign-out leaves the member here, with a way to try again; a
+  // second click while one is running is ignored.
   const signOut = async () => {
+    if (leavingRef.current) {
+      return;
+    }
     leavingRef.current = true;
-    await session.signOut();
-    navigate('/');
+    setSigningOut(true);
+    setSignOutFailed(false);
+    try {
+      await session.signOut();
+      navigate('/');
+    } catch {
+      leavingRef.current = false;
+      setSigningOut(false);
+      setSignOutFailed(true);
+    }
   };
 
   return (
@@ -103,7 +120,17 @@ export default function Account() {
             <p className="text-md account__text">{consentLine(profile)}</p>
           )}
           <Link className="account__link" to="/privacy">Ver el aviso de privacidad</Link>
-          <button type="button" className="auth-button account__button" onClick={signOut}>
+          {signOutFailed && (
+            <p className="text-md account__message" role="alert">
+              {authErrorMessage(RESULT_CODES.UNKNOWN)}
+            </p>
+          )}
+          <button
+            type="button"
+            className="auth-button account__button"
+            onClick={signOut}
+            disabled={signingOut}
+          >
             Cerrar sesión
           </button>
         </section>

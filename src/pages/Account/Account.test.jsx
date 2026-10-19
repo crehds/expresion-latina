@@ -1,5 +1,5 @@
 import {
-  render, screen, waitFor, within,
+  act, render, screen, waitFor, within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PropTypes from 'prop-types';
@@ -46,21 +46,22 @@ function fakeAuth(overrides = {}) {
 // A session whose status really changes: `signOut` moves it to signed-out, the
 // way the provider does, so the page meets the redirect it has to survive.
 function StatefulSession({
-  initial, start, signOutSpy, children,
+  initial, start, signOutSpy, signOutImpl = undefined, exposeSetState, children,
 }) {
   const [state, setState] = useState(initial);
+  useEffect(() => { exposeSetState(setState); }, [exposeSetState]);
   const value = useMemo(() => ({
     ...state,
     start,
     refresh: vi.fn(async () => {}),
-    signOut: vi.fn(async () => {
+    signOut: signOutImpl ?? vi.fn(async () => {
       signOutSpy();
       setState(SIGNED_OUT);
       // The page renders the signed-out status before the caller resumes, which
       // is the order the redirect guard has to survive.
       await new Promise((resolve) => { setTimeout(resolve, 0); });
     }),
-  }), [state, start, signOutSpy]);
+  }), [state, start, signOutSpy, signOutImpl]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
@@ -68,6 +69,8 @@ StatefulSession.propTypes = {
   initial: PropTypes.shape({ status: PropTypes.string.isRequired }).isRequired,
   start: PropTypes.func.isRequired,
   signOutSpy: PropTypes.func.isRequired,
+  signOutImpl: PropTypes.func,
+  exposeSetState: PropTypes.func.isRequired,
   children: PropTypes.node.isRequired,
 };
 
@@ -75,12 +78,20 @@ function renderAccount({
   auth = fakeAuth(),
   initial = SIGNED_IN,
   start = vi.fn(async () => {}),
+  signOutImpl,
 } = {}) {
   const signOutSpy = vi.fn();
+  const handle = { setState: null };
   render(
     <MemoryRouter initialEntries={['/account']}>
       <BackendContext.Provider value={{ enabled: true, services: { auth } }}>
-        <StatefulSession initial={initial} start={start} signOutSpy={signOutSpy}>
+        <StatefulSession
+          initial={initial}
+          start={start}
+          signOutSpy={signOutSpy}
+          signOutImpl={signOutImpl}
+          exposeSetState={(setState) => { handle.setState = setState; }}
+        >
           <Routes>
             <Route path="/account" element={<Account />} />
             <Route path="/login" element={<LoginPage />} />
@@ -91,7 +102,9 @@ function renderAccount({
       </BackendContext.Provider>
     </MemoryRouter>,
   );
-  return { auth, start, signOutSpy };
+  return {
+    auth, start, signOutSpy, handle,
+  };
 }
 
 describe('Account', () => {
@@ -199,6 +212,50 @@ describe('Account', () => {
       expect(await screen.findByText('home page')).toBeInTheDocument();
       expect(signOutSpy).toHaveBeenCalledTimes(1);
       expect(loginVisits).not.toHaveBeenCalled();
+    });
+
+    describe('when signing out fails', () => {
+      it('shows an alert, stays on the page and lets the member try again', async () => {
+        const user = userEvent.setup();
+        const signOutImpl = vi.fn().mockRejectedValue(new Error('offline'));
+        renderAccount({ signOutImpl });
+
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos completar la acción. Inténtalo de nuevo.');
+        expect(screen.getByText('ana@example.test')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+        expect(signOutImpl).toHaveBeenCalledTimes(2);
+      });
+
+      it('sends the member to the login page if the session ends later on', async () => {
+        const user = userEvent.setup();
+        const { handle } = renderAccount({
+          signOutImpl: vi.fn().mockRejectedValue(new Error('offline')),
+        });
+
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+        await screen.findByRole('alert');
+        act(() => handle.setState(SIGNED_OUT));
+
+        expect(await screen.findByText('login page')).toBeInTheDocument();
+        expect(screen.queryByText('Cargando tu cuenta…')).not.toBeInTheDocument();
+      });
+
+      it('calls signOut once on a double click and disables the button meanwhile', async () => {
+        const user = userEvent.setup();
+        let finish;
+        const signOutImpl = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+        renderAccount({ signOutImpl });
+        const button = screen.getByRole('button', { name: 'Cerrar sesión' });
+
+        await user.dblClick(button);
+
+        expect(signOutImpl).toHaveBeenCalledTimes(1);
+        expect(button).toBeDisabled();
+        await act(async () => { finish(); });
+      });
     });
 
     it('changes the password and says so, replacing the form', async () => {
