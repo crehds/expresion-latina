@@ -65,17 +65,24 @@ fi
 # (408, 429, 500, 502, 503, 504). A 401 (wrong key) or 404 (wrong URL) is
 # neither, so it fails after exactly one request instead of wasting
 # three retries before the run shows red.
+#
+# The response body goes to a regular temporary file, not /dev/null: before
+# each retry curl truncates its --output file so the next attempt does not
+# append to the previous body, and on Linux truncating /dev/null fails, which
+# made every retry end with curl exit 23 instead of trying again.
+body_file=$(mktemp)
+trap 'rm -f "$body_file"' EXIT
 set +e
 http_status=$(curl --silent --show-error --request POST \
   --connect-timeout 10 --max-time 20 --retry 3 --retry-all-errors \
-  --output /dev/null --write-out '%{http_code}' \
+  --output "$body_file" --write-out '%{http_code}' \
   "$SUPABASE_URL/rest/v1/rpc/keepalive" \
   --header "apikey: $SUPABASE_PUBLISHABLE_KEY")
 curl_exit=$?
 set -e
 
 if [ "$curl_exit" -ne 0 ]; then
-  echo "::error::Keep-alive ping failed before any HTTP response was received (curl exit $curl_exit); see curl's own error above."
+  echo "::error::Keep-alive ping failed: the final attempt failed at the transport level (curl exit $curl_exit); see curl's own error above."
   exit "$curl_exit"
 fi
 
