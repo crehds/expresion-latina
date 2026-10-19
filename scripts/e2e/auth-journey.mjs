@@ -1,15 +1,21 @@
 /*
- * Drives a real sign-up through the local Supabase stack, in a real browser.
+ * Drives a real sign-up and a real password reset through the local Supabase
+ * stack, in a real browser.
  *
  * The unit tests fake the backend, and the CSP check fakes its origin, so
  * neither proves that what the app sends is what Supabase Auth accepts. This
  * does: it builds the site against the local stack, opens the login page, signs
- * a new account up, reads the confirmation email from Mailpit, follows its
- * link in the same page, and checks that the member ends on the home page
- * signed in with no consent screen, and that the profile recorded the consent
- * of the current notice version. It then signs in again with the password, once
- * with a wrong one, to see the real "wrong credentials" answer map to its
- * message. A `securitypolicyviolation` anywhere in the journey is a failure.
+ * a new account up, reads the confirmation email from Mailpit, opens its
+ * /auth/confirm link, presses "Confirmar mi correo", and checks that the member
+ * ends on the home page signed in with no consent screen, and that the profile
+ * recorded the consent of the current notice version. It opens the same link
+ * again to see the real "expired or already used" answer and the resend form.
+ * It then signs in again with the password, once with a wrong one, to see the
+ * real "wrong credentials" answer map to its message. Last, the reset leg: it
+ * asks for a reset from the login page, opens the link of the recovery email,
+ * presses "Continuar", sets a new password, and checks that the new password
+ * signs in and the old one does not. A `securitypolicyviolation` anywhere in
+ * the journey is a failure.
  *
  * The page is served on port 3000 and browsed as http://localhost:3000, never
  * 127.0.0.1: supabase/config.toml names that origin as the site URL and in the
@@ -67,7 +73,12 @@ const STEP_TIMEOUT = 30000;
 const EMAIL = `e2e-auth-${Date.now()}@example.test`;
 const NAME = 'Prueba E2E';
 const PASSWORD = 'abcdefg1';
+const NEW_PASSWORD = 'abcdefg2';
 const WRONG_PASSWORD = 'otraclave1';
+
+// The subjects of the two templates in supabase/config.toml.
+const CONFIRMATION_SUBJECT = 'Confirma tu cuenta de Expresión Latina';
+const RECOVERY_SUBJECT = 'Restablece tu contraseña de Expresión Latina';
 
 async function isUp(url) {
   try {
@@ -130,19 +141,25 @@ async function messagesTo(address) {
   );
 }
 
-async function waitForConfirmationLink(address) {
+// The link of the email with this subject: the app's own confirmation page with
+// the token hash, built by the template from the site URL.
+async function waitForEmailLink(address, subject, type) {
   const deadline = Date.now() + STEP_TIMEOUT;
   while (Date.now() < deadline) {
-    const [message] = await messagesTo(address);
+    const message = (await messagesTo(address)).find((candidate) => candidate.Subject === subject);
     if (message) {
       const { HTML: html } = await (await mailpit(`/api/v1/message/${message.ID}`)).json();
-      const link = /href="([^"]*\/auth\/v1\/verify[^"]*)"/.exec(html)?.[1];
-      assert.ok(link, 'el correo de confirmación no trae el enlace de verificación');
-      return link.replaceAll('&amp;', '&');
+      const link = /href="([^"]*\/auth\/confirm\?[^"]*)"/.exec(html)?.[1]?.replaceAll('&amp;', '&');
+      assert.ok(link, `el correo "${subject}" no trae el enlace a /auth/confirm`);
+      assert.ok(
+        link.startsWith(`${SITE}/auth/confirm?token_hash=`) && link.endsWith(`&type=${type}`),
+        `el enlace del correo "${subject}" no tiene la forma esperada`,
+      );
+      return link;
     }
     await sleep(300);
   }
-  throw new Error(`el correo de confirmación no llegó a Mailpit en ${STEP_TIMEOUT / 1000} segundos`);
+  throw new Error(`el correo "${subject}" no llegó a Mailpit en ${STEP_TIMEOUT / 1000} segundos`);
 }
 
 // What the page shows in its alerts, for a failure message that says why.
@@ -223,10 +240,18 @@ async function signUp(page) {
 
 async function confirmByEmail(page) {
   console.log('Esperando el correo de confirmación en Mailpit...');
-  const link = await waitForConfirmationLink(EMAIL);
+  const link = await waitForEmailLink(EMAIL, CONFIRMATION_SUBJECT, 'email');
 
-  console.log('Abriendo el enlace de confirmación en la misma página...');
+  console.log('Abriendo el enlace de confirmación: no debe verificarse hasta pulsar el botón...');
   await page.goto(link);
+  await page.getByRole('heading', { level: 1, name: 'Confirmar correo' }).waitFor();
+  await page.waitForLoadState('networkidle');
+  assert.equal(
+    await page.evaluate((key) => window.localStorage.getItem(key), STORAGE_KEY),
+    null,
+    'abrir el enlace ya inició sesión: debería esperar al botón',
+  );
+  await page.getByRole('button', { name: 'Confirmar mi correo' }).click();
   await expectHome(page, 'la confirmación del correo');
   await page.waitForLoadState('networkidle');
   assert.equal(
@@ -243,6 +268,13 @@ async function confirmByEmail(page) {
     + `where u.email = '${EMAIL}'`,
   );
   assert.equal(consent, `${NOTICE_VERSION}|true`, 'el perfil no guardó la versión del aviso y la hora');
+
+  console.log('Abriendo el mismo enlace otra vez: ya se usó...');
+  await page.evaluate((key) => window.localStorage.removeItem(key), STORAGE_KEY);
+  await page.goto(link);
+  await page.getByRole('button', { name: 'Confirmar mi correo' }).click();
+  await page.getByRole('alert').filter({ hasText: 'El enlace venció o ya se usó.' }).waitFor();
+  await page.getByRole('button', { name: 'Reenviar correo de confirmación' }).waitFor();
 }
 
 async function signInAgain(page) {
@@ -257,6 +289,51 @@ async function signInAgain(page) {
   await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Ingresar' }).click();
   await expectHome(page, 'el ingreso con la contraseña');
+  await signedInAs(page, EMAIL);
+}
+
+async function resetPassword(page) {
+  console.log('Pidiendo el enlace para restablecer la contraseña...');
+  await page.evaluate((key) => window.localStorage.removeItem(key), STORAGE_KEY);
+  await page.goto(`${SITE}/login`);
+  await page.getByRole('button', { name: '¿Olvidaste tu contraseña?' }).click();
+  await page.getByRole('heading', { level: 1, name: 'Restablecer contraseña' }).waitFor();
+  await page.getByLabel('Correo', { exact: true }).fill(EMAIL);
+  await page.getByRole('button', { name: 'Enviar enlace' }).click();
+  try {
+    await page.getByRole('status').filter({ hasText: 'Si existe una cuenta con ese correo' }).waitFor();
+  } catch {
+    throw new Error(`no apareció el aviso del enlace enviado${await visibleAlerts(page)}`);
+  }
+
+  console.log('Esperando el correo de recuperación en Mailpit...');
+  const link = await waitForEmailLink(EMAIL, RECOVERY_SUBJECT, 'recovery');
+
+  console.log('Abriendo el enlace de recuperación y pulsando "Continuar"...');
+  await page.goto(link);
+  await page.getByRole('heading', { level: 1, name: 'Restablecer contraseña' }).waitFor();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await page.getByLabel('Nueva contraseña', { exact: true }).fill(NEW_PASSWORD);
+  await page.getByLabel('Repite la contraseña', { exact: true }).fill(NEW_PASSWORD);
+  await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
+  try {
+    await page.getByRole('status').filter({ hasText: 'Tu contraseña se actualizó.' }).waitFor();
+  } catch {
+    throw new Error(`no apareció el aviso de la contraseña cambiada${await visibleAlerts(page)}`);
+  }
+  await signedInAs(page, EMAIL);
+
+  console.log('Cerrando la sesión y probando la contraseña vieja y la nueva...');
+  await page.evaluate((key) => window.localStorage.removeItem(key), STORAGE_KEY);
+  await page.goto(`${SITE}/login`);
+  await page.getByLabel('Correo', { exact: true }).fill(EMAIL);
+  await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Ingresar' }).click();
+  await page.getByRole('alert').filter({ hasText: 'Correo o contraseña incorrectos.' }).waitFor();
+
+  await page.getByLabel('Contraseña', { exact: true }).fill(NEW_PASSWORD);
+  await page.getByRole('button', { name: 'Ingresar' }).click();
+  await expectHome(page, 'el ingreso con la contraseña nueva');
   await signedInAs(page, EMAIL);
 }
 
@@ -341,6 +418,7 @@ async function main() {
     await signUp(page);
     await confirmByEmail(page);
     await signInAgain(page);
+    await resetPassword(page);
   } catch (cause) {
     problems.push(cause.message);
   } finally {
@@ -370,8 +448,9 @@ async function main() {
   }
 
   console.log(
-    '\nEl registro real funciona: cuenta creada, correo confirmado, consentimiento guardado, '
-    + 'ingreso con la contraseña y ninguna violación de la política de seguridad.',
+    '\nEl registro real funciona: cuenta creada, correo confirmado con el botón, consentimiento '
+    + 'guardado, enlace usado rechazado, ingreso con la contraseña, contraseña restablecida con '
+    + 'el correo de recuperación y ninguna violación de la política de seguridad.',
   );
 }
 

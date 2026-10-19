@@ -18,8 +18,9 @@
  *     on, so on that page those requests are expected and only the policy
  *     violations count.
  *
- * The privacy notice exists only while the feature is on, so the first build
- * also visits it, expecting the not-found page.
+ * The privacy notice and the email link page (/auth/confirm, visited with no
+ * token, so it shows its invalid-link state) exist only while the feature is
+ * on, so the first build also visits them, expecting the not-found page.
  *
  * It reads the tracked content as it is and writes nothing tracked: each build
  * goes to a temporary directory that is removed afterwards. Requests to any
@@ -63,6 +64,9 @@ const SUPABASE_JS_MARKER = 'GoTrueClient';
 const NOT_FOUND_HEADING = 'No encontramos esta página';
 const PRIVACY_PATH = '/privacy';
 const PRIVACY_HEADING = 'Aviso de privacidad';
+// Opened with no token, so it shows its invalid-link state without any request.
+const CONFIRM_PATH = '/auth/confirm';
+const CONFIRM_HEADING = 'Enlace no válido';
 
 // The privacy notice goes before the login page: the login page's retries of a
 // request that fails can land after its visit, and the check that attributes a
@@ -72,7 +76,10 @@ const VARIANTS = [
     name: 'feature off (default build)',
     env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_PUBLISHABLE_KEY: '' },
     supabaseOrigin: null,
-    featureRoutes: [{ path: PRIVACY_PATH, heading: NOT_FOUND_HEADING, usesBackend: false }],
+    featureRoutes: [
+      { path: PRIVACY_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
+      { path: CONFIRM_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
+    ],
   },
   {
     name: 'feature on (Supabase configured)',
@@ -83,6 +90,7 @@ const VARIANTS = [
     supabaseOrigin: FAKE_SUPABASE_ORIGIN,
     featureRoutes: [
       { path: PRIVACY_PATH, heading: PRIVACY_HEADING, usesBackend: false },
+      { path: CONFIRM_PATH, heading: CONFIRM_HEADING, usesBackend: false },
       { path: '/login', heading: 'Ingresar', usesBackend: true },
     ],
   },
@@ -265,8 +273,9 @@ async function main() {
 
   console.log(
     '\nNinguna ruta pública viola la política de seguridad, con la función apagada y encendida, '
-    + 'ni tampoco el aviso de privacidad (no encontrado con la función apagada, sin pedir nada al '
-    + 'backend con la función encendida) ni la página de ingreso con la función encendida.',
+    + 'ni tampoco el aviso de privacidad ni la página del enlace del correo (no encontrados con la '
+    + 'función apagada, sin pedir nada al backend con la función encendida) ni la página de '
+    + 'ingreso con la función encendida.',
   );
 }
 
