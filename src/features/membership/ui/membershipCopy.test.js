@@ -1,17 +1,26 @@
 import { RESULT_CODES } from '../../../shared/backend/resultCodes';
 import { validatePeriod } from '../domain/periodValidation';
 import {
+  BACK_TO_MEMBERS,
   DEFAULT_DELETE_PERIOD_ERROR,
+  DEFAULT_MEMBER_ERROR,
   DEFAULT_SAVE_PERIOD_ERROR,
   DEFAULT_SEARCH_ERROR,
+  LOADING_MEMBER,
+  MEMBER_NOT_FOUND,
+  MEMBER_NOT_FOUND_TITLE,
+  MEMBER_TITLE,
   PAYMENT_DATE_UNAVAILABLE,
   PERIOD_DATES_UNAVAILABLE,
+  RETRY,
   deletePeriodErrorMessage,
   deletePeriodLabel,
   editPeriodLabel,
   lastDueText,
+  memberErrorMessage,
   membersFound,
   paidUntilText,
+  paymentLine,
   periodFieldMessage,
   periodRangeText,
   resultsLimited,
@@ -243,5 +252,80 @@ describe('the dates of a payment', () => {
       .toBe('Editar el pago: Del 1 de octubre de 2026 al 31 de octubre de 2026');
     expect(deletePeriodLabel(range))
       .toBe('Eliminar el pago: Del 1 de octubre de 2026 al 31 de octubre de 2026');
+  });
+});
+
+describe('paymentLine', () => {
+  it('says an active member is paid until the date their payments run to', () => {
+    expect(paymentLine({ isActive: true, paidUntil: '2026-10-31' }))
+      .toBe('Pagado hasta 31 de octubre de 2026');
+  });
+
+  it('gives a member who is not active the last due date, which may lie in the future', () => {
+    expect(paymentLine({ isActive: false, paidUntil: '2026-08-15' }))
+      .toBe('Último vencimiento: 15 de agosto de 2026');
+    expect(paymentLine({ isActive: false, paidUntil: '2026-12-31' }))
+      .toBe('Último vencimiento: 31 de diciembre de 2026');
+  });
+
+  it.each([null, undefined, ''])('says there are no payments when the date is %j', (paidUntil) => {
+    expect(paymentLine({ isActive: false, paidUntil })).toBe('Sin pagos registrados');
+    expect(paymentLine({ isActive: true, paidUntil })).toBe('Sin pagos registrados');
+  });
+
+  it.each(['not-a-date', '2026-02-30', '2026-10-31T00:00:00Z'])(
+    'writes the neutral line for %s, whatever the status',
+    (paidUntil) => {
+      expect(paymentLine({ isActive: true, paidUntil })).toBe(PAYMENT_DATE_UNAVAILABLE);
+      expect(paymentLine({ isActive: false, paidUntil })).toBe(PAYMENT_DATE_UNAVAILABLE);
+    },
+  );
+});
+
+describe('the page of one member', () => {
+  it('names the page and the way back to the directory', () => {
+    expect(MEMBER_TITLE).toBe('Miembro');
+    expect(BACK_TO_MEMBERS).toBe('Volver a miembros');
+  });
+
+  it('says what it is waiting for, and offers to try again', () => {
+    expect(LOADING_MEMBER).toBe('Cargando al miembro…');
+    expect(RETRY).toBe('Reintentar');
+  });
+
+  it('says plainly that the member is not there', () => {
+    expect(MEMBER_NOT_FOUND_TITLE).toBe('Miembro no encontrado');
+    expect(MEMBER_NOT_FOUND).toBe('No encontramos a este miembro.');
+  });
+});
+
+describe('memberErrorMessage', () => {
+  it('tells a lost connection apart', () => {
+    expect(memberErrorMessage(RESULT_CODES.NETWORK))
+      .toBe('No hay conexión. Revisa tu internet e inténtalo de nuevo.');
+  });
+
+  it('tells a refused request apart, and asks for a new sign-in', () => {
+    expect(memberErrorMessage(RESULT_CODES.FORBIDDEN))
+      .toBe('No tienes permiso para ver a este miembro o tu sesión venció. Vuelve a ingresar.');
+  });
+
+  it.each(
+    Object.values(RESULT_CODES).filter(
+      (code) => ![RESULT_CODES.NETWORK, RESULT_CODES.FORBIDDEN].includes(code),
+    ),
+  )('gives the code %s the generic message', (code) => {
+    expect(memberErrorMessage(code)).toBe(DEFAULT_MEMBER_ERROR);
+  });
+
+  it.each(['constructor', 'toString', '', undefined, null, 42])(
+    'gives the generic message to %j, which is no code at all',
+    (code) => {
+      expect(memberErrorMessage(code)).toBe(DEFAULT_MEMBER_ERROR);
+    },
+  );
+
+  it('asks the administrator to try again in the generic message', () => {
+    expect(DEFAULT_MEMBER_ERROR).toBe('No pudimos cargar al miembro. Inténtalo de nuevo.');
   });
 });

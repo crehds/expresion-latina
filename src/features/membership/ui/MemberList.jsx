@@ -12,18 +12,9 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
-import {
-  ACTIVE, INACTIVE, NO_PAYMENTS, lastDueText, paidUntilText,
-} from './membershipCopy';
+import { ACTIVE, INACTIVE, paymentLine } from './membershipCopy';
 
 import './css/member-list.css';
-
-function paymentLine({ isActive, paidUntil }) {
-  if (!paidUntil) {
-    return NO_PAYMENTS;
-  }
-  return isActive ? paidUntilText(paidUntil) : lastDueText(paidUntil);
-}
 
 export default function MemberList({ members }) {
   return (

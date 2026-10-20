@@ -70,6 +70,19 @@ export const lastDueText = (isoDate) => paymentDateLine(
   (date) => `Último vencimiento: ${date}`,
 );
 
+/**
+ * Where a member's payments stand, as the directory and the page of a member both
+ * say it: for a member who is active, the day their payments run to; for one who
+ * is not, their last due date; for one who never paid, that they have no payments.
+ * The status is the one the server sent, never worked out here.
+ */
+export function paymentLine({ isActive, paidUntil }) {
+  if (!paidUntil) {
+    return NO_PAYMENTS;
+  }
+  return isActive ? paidUntilText(paidUntil) : lastDueText(paidUntil);
+}
+
 // The form of a payment (a paid period): record a new one, or correct one.
 export const CREATE_PERIOD_TITLE = 'Registrar pago';
 export const EDIT_PERIOD_TITLE = 'Editar pago';
@@ -170,3 +183,26 @@ const DELETE_PERIOD_ERRORS = new Map([
 export const deletePeriodErrorMessage = (code) => (
   DELETE_PERIOD_ERRORS.get(code) ?? DEFAULT_DELETE_PERIOD_ERROR
 );
+
+// The page of one member: the member and their payments.
+export const MEMBER_TITLE = 'Miembro';
+export const BACK_TO_MEMBERS = 'Volver a miembros';
+export const LOADING_MEMBER = 'Cargando al miembro…';
+export const RETRY = 'Reintentar';
+
+// A member who is not in the directory, or an address that holds no member id.
+export const MEMBER_NOT_FOUND_TITLE = 'Miembro no encontrado';
+export const MEMBER_NOT_FOUND = 'No encontramos a este miembro.';
+
+export const DEFAULT_MEMBER_ERROR = 'No pudimos cargar al miembro. Inténtalo de nuevo.';
+
+const MEMBER_ERRORS = new Map([
+  [RESULT_CODES.NETWORK, CONNECTION_LOST],
+  [
+    RESULT_CODES.FORBIDDEN,
+    'No tienes permiso para ver a este miembro o tu sesión venció. Vuelve a ingresar.',
+  ],
+]);
+
+/** The message for the code of a member who could not be read. */
+export const memberErrorMessage = (code) => MEMBER_ERRORS.get(code) ?? DEFAULT_MEMBER_ERROR;
