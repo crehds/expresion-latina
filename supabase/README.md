@@ -133,13 +133,27 @@ update public.profiles set is_admin = true where id = (
   database, and signs in again with the password. Then it asks for a
   password reset from the login page, opens the link of the recovery email,
   presses "Continuar", sets a new password, and checks that the new password
-  signs in and the old one does not. Last it drives the account page: the
-  menu shows "Mi cuenta" and no "Ingresar", the page shows the name, the
-  email and the consent on record, "Cerrar sesión" brings "Ingresar" back, a
-  new sign-in reaches the page again, and "Eliminar mi cuenta" erases the
-  auth user and its profile (checked in the database) so that account can no
-  longer sign in. It deletes the account and its emails afterwards (if the
-  journey did not already), whether it passes or not. It needs the
+  signs in and the old one does not. Then it drives the admin area. Until the
+  account is promoted with SQL the menu has no "Admin" and `/admin/members`
+  is the not-found page. Once it is, the journey finds the member in the
+  directory and opens their page, records a payment (the start typed, the end
+  from "+1 mes", the row in the database equal to what the form showed),
+  corrects it to end yesterday so the member turns inactive, has the database
+  refuse a payment that overlaps (the real `23P01`), corrects and deletes a
+  payment that was deleted with SQL behind the page's back (the real answer
+  of no row matched), and deletes the last one with its two-step
+  confirmation. It also checks the keep-alive notice against the heartbeat:
+  one that is four days old shows it, `public.keepalive()` takes it away, and
+  an empty table shows the "no ping" message. The build is pinned to
+  `VITE_KEEPALIVE_ALERT_DAYS=3`, so a local env file cannot change that. Last
+  it drives the account page: the menu shows "Mi cuenta" and no "Ingresar",
+  the page shows the name, the email and the consent on record, "Cerrar
+  sesión" brings "Ingresar" back, a new sign-in reaches the page again, and
+  "Eliminar mi cuenta" erases the auth user and its profile (checked in the
+  database) so that account can no longer sign in. It deletes the account
+  (its payments go with it) and its emails afterwards (if the journey did
+  not already), and puts `public.ops_heartbeat` back as it found it, the row
+  it had to the microsecond or no row, whether it passes or not. It needs the
   stack running (see "Bootstrapping") and port 3000 free, and it is not part
   of `npm run test:e2e` or of CI, which has no stack.
 
@@ -188,6 +202,70 @@ pointing at it), and keep Mailpit open (`http://127.0.0.1:34324`).
    inicio" (not the login page). In the database the `auth.users` row and
    its `public.profiles` row are gone, and signing in with that account
    answers "Correo o contraseña incorrectos."
+
+### Manual checklist (admin area)
+
+The admin leg of `npm run test:e2e:auth` runs all of this against the real
+stack. Do it by hand after changing the admin pages, the payments or the
+keep-alive notice, or to see them with your own eyes. Start the stack and the
+app as above and sign a member up through the app (any address, confirmed
+through Mailpit), so there is someone to find. Run the SQL in the SQL editor
+of Studio (`http://127.0.0.1:34323`).
+
+1. **Make the member an administrator.** Until then the menu has no "Admin"
+   and `/admin/members` shows "No encontramos esta página". Promote the
+   account as in "Email sign-up requires a consent version", then reload the
+   page (the profile loads once per session): the menu shows "Admin".
+2. **Find the member.** "Admin" opens the directory. Type the email, press
+   "Buscar" ("1 miembro") and open the name. The page of the member shows
+   "Inactivo" and "Sin pagos registrados".
+3. **Record a payment.** Press "Registrar pago", type a start a few days ago,
+   press "+1 mes" (the end appears, and can still be edited) and "Guardar".
+   Expect "Activo" and "Pagado hasta" the end you saw in the form.
+4. **Correct it.** Press "Editar" on the payment, move the end to yesterday
+   and "Guardar". Expect "Inactivo" and "Último vencimiento" with yesterday.
+5. **Overlap.** Record a payment whose dates overlap the first one. Expect
+   "Esas fechas se cruzan con otro pago de este miembro. Cambia las fechas e
+   inténtalo de nuevo." and nothing new in the list.
+6. **A payment that is gone.** Record another payment and delete its row with
+   SQL (`delete from public.paid_periods where ...`). The page still shows
+   it: press "Editar", change the end and "Guardar" (or "Eliminar" and "Sí,
+   eliminar el pago"). Expect "Este pago ya no existe. Mostramos la lista al
+   día." and the list without it.
+7. **Delete.** "Eliminar" on the last payment asks "¿Eliminar este pago? Esta
+   acción no se puede deshacer."; "Cancelar" changes nothing, and "Sí,
+   eliminar el pago" removes it. Expect "Todavía no hay pagos registrados."
+8. **The keep-alive notice.** The heartbeat is the project's, so note its
+   value first (an empty result means the table has no row):
+
+   ```sql
+   select last_ping_at from public.ops_heartbeat;
+   ```
+
+   Then change it and reload any admin page after each statement:
+
+   ```sql
+   -- "El último ping de mantenimiento registrado fue el ..., hace 4 días. ..."
+   insert into public.ops_heartbeat (id, last_ping_at)
+   values (1, now() - interval '4 days')
+   on conflict (id) do update set last_ping_at = excluded.last_ping_at;
+
+   -- no notice
+   select public.keepalive();
+
+   -- "Todavía no hay ningún ping de mantenimiento registrado. ..."
+   delete from public.ops_heartbeat;
+   ```
+
+   Put the heartbeat back as you found it: the insert above with the value you
+   noted instead of `now() - interval '4 days'`, or nothing more if the table
+   was empty. With `VITE_KEEPALIVE_ALERT_DAYS=off` in the environment of the
+   app (restart `npm run dev` after changing it) no notice appears, whatever
+   the table holds.
+
+9. **Clean up.** Delete the test member
+   (`delete from auth.users where email = '...'`): their profile and their
+   payments go with it.
 
 ## Production runbook
 
