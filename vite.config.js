@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from 'vite';
 
 import activationGuardPlugin from './src/composition/activationGuardPlugin';
 import { CONTACT, CONTROLLER } from './src/features/accounts/domain/privacyContacts';
+import keepaliveAlertPlugin from './src/features/membership/build/keepaliveAlertPlugin';
 import cspPlugin from './src/shared/security/cspPlugin';
 
 export default defineConfig(({ mode }) => {
@@ -23,6 +24,9 @@ export default defineConfig(({ mode }) => {
         values: { CONTROLLER, CONTACT },
         file: 'src/features/accounts/domain/privacyContacts.js',
       }),
+      // Refuses a build whose keep-alive banner threshold is malformed, with the
+      // backend on or off; see keepaliveAlertPlugin.js.
+      keepaliveAlertPlugin({ value: env.VITE_KEEPALIVE_ALERT_DAYS }),
     ],
 
     // The site is served from the root of its domain on Vercel. Changing this
