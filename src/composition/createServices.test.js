@@ -8,14 +8,16 @@ vi.mock('../shared/backend/client', async (importOriginal) => ({
 }));
 
 describe('createServices', () => {
-  it('builds the auth adapter from the lazy client getter', () => {
+  it('builds the auth and the membership adapters from the lazy client getter', () => {
     const getClient = vi.fn();
 
     const services = createServices(getClient);
 
-    expect(Object.keys(services)).toEqual(['auth']);
+    expect(Object.keys(services)).toEqual(['auth', 'membership']);
     expect(typeof services.auth.getSession).toBe('function');
     expect(typeof services.auth.signOut).toBe('function');
+    expect(typeof services.membership.searchMembers).toBe('function');
+    expect(typeof services.membership.listPeriods).toBe('function');
   });
 
   it('does not load the client while building the services', () => {
@@ -34,6 +36,17 @@ describe('createServices', () => {
 
     expect(getClient).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ ok: true, data: null });
+  });
+
+  it('hands the getter to the membership adapter too, which calls it when a method runs', async () => {
+    const client = { rpc: vi.fn(async () => ({ data: [], error: null })) };
+    const getClient = vi.fn(async () => client);
+
+    const result = await createServices(getClient).membership.searchMembers('ana');
+
+    expect(getClient).toHaveBeenCalledTimes(1);
+    expect(client.rpc).toHaveBeenCalledWith('admin_search_members', { q: 'ana', lim: 50 });
+    expect(result).toEqual({ ok: true, data: [] });
   });
 
   it('hands the adapter the shared settings reader, so it can tell which providers are on', async () => {
