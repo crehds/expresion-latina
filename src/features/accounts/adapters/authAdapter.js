@@ -14,6 +14,7 @@
  * email link verification return nothing at all (the session stays inside
  * supabase-js).
  */
+import { createRequestRunner } from '../../../shared/backend/requestRunner';
 import {
   RESULT_CODES, fail, ok, toResultCode,
 } from '../../../shared/backend/resultCodes';
@@ -47,15 +48,7 @@ const toProfile = (row) => (row ? {
 export function createAuthAdapter(getClient, { fetchSettings = null } = {}) {
   // Runs `call(client)` and turns whatever it returns or throws into a result.
   // `call` returns `{ error, data }`-shaped values; `read` maps `data` on success.
-  async function run(call, read) {
-    try {
-      const client = await getClient();
-      const { data, error } = await call(client);
-      return error ? fail(toResultCode(error)) : ok(read(data));
-    } catch (error) {
-      return fail(toResultCode(error));
-    }
-  }
+  const run = createRequestRunner(getClient);
 
   return {
     getSession: () => run(
