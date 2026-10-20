@@ -44,8 +44,12 @@ const OPTIONS = [{
 function sessionOptions({ status, profile }) {
   if (status === 'signed-in') {
     const account = { id: 'account', name: 'Mi cuenta', path: '/account' };
+    // One entry for the whole admin area: it links to the members and stays lit
+    // on every other admin page.
     return profile?.isAdmin
-      ? [account, { id: 'admin', name: 'Admin', path: '/admin/members' }]
+      ? [account, {
+        id: 'admin', name: 'Admin', path: '/admin/members', activePath: '/admin',
+      }]
       : [account];
   }
   if (status === 'idle' || status === 'signed-out' || status === 'error') {
@@ -63,6 +67,7 @@ class Options extends PureComponent {
           [...OPTIONS, ...sessionOptions(session)].map((option) => (
             <Option
               key={option.id}
+              activePath={option.activePath}
               location={location}
               name={option.name}
               onNavigate={onNavigate}

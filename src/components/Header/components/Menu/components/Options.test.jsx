@@ -17,10 +17,18 @@ vi.mock('./Option', async (importOriginal) => {
   const { default: Real } = await importOriginal();
   return {
     default: ({
-      location, name, onNavigate, path,
+      activePath = undefined, location, name, onNavigate, path,
     }) => {
       rendered.push(name);
-      return <Real location={location} name={name} onNavigate={onNavigate} path={path} />;
+      return (
+        <Real
+          activePath={activePath}
+          location={location}
+          name={name}
+          onNavigate={onNavigate}
+          path={path}
+        />
+      );
     },
   };
 });
@@ -105,6 +113,16 @@ describe('Options', () => {
     });
 
     expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('lights "Admin" on every admin page, not only the one it links to', () => {
+    renderOptions({
+      session: { status: 'signed-in', session: {}, profile: { ...PROFILE, isAdmin: true } },
+      path: '/admin/attendance',
+    });
+
+    expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Mi cuenta' })).not.toHaveAttribute('aria-current');
   });
 
   describe('with the real session provider', () => {
