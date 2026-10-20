@@ -1,13 +1,19 @@
 import { RESULT_CODES } from '../../../shared/backend/resultCodes';
 import { validatePeriod } from '../domain/periodValidation';
 import {
+  DEFAULT_DELETE_PERIOD_ERROR,
   DEFAULT_SAVE_PERIOD_ERROR,
   DEFAULT_SEARCH_ERROR,
   PAYMENT_DATE_UNAVAILABLE,
+  PERIOD_DATES_UNAVAILABLE,
+  deletePeriodErrorMessage,
+  deletePeriodLabel,
+  editPeriodLabel,
   lastDueText,
   membersFound,
   paidUntilText,
   periodFieldMessage,
+  periodRangeText,
   resultsLimited,
   savePeriodErrorMessage,
   searchErrorMessage,
@@ -171,5 +177,71 @@ describe('savePeriodErrorMessage', () => {
 
   it('asks the administrator to try again in the generic message', () => {
     expect(DEFAULT_SAVE_PERIOD_ERROR).toBe('No pudimos guardar el pago. Inténtalo de nuevo.');
+  });
+});
+
+describe('deletePeriodErrorMessage', () => {
+  it('says the payment is gone when it no longer exists', () => {
+    expect(deletePeriodErrorMessage(RESULT_CODES.NOT_FOUND))
+      .toBe('Este pago ya no existe. Mostramos la lista al día.');
+  });
+
+  it('asks for a new sign-in when the request is refused', () => {
+    expect(deletePeriodErrorMessage(RESULT_CODES.FORBIDDEN))
+      .toBe('No tienes permiso para eliminar este pago o tu sesión venció. Vuelve a ingresar.');
+  });
+
+  it('tells a lost connection apart', () => {
+    expect(deletePeriodErrorMessage(RESULT_CODES.NETWORK))
+      .toBe('No hay conexión. Revisa tu internet e inténtalo de nuevo.');
+  });
+
+  it.each(
+    Object.values(RESULT_CODES).filter((code) => ![
+      RESULT_CODES.NOT_FOUND,
+      RESULT_CODES.FORBIDDEN,
+      RESULT_CODES.NETWORK,
+    ].includes(code)),
+  )('gives the code %s the generic message', (code) => {
+    expect(deletePeriodErrorMessage(code)).toBe(DEFAULT_DELETE_PERIOD_ERROR);
+  });
+
+  it.each(['constructor', 'toString', '', undefined, null, 42])(
+    'gives the generic message to %j, which is no code at all',
+    (code) => {
+      expect(deletePeriodErrorMessage(code)).toBe(DEFAULT_DELETE_PERIOD_ERROR);
+    },
+  );
+
+  it('asks the administrator to try again in the generic message', () => {
+    expect(DEFAULT_DELETE_PERIOD_ERROR).toBe('No pudimos eliminar el pago. Inténtalo de nuevo.');
+  });
+});
+
+describe('the dates of a payment', () => {
+  it('writes the two days it covers, without shifting either', () => {
+    expect(periodRangeText('2026-10-01', '2026-10-31'))
+      .toBe('Del 1 de octubre de 2026 al 31 de octubre de 2026');
+    expect(periodRangeText('2026-03-01', '2026-03-01'))
+      .toBe('Del 1 de marzo de 2026 al 1 de marzo de 2026');
+  });
+
+  it.each([
+    ['the start is no calendar day', 'zzz', '2026-10-31'],
+    ['the end is no calendar day', '2026-10-01', '2026-02-30'],
+    ['both are missing', undefined, null],
+    ['they are instants', '2026-10-01T00:00:00Z', '2026-10-31T00:00:00Z'],
+  ])('writes a neutral line, and does not throw, when %s', (_label, startsOn, endsOn) => {
+    expect(periodRangeText(startsOn, endsOn)).toBe(PERIOD_DATES_UNAVAILABLE);
+    expect(PERIOD_DATES_UNAVAILABLE).toBe('Fechas del pago no disponibles');
+  });
+
+  it('names the buttons of a payment after its dates, starting with what they do', () => {
+    const range = periodRangeText('2026-10-01', '2026-10-31');
+
+    expect(editPeriodLabel(range))
+      .toBe('Editar el pago: Del 1 de octubre de 2026 al 31 de octubre de 2026');
+    expect(deletePeriodLabel(range))
+      .toBe('Eliminar el pago: Del 1 de octubre de 2026 al 31 de octubre de 2026');
   });
 });

@@ -102,7 +102,7 @@ export const periodFieldMessage = (field, problem) => (
 );
 
 // The payment is gone: it was deleted meanwhile, and the list is read again.
-const PERIOD_GONE = 'Este pago ya no existe. Mostramos la lista al día.';
+export const PERIOD_GONE = 'Este pago ya no existe. Mostramos la lista al día.';
 
 export const DEFAULT_SAVE_PERIOD_ERROR = 'No pudimos guardar el pago. Inténtalo de nuevo.';
 
@@ -129,4 +129,44 @@ const SAVE_PERIOD_ERRORS = new Map([
 /** The message for the code of a payment that could not be saved. */
 export const savePeriodErrorMessage = (code) => (
   SAVE_PERIOD_ERRORS.get(code) ?? DEFAULT_SAVE_PERIOD_ERROR
+);
+
+// The list of the payments of a member, and what can be done to each.
+export const PERIODS_TITLE = 'Pagos registrados';
+export const NO_PERIODS = 'Todavía no hay pagos registrados.';
+export const ADD_PERIOD = 'Registrar pago';
+export const EDIT_PERIOD = 'Editar';
+export const DELETE_PERIOD = 'Eliminar';
+export const DELETE_QUESTION = '¿Eliminar este pago? Esta acción no se puede deshacer.';
+export const CONFIRM_DELETE_PERIOD = 'Sí, eliminar el pago';
+
+// What a payment says when the server sent a date that is no calendar day.
+export const PERIOD_DATES_UNAVAILABLE = 'Fechas del pago no disponibles';
+
+/** The two days a payment covers, both included. */
+export function periodRangeText(startsOn, endsOn) {
+  const from = formatDateOnlyOrNull(startsOn);
+  const to = formatDateOnlyOrNull(endsOn);
+  return from === null || to === null ? PERIOD_DATES_UNAVAILABLE : `Del ${from} al ${to}`;
+}
+
+// The name of a button: what it does first, so it still says the visible word, then
+// the payment, so the buttons of a list can be told apart.
+export const editPeriodLabel = (range) => `${EDIT_PERIOD} el pago: ${range}`;
+export const deletePeriodLabel = (range) => `${DELETE_PERIOD} el pago: ${range}`;
+
+export const DEFAULT_DELETE_PERIOD_ERROR = 'No pudimos eliminar el pago. Inténtalo de nuevo.';
+
+const DELETE_PERIOD_ERRORS = new Map([
+  [RESULT_CODES.NOT_FOUND, PERIOD_GONE],
+  [
+    RESULT_CODES.FORBIDDEN,
+    'No tienes permiso para eliminar este pago o tu sesión venció. Vuelve a ingresar.',
+  ],
+  [RESULT_CODES.NETWORK, CONNECTION_LOST],
+]);
+
+/** The message for the code of a payment that could not be deleted. */
+export const deletePeriodErrorMessage = (code) => (
+  DELETE_PERIOD_ERRORS.get(code) ?? DEFAULT_DELETE_PERIOD_ERROR
 );
