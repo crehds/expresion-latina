@@ -97,4 +97,42 @@ describe('MemberList', () => {
       expect(within(rows()[0]).getByText('Pagado hasta 1 de marzo de 2026')).toBeInTheDocument();
     });
   });
+
+  // `paid_until` is a date the server wrote, and formatDateOnly throws on
+  // anything but a real 'YYYY-MM-DD'. One bad row must not take the list down.
+  describe('a payment date that is no calendar day', () => {
+    it.each([
+      ['words', 'not-a-date'],
+      ['an impossible day', '2026-02-30'],
+      ['an instant', '2026-10-31T00:00:00Z'],
+    ])('keeps every row, and gives the one whose date is %s a neutral line', (_label, paidUntil) => {
+      renderList([
+        member({ id: 'id-1', fullName: 'Ana Perez', paidUntil: '2026-10-31' }),
+        member({ id: 'id-2', fullName: 'Beto Ruiz', paidUntil }),
+        member({
+          id: 'id-3', fullName: 'Carla Soto', isActive: false, paidUntil: '2026-08-15',
+        }),
+      ]);
+
+      expect(rows()).toHaveLength(3);
+      expect(within(rows()[0]).getByText('Pagado hasta 31 de octubre de 2026')).toBeInTheDocument();
+      expect(within(rows()[1]).getByText('Beto Ruiz')).toBeInTheDocument();
+      expect(within(rows()[1]).getByText('Fecha de pago no disponible')).toBeInTheDocument();
+      expect(within(rows()[2]).getByText('Último vencimiento: 15 de agosto de 2026'))
+        .toBeInTheDocument();
+    });
+
+    it('gives an inactive member the same neutral line, and keeps the status the server sent', () => {
+      renderList([member({ isActive: false, paidUntil: 'not-a-date' })]);
+
+      expect(within(rows()[0]).getByText('Inactivo')).toBeInTheDocument();
+      expect(within(rows()[0]).getByText('Fecha de pago no disponible')).toBeInTheDocument();
+    });
+
+    it('does not echo the bad value on the screen', () => {
+      renderList([member({ paidUntil: 'internal-detail-7' })]);
+
+      expect(screen.queryByText(/internal-detail-7/)).not.toBeInTheDocument();
+    });
+  });
 });

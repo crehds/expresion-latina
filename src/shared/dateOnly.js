@@ -28,4 +28,17 @@ export function formatDateOnly(isoDate) {
   return DATE_FORMAT.format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+/**
+ * `formatDateOnly` for a date that comes from outside the app, such as one the
+ * server sent: anything that is not a real calendar day gives null instead of
+ * throwing, so one bad value cannot take a whole screen down while it renders.
+ * The caller writes its own words for the null.
+ *
+ * @param {unknown} isoDate
+ * @returns {string|null} for example '19 de octubre de 2026', or null
+ */
+export function formatDateOnlyOrNull(isoDate) {
+  return isIsoDate(isoDate) ? formatDateOnly(isoDate) : null;
+}
+
 export default formatDateOnly;

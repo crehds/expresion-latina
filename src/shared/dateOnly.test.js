@@ -1,4 +1,4 @@
-import { formatDateOnly } from './dateOnly';
+import { formatDateOnly, formatDateOnlyOrNull } from './dateOnly';
 
 // The zone the machine starts with, by name. Deleting TZ is not enough to get it
 // back: on Windows the last zone that was set stays in force.
@@ -64,5 +64,32 @@ describe('formatDateOnly', () => {
       expect(formatDateOnly('2026-12-31')).toBe('31 de diciembre de 2026');
       expect(formatDateOnly('2028-02-29')).toBe('29 de febrero de 2028');
     });
+  });
+});
+
+// For a date that came from the server: one bad value must not throw while a
+// screen renders, so the caller gets null and writes its own words instead.
+describe('formatDateOnlyOrNull', () => {
+  it.each([
+    ['2026-10-19', '19 de octubre de 2026'],
+    ['2026-03-01', '1 de marzo de 2026'],
+    ['2028-02-29', '29 de febrero de 2028'],
+  ])('writes %s exactly as formatDateOnly does', (isoDate, expected) => {
+    expect(formatDateOnlyOrNull(isoDate)).toBe(expected);
+    expect(formatDateOnlyOrNull(isoDate)).toBe(formatDateOnly(isoDate));
+  });
+
+  it.each([
+    ['empty', ''],
+    ['words', 'not-a-date'],
+    ['an impossible date', '2026-02-30'],
+    ['an instant', '2026-10-19T00:00:00Z'],
+    ['a single-digit month and day', '2026-1-5'],
+    ['undefined', undefined],
+    ['null', null],
+    ['a number', 20261019],
+    ['a Date', new Date('2026-10-19T12:00:00Z')],
+  ])('answers null, and does not throw, for what is not an ISO date: %s', (_label, value) => {
+    expect(formatDateOnlyOrNull(value)).toBeNull();
   });
 });

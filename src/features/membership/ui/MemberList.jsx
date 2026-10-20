@@ -4,9 +4,10 @@
  * A row shows the name, the email, whether the membership is active and the date
  * their payments run to, and nothing else of the member. The status comes from
  * the directory as the database worked it out for today in Lima, and the date is
- * written without ever going through a time zone. The name links to the
- * member's page by the id the server sent; the name and the email never go into
- * an address.
+ * written without ever going through a time zone. A date that is no calendar day
+ * gets a neutral line, so one bad row never takes the whole list down. The name
+ * links to the member's page by the id the server sent; the name and the email
+ * never go into an address.
  */
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';

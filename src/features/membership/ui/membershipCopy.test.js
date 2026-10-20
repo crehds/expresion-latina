@@ -1,6 +1,7 @@
 import { RESULT_CODES } from '../../../shared/backend/resultCodes';
 import {
   DEFAULT_SEARCH_ERROR,
+  PAYMENT_DATE_UNAVAILABLE,
   lastDueText,
   membersFound,
   paidUntilText,
@@ -62,5 +63,23 @@ describe('the payment lines', () => {
     // Read as an instant in Lima, 1 March at UTC midnight would be 28 February.
     expect(paidUntilText('2026-03-01')).toBe('Pagado hasta 1 de marzo de 2026');
     expect(lastDueText('2026-03-01')).toBe('Último vencimiento: 1 de marzo de 2026');
+  });
+
+  // The date comes from the server. A value that is no calendar day must not
+  // throw while a screen renders: it gets a neutral line, and the screen lives.
+  it.each([
+    ['words', 'not-a-date'],
+    ['an impossible day', '2026-02-30'],
+    ['an instant', '2026-10-31T00:00:00Z'],
+    ['empty', ''],
+    ['null', null],
+    ['undefined', undefined],
+  ])('writes a neutral line, and does not throw, for a payment date that is %s', (_label, value) => {
+    expect(paidUntilText(value)).toBe(PAYMENT_DATE_UNAVAILABLE);
+    expect(lastDueText(value)).toBe(PAYMENT_DATE_UNAVAILABLE);
+  });
+
+  it('keeps the neutral line free of the value the server sent', () => {
+    expect(paidUntilText('ana@example.test')).toBe('Fecha de pago no disponible');
   });
 });

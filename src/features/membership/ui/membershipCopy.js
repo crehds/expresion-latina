@@ -3,11 +3,13 @@
  *
  * Every message is fixed text. A failed call shows the message of its result
  * code and nothing the backend said, so no raw error and no member data can
- * reach the screen. Dates of a payment go through `formatDateOnly`, which writes
- * a calendar day as the same day in every time zone.
+ * reach the screen. Dates of a payment go through `formatDateOnlyOrNull`, which
+ * writes a calendar day as the same day in every time zone and never throws: a
+ * date from the server that is no calendar day gets a neutral line, so one bad
+ * row cannot take the screen down while it renders.
  */
 import { RESULT_CODES } from '../../../shared/backend/resultCodes';
-import { formatDateOnly } from '../../../shared/dateOnly';
+import { formatDateOnlyOrNull } from '../../../shared/dateOnly';
 
 export const SEARCH_LABEL = 'Buscar por nombre o correo';
 export const SEARCH_BUTTON = 'Buscar';
@@ -43,11 +45,23 @@ export const resultsLimited = (limit) => (
   + 'Escribe más del nombre o del correo para afinar la búsqueda.'
 );
 
+// What a payment line says when the server sent a date that is no calendar day.
+export const PAYMENT_DATE_UNAVAILABLE = 'Fecha de pago no disponible';
+
+// The line for a payment date, or the neutral one when there is no date to write.
+function paymentDateLine(isoDate, write) {
+  const written = formatDateOnlyOrNull(isoDate);
+  return written === null ? PAYMENT_DATE_UNAVAILABLE : write(written);
+}
+
 /** For a member who is active: the last day their periods cover. */
-export const paidUntilText = (isoDate) => `Pagado hasta ${formatDateOnly(isoDate)}`;
+export const paidUntilText = (isoDate) => paymentDateLine(isoDate, (date) => `Pagado hasta ${date}`);
 
 /**
  * For a member who is not active: the end of the latest period they ever had,
  * which may lie in the future when their only period has not begun yet.
  */
-export const lastDueText = (isoDate) => `Último vencimiento: ${formatDateOnly(isoDate)}`;
+export const lastDueText = (isoDate) => paymentDateLine(
+  isoDate,
+  (date) => `Último vencimiento: ${date}`,
+);
