@@ -265,6 +265,100 @@ describe('createAuthAdapter', () => {
 
       expect(result).toEqual({ ok: false, code: 'FORBIDDEN' });
     });
+
+    it('does not ask for the session when the request worked', async () => {
+      const client = fakeClient();
+
+      await adapterFor(client).signOut();
+
+      expect(client.auth.getSession).not.toHaveBeenCalled();
+    });
+
+    // The result says what the member needs to know: does this device still hold a
+    // session? A failed request does not answer that. When the request fails (no
+    // connection, a server error) auth-js removes the local session anyway and
+    // reports the error; when the stored access token has expired and the refresh
+    // fails offline, it gives up before removing anything and the session stays.
+    // `getSession()` tells them apart: "no session" with no error is a session that
+    // is gone, and anything else leaves open that one is still held.
+    describe('when the request fails', () => {
+      const requestFailure = {
+        name: 'AuthRetryableFetchError', message: 'private detail', status: 0,
+      };
+
+      it('counts as signed out when auth-js removed the local session anyway', async () => {
+        const client = fakeClient({ signOutError: requestFailure, session: null });
+
+        const result = await adapterFor(client).signOut();
+
+        expect(client.auth.getSession).toHaveBeenCalledTimes(1);
+        expect(result).toEqual({ ok: true, data: null });
+      });
+
+      it('is a failure, with the code of the request, while the session is still stored', async () => {
+        const client = fakeClient({ signOutError: requestFailure });
+
+        const result = await adapterFor(client).signOut();
+
+        expect(client.auth.getSession).toHaveBeenCalledTimes(1);
+        expect(result).toEqual({ ok: false, code: 'NETWORK' });
+      });
+
+      // The refresh of an expired access token failed offline: auth-js keeps the
+      // stored session, and answers "no session" TOGETHER WITH the error.
+      it('is a failure when auth-js cannot say whether the session is still stored', async () => {
+        const client = fakeClient({
+          signOutError: requestFailure, session: null, sessionError: requestFailure,
+        });
+
+        const result = await adapterFor(client).signOut();
+
+        expect(result).toEqual({ ok: false, code: 'NETWORK' });
+      });
+
+      it('is a failure when asking for the session throws', async () => {
+        const client = fakeClient({ signOutError: requestFailure });
+        client.auth.getSession = vi.fn(async () => { throw new TypeError('Failed to fetch'); });
+
+        const result = await adapterFor(client).signOut();
+
+        expect(result).toEqual({ ok: false, code: 'NETWORK' });
+      });
+
+      it.each([
+        ['an answer with no data at all', async () => ({ error: null })],
+        ['an answer whose session is missing', async () => ({ data: {}, error: null })],
+        ['an answer that holds nothing', async () => undefined],
+      ])('is a failure for %s, since only a session that is null says it is gone', async (_label, getSession) => {
+        const client = fakeClient({ signOutError: requestFailure });
+        client.auth.getSession = vi.fn(getSession);
+
+        const result = await adapterFor(client).signOut();
+
+        expect(result.ok).toBe(false);
+      });
+
+      it('keeps the code of the request and not the one of the question', async () => {
+        const client = fakeClient({
+          signOutError: { name: 'AuthApiError', status: 403, message: 'x' },
+          sessionError: requestFailure,
+        });
+
+        const result = await adapterFor(client).signOut();
+
+        expect(result).toEqual({ ok: false, code: 'FORBIDDEN' });
+      });
+
+      it('carries no token, no email and no message, whatever the answer', async () => {
+        const held = await adapterFor(fakeClient({ signOutError: requestFailure })).signOut();
+        const gone = await adapterFor(
+          fakeClient({ signOutError: requestFailure, session: null }),
+        ).signOut();
+
+        expect(JSON.stringify(held)).not.toMatch(/secret|private|ana@/);
+        expect(JSON.stringify(gone)).not.toMatch(/secret|private|ana@/);
+      });
+    });
   });
 
   describe('signOutOthers', () => {
@@ -286,6 +380,17 @@ describe('createAuthAdapter', () => {
       const result = await adapterFor(fakeClient({ signOutError })).signOutOthers();
 
       expect(result).toEqual({ ok: false, code: 'FORBIDDEN' });
+    });
+
+    // It never touches this device's session, so a failure says nothing about it.
+    it('stays a failure when the request fails, without asking about the session', async () => {
+      const signOutError = { name: 'AuthRetryableFetchError', message: 'x', status: 0 };
+      const client = fakeClient({ signOutError, session: null });
+
+      const result = await adapterFor(client).signOutOthers();
+
+      expect(result).toEqual({ ok: false, code: 'NETWORK' });
+      expect(client.auth.getSession).not.toHaveBeenCalled();
     });
   });
 

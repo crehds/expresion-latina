@@ -82,8 +82,27 @@ export function createAuthAdapter(getClient, { fetchSettings = null } = {}) {
 
     // Ends this device's session only. auth-js signs out every device by
     // default (`scope: 'global'`), which a button on one device must not do.
+    //
+    // The result says whether this device still holds a session, which is not the
+    // same as whether the request worked. When the request fails (no connection,
+    // a server error) auth-js removes the local session anyway and reports the
+    // error; when the stored access token has expired and the refresh fails
+    // offline, it gives up before removing anything, and the session stays. Asking
+    // `getSession()` tells them apart, and it is asked only after a failure. It
+    // fails closed: only "no session" together with no error says the session is
+    // gone, and a session, an error, an answer that is not understood or a call
+    // that throws all mean one may still be held, which is reported as the failure
+    // of the request.
     signOut: () => run(
-      async (client) => ({ data: null, ...(await client.auth.signOut({ scope: 'local' })) }),
+      async (client) => {
+        const outcome = await client.auth.signOut({ scope: 'local' });
+        if (!outcome.error) {
+          return { data: null, error: null };
+        }
+        const remaining = await client.auth.getSession();
+        const gone = !remaining?.error && remaining?.data?.session === null;
+        return { data: null, error: gone ? null : outcome.error };
+      },
       () => null,
     ),
 
