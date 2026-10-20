@@ -43,6 +43,17 @@ const toPeriod = (row) => ({
   endsOn: row.ends_on,
 });
 
+// An UPDATE or a DELETE that matches no row (it was deleted meanwhile, or the
+// policy hides it) is a success with no rows to PostgREST, not an error. Those
+// two calls ask for the ids they touched, and an empty answer is told the way
+// Postgres tells it, no_data_found, which `toResultCode` maps to NOT_FOUND.
+const NO_ROW_MATCHED = { code: 'P0002', message: 'no row matched' };
+
+function requireRows(answer) {
+  const matched = Array.isArray(answer.data) && answer.data.length > 0;
+  return answer.error || matched ? answer : { data: null, error: NO_ROW_MATCHED };
+}
+
 export function createMembershipAdapter(getClient) {
   // Runs `call(client)` and turns whatever it returns or throws into a result.
   // `call` returns `{ error, data }`-shaped values; `read` maps `data` on success.
@@ -71,6 +82,35 @@ export function createMembershipAdapter(getClient) {
         .eq('member_id', memberId)
         .order('starts_on', { ascending: false }),
       (rows) => (rows ?? []).map(toPeriod),
+    ),
+
+    // Only the three columns the table grants an INSERT on; `recorded_by` is
+    // filled in by the database. Nothing comes back: the screen reads the list
+    // again, so it shows what the database holds.
+    createPeriod: ({ memberId, startsOn, endsOn }) => run(
+      (client) => client
+        .from('paid_periods')
+        .insert({ member_id: memberId, starts_on: startsOn, ends_on: endsOn }),
+      () => null,
+    ),
+
+    // Only the two columns the table grants an UPDATE on.
+    updatePeriod: (id, { startsOn, endsOn }) => run(
+      async (client) => requireRows(await client
+        .from('paid_periods')
+        .update({ starts_on: startsOn, ends_on: endsOn })
+        .eq('id', id)
+        .select('id')),
+      () => null,
+    ),
+
+    deletePeriod: (id) => run(
+      async (client) => requireRows(await client
+        .from('paid_periods')
+        .delete()
+        .eq('id', id)
+        .select('id')),
+      () => null,
     ),
 
     // When the keep-alive last pinged the project: the `last_ping_at` instant as
