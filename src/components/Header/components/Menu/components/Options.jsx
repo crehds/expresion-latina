@@ -39,8 +39,6 @@ const OPTIONS = [{
 // must not be offered a sign-in that is about to turn into an account link. A
 // stored session starts as "loading", so "idle" only means that nothing is
 // stored or loaded, and a visitor can sign in.
-// "/admin/members" arrives with the admin pages (T7) and answers not-found until
-// then.
 function sessionOptions({ status, profile }) {
   if (status === 'signed-in') {
     const account = { id: 'account', name: 'Mi cuenta', path: '/account' };

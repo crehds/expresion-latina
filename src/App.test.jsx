@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 
 import App from './App';
@@ -140,7 +140,9 @@ describe('App with a pending consent', () => {
 });
 
 describe('App account routes', () => {
-  const ROUTES = ['/login', '/auth/callback', '/auth/confirm', '/privacy', '/account'];
+  const ROUTES = [
+    '/login', '/auth/callback', '/auth/confirm', '/privacy', '/account', '/admin/members',
+  ];
 
   it.each(ROUTES)('renders the not-found page at %s while the backend is off', async (path) => {
     render(
@@ -289,6 +291,118 @@ describe('App account routes', () => {
       renderOn('/contact');
 
       expect(await screen.findByRole('button', { name: /Mapa/ }, { timeout: 5000 })).toBeInTheDocument();
+    });
+  });
+});
+
+describe('App admin routes', () => {
+  const profile = (isAdmin) => ({
+    id: 'user-1',
+    fullName: 'Ana Perez',
+    consentVersion: '2026-01-01',
+    consentAt: '2026-10-01T10:00:00+00:00',
+    isAdmin,
+  });
+  const sessionOf = (overrides) => ({
+    status: 'signed-in',
+    session: { userId: 'user-1', email: 'ana@example.test' },
+    profile: profile(true),
+    errorCode: null,
+    start: vi.fn(async () => {}),
+    refresh: vi.fn(async () => {}),
+    signOut: vi.fn(async () => {}),
+    ...overrides,
+  });
+  const SIGNED_OUT = { status: 'signed-out', session: null, profile: null };
+
+  const member = {
+    id: 'member-1',
+    fullName: 'Beto Ruiz',
+    email: 'beto@example.test',
+    paidUntil: '2026-10-31',
+    isActive: true,
+  };
+
+  function renderAdmin(path, session) {
+    const searchMembers = vi.fn(async () => ({ ok: true, data: [member] }));
+    const services = {
+      auth: { getProviders: vi.fn(async () => ({ ok: true, data: { google: false } })) },
+      membership: { searchMembers },
+    };
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <BackendContext.Provider value={{ enabled: true, services }}>
+          <SessionContext.Provider value={session}>
+            <App />
+          </SessionContext.Provider>
+        </BackendContext.Provider>
+      </MemoryRouter>,
+    );
+    return { searchMembers, session };
+  }
+
+  const heading = (level, name) => screen.findByRole('heading', { level, name }, { timeout: 5000 });
+
+  it('sends a visitor from the members page to the login page, asking the backend for nothing', async () => {
+    const { searchMembers, session } = renderAdmin('/admin/members', sessionOf(SIGNED_OUT));
+
+    expect(await heading(1, 'Ingresar')).toBeInTheDocument();
+    expect(session.start).toHaveBeenCalled();
+    expect(searchMembers).not.toHaveBeenCalled();
+  });
+
+  it('renders the not-found page for a member who is not an administrator, asking the backend for nothing', async () => {
+    const { searchMembers } = renderAdmin('/admin/members', sessionOf({ profile: profile(false) }));
+
+    expect(await heading(1, /no encontramos/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Administración' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Miembros' })).not.toBeInTheDocument();
+    expect(searchMembers).not.toHaveBeenCalled();
+  });
+
+  it('answers not found while the backend is off, even if a session says the member is an administrator', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/members']}>
+        <SessionContext.Provider value={sessionOf()}>
+          <App />
+        </SessionContext.Provider>
+      </MemoryRouter>,
+    );
+
+    expect(await heading(1, /no encontramos/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Administración' })).not.toBeInTheDocument();
+  });
+
+  describe('for an administrator', () => {
+    it('renders the members page inside the admin frame', async () => {
+      const { searchMembers } = renderAdmin('/admin/members', sessionOf());
+
+      expect(await heading(1, 'Administración')).toBeInTheDocument();
+      expect(await heading(2, 'Miembros')).toBeInTheDocument();
+      expect(await screen.findByRole('link', { name: 'Beto Ruiz' }))
+        .toHaveAttribute('href', '/admin/members/member-1');
+      expect(searchMembers).toHaveBeenCalledWith('');
+      expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
+    });
+
+    it('marks the members page in the sub-navigation and the Admin entry of the menu', async () => {
+      renderAdmin('/admin/members', sessionOf());
+
+      await heading(1, 'Administración');
+
+      const subNavigation = screen.getByRole('navigation', { name: 'Secciones de administración' });
+      expect(within(subNavigation).getByRole('link', { name: 'Miembros' }))
+        .toHaveAttribute('aria-current', 'page');
+      expect(screen.getByText('Admin')).toHaveAttribute('aria-current', 'page');
+      await screen.findByText('Beto Ruiz');
+    });
+
+    it('does not turn /admin on its own into an empty admin page', async () => {
+      const { searchMembers } = renderAdmin('/admin', sessionOf());
+
+      expect(await heading(1, /no encontramos/i)).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Administración' })).not.toBeInTheDocument();
+      expect(searchMembers).not.toHaveBeenCalled();
     });
   });
 });
