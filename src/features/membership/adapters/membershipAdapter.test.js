@@ -256,7 +256,7 @@ describe('createMembershipAdapter', () => {
     it.each([
       ['42501', 'FORBIDDEN'],
       ['22023', 'INVALID'],
-      ['PGRST301', 'UNKNOWN'],
+      ['XX000', 'UNKNOWN'],
     ])('maps the PostgREST code %s to %s and repeats nothing of the error', async (code, expected) => {
       const result = await adapterFor(fakeClient({ error: postgrestError(code) })).searchMembers('ana');
 
@@ -492,8 +492,8 @@ describe('createMembershipAdapter', () => {
 
     it.each([
       ['42501', 'FORBIDDEN'],
-      ['PGRST116', 'UNKNOWN'],
-    ])('maps the PostgREST code %s to %s', async (code, expected) => {
+      ['XX000', 'UNKNOWN'],
+    ])('maps the PostgREST code %s to %s and repeats nothing of the error', async (code, expected) => {
       const result = await adapterFor(fakeClient({ error: postgrestError(code) })).getLastPing();
 
       expect(result).toStrictEqual({ ok: false, code: expected });

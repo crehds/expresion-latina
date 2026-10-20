@@ -83,9 +83,8 @@ export default function NewPassword({ onDone }) {
       }
     } catch (error) {
       // `run` and `settleWithin` never reject, so only `onDone` can throw here.
-      // That is a bug of the parent, which is told nothing more than it already
-      // knows; it is logged so it does not vanish, and it must not escape this
-      // handler as an unhandled rejection.
+      // That is a bug in the parent: it is logged so it does not vanish, and it
+      // must not escape this handler as an unhandled rejection.
       console.error(error);
     } finally {
       // Whatever happened, the member is not left with a button that stays

@@ -1,8 +1,10 @@
 /**
  * The only door between the membership feature and the member directory, the
  * paid periods and the keep-alive heartbeat in Supabase (Design: Interfaces,
- * D10). Everything here is for the administrator: the database refuses it to
- * anyone else, and the screens that call it sit behind the admin guard.
+ * D10). Everything here is meant for the administrator, and the screens that
+ * call it sit behind the admin guard. The database stays the authority: it
+ * refuses the directory search and the writes to anyone else, and shows a member
+ * who is not one only their own periods and nothing of the heartbeat.
  *
  * `createMembershipAdapter(getClient)` takes the lazy client getter and calls it
  * only when a method runs, so creating the adapter never loads supabase-js. Every
