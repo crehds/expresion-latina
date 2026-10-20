@@ -457,4 +457,135 @@ describe('SessionProvider while the backend is enabled', () => {
       expect(seen.current.errorCode).toBe('NETWORK');
     });
   });
+
+  // The shared load of start() is kept once it has worked, so that every page
+  // asking for the session shares it. An error that the load did not produce (a
+  // refused sign-out, a profile read that fails later on) must not leave start()
+  // replaying that finished load: the page's "try again" has to load again.
+  describe('start after an error that the shared load did not produce', () => {
+    const signedIn = async (overrides = {}) => {
+      hasStoredSession.mockReturnValue(true);
+      const view = renderWith({ auth: fakeAuth(overrides) });
+      await waitForStatus('signed-in');
+      return view;
+    };
+
+    it('loads again after a sign-out that failed, and ends signed in with one subscription', async () => {
+      const signOut = vi.fn().mockResolvedValueOnce(fail('NETWORK'));
+      const { auth } = await signedIn({ signOut });
+      await act(async () => { await seen.current.signOut(); });
+      expect(status()).toBe('error');
+      expect(seen.current.session).toEqual(SESSION);
+
+      await act(async () => { await seen.current.start(); });
+
+      expect(auth.getSession).toHaveBeenCalledTimes(2);
+      expect(auth.getOwnProfile).toHaveBeenCalledTimes(2);
+      expect(status()).toBe('signed-in');
+      expect(seen.current.profile).toEqual(PROFILE);
+      expect(seen.current.errorCode).toBeNull();
+      expect(auth.subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('ends signed out when the session really ended while the sign-out was failing', async () => {
+      const signOut = vi.fn().mockResolvedValueOnce(fail('NETWORK'));
+      const { auth } = await signedIn({ signOut });
+      await act(async () => { await seen.current.signOut(); });
+      auth.getSession.mockResolvedValueOnce(ok(null));
+
+      await act(async () => { await seen.current.start(); });
+
+      expect(status()).toBe('signed-out');
+      expect(seen.current.session).toBeNull();
+      expect(auth.subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads again after a refresh that failed to read the profile', async () => {
+      const getOwnProfile = vi.fn()
+        .mockResolvedValueOnce(ok(PROFILE))
+        .mockResolvedValueOnce(fail('NETWORK'))
+        .mockResolvedValue(ok(PROFILE));
+      const { auth } = await signedIn({ getOwnProfile });
+      await act(async () => { await seen.current.refresh(); });
+      expect(status()).toBe('error');
+      expect(seen.current.errorCode).toBe('NETWORK');
+
+      await act(async () => { await seen.current.start(); });
+
+      expect(auth.getSession).toHaveBeenCalledTimes(2);
+      expect(status()).toBe('signed-in');
+      expect(auth.subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('loads again after a change of user whose profile could not be read', async () => {
+      const getOwnProfile = vi.fn()
+        .mockResolvedValueOnce(ok(PROFILE))
+        .mockResolvedValueOnce(fail('NETWORK'))
+        .mockResolvedValue(ok({ ...PROFILE, id: 'user-2', fullName: 'Luis' }));
+      const { auth } = await signedIn({ getOwnProfile });
+      auth.getSession.mockResolvedValue(ok(OTHER_SESSION));
+      act(() => { auth.emit(OTHER_SESSION); });
+      await waitForStatus('error');
+      expect(seen.current.session).toEqual(OTHER_SESSION);
+
+      await act(async () => { await seen.current.start(); });
+
+      expect(status()).toBe('signed-in');
+      expect(seen.current.profile.fullName).toBe('Luis');
+      expect(auth.getSession).toHaveBeenCalledTimes(2);
+      expect(auth.subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the identity of start through the error and the recovery', async () => {
+      const signOut = vi.fn().mockResolvedValueOnce(fail('NETWORK'));
+      await signedIn({ signOut });
+      const { start } = seen.current;
+
+      await act(async () => { await seen.current.signOut(); });
+      expect(seen.current.start).toBe(start);
+      await act(async () => { await seen.current.start(); });
+
+      expect(status()).toBe('signed-in');
+      expect(seen.current.start).toBe(start);
+    });
+
+    it('shares the new load again once it has worked, instead of reloading at every call', async () => {
+      const signOut = vi.fn().mockResolvedValueOnce(fail('NETWORK'));
+      const { auth } = await signedIn({ signOut });
+      await act(async () => { await seen.current.signOut(); });
+
+      await act(async () => {
+        await seen.current.start();
+        await Promise.all([seen.current.start(), seen.current.start()]);
+      });
+
+      expect(auth.getSession).toHaveBeenCalledTimes(2);
+      expect(auth.getOwnProfile).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not load a second time while the first load is still running', async () => {
+      hasStoredSession.mockReturnValue(false);
+      let release;
+      const getSession = vi.fn(() => new Promise((resolve) => {
+        release = () => resolve(ok(SESSION));
+      }));
+      const signOut = vi.fn(async () => fail('NETWORK'));
+      const { auth } = renderWith({ auth: fakeAuth({ getSession, signOut }) });
+      let first;
+      act(() => { first = seen.current.start(); });
+      await waitFor(() => expect(getSession).toHaveBeenCalledTimes(1));
+
+      // An error arrives from outside while the load is still waiting for the session.
+      await act(async () => { await seen.current.signOut(); });
+      expect(status()).toBe('error');
+      let second;
+      act(() => { second = seen.current.start(); });
+      await act(async () => { release(); await Promise.all([first, second]); });
+
+      expect(getSession).toHaveBeenCalledTimes(1);
+      expect(auth.subscribe).toHaveBeenCalledTimes(1);
+      expect(auth.getOwnProfile).toHaveBeenCalledTimes(1);
+      expect(status()).toBe('signed-in');
+    });
+  });
 });

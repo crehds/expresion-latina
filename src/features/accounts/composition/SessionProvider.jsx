@@ -8,6 +8,11 @@
  * status stays `idle` and supabase-js is never loaded. `profile.consentAt ===
  * null` means the consent is still pending; the consent gate reads that.
  *
+ * The load `start()` runs is shared by every caller, and a load that worked is
+ * kept as done. An error that the load did not produce (a sign-out that failed,
+ * a profile read that failed after the load) ends that: the next `start()`
+ * loads again, which is what the "try again" of a page asks for.
+ *
  * Errors carry only a result code, never a message or member data.
  */
 import PropTypes from 'prop-types';
@@ -31,6 +36,11 @@ const DISABLED = {
 };
 
 const SessionContext = createContext(DISABLED);
+
+// What `start()` hands out once the shared load has worked: already settled, so a
+// caller gets nothing to wait for. An error that is not the load's own replaces it
+// with nothing (see `reopenStart`), so that the next `start()` loads again.
+const LOADED = Promise.resolve();
 
 const IDLE = {
   status: 'idle', session: null, profile: null, errorCode: null,
@@ -58,6 +68,17 @@ export function SessionProvider({ children }) {
   const unsubscribeRef = useRef(null);
   const epochRef = useRef(0);
 
+  // For an error that the shared load did not produce, such as a sign-out that
+  // failed or a profile read that failed after the load: the load that worked is
+  // not shared any more, so the next `start()` runs it again. A load that is still
+  // running is left alone: its own result decides, and a second one must never
+  // start next to it.
+  const reopenStart = useCallback(() => {
+    if (startRef.current === LOADED) {
+      startRef.current = null;
+    }
+  }, []);
+
   // Resolves to false only when the profile read failed (the load can be
   // retried). A read for a session that is no longer the current one, or that
   // outlived an unmount, is dropped: it must never write state.
@@ -68,13 +89,16 @@ export function SessionProvider({ children }) {
     if (!isCurrent) {
       return true;
     }
+    if (!result.ok) {
+      reopenStart();
+    }
     setState(result.ok
       ? {
         status: 'signed-in', session, profile: result.data, errorCode: null,
       }
       : failure(result.code, session));
     return result.ok;
-  }, [auth]);
+  }, [auth, reopenStart]);
 
   const apply = useCallback(async (session, epoch) => {
     sessionRef.current = session;
@@ -138,8 +162,8 @@ export function SessionProvider({ children }) {
       startRef.current = load(epoch).then((loaded) => {
         // A failed load (session, subscription or profile) can be retried; a
         // successful one is shared from now on.
-        if (!loaded && epochRef.current === epoch) {
-          startRef.current = null;
+        if (epochRef.current === epoch) {
+          startRef.current = loaded ? LOADED : null;
         }
       }, (error) => {
         // A load that threw is a failed load too: the caller hears about it, the
@@ -171,9 +195,10 @@ export function SessionProvider({ children }) {
       sessionRef.current = null;
       setState(SIGNED_OUT);
     } else {
+      reopenStart();
       setState(failure(result.code, sessionRef.current));
     }
-  }, [auth]);
+  }, [auth, reopenStart]);
 
   useEffect(() => {
     if (!auth) {
