@@ -1,0 +1,10 @@
+.admin-members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.admin-members__title {
+  margin: 0;
+  color: var(--text-primary);
+}
