@@ -1,9 +1,10 @@
 /**
  * When the administrator is told that the keep-alive has not pinged the project
- * lately (Spec: Keep-Alive Failure Detection). Two pure pieces:
+ * lately (Spec: Keep-Alive Failure Detection). Pure pieces:
  *
  * - `parseAlertDays` reads the build-time variable `VITE_KEEPALIVE_ALERT_DAYS`,
  *   the number of days without a ping after which the banner appears.
+ * - `resolveAlertDays` turns that reading into what the banner works with.
  * - `keepaliveStatus` judges the instant of the last ping against that number.
  *
  * Nothing here is React, a browser API or another module: the build imports
@@ -49,6 +50,25 @@ export function parseAlertDays(value) {
   }
   const days = DAYS_PATTERN.test(value) ? Number(value) : Number.NaN;
   return Number.isSafeInteger(days) ? { kind: 'days', days } : { kind: 'malformed' };
+}
+
+/**
+ * What the banner works with, from the value of the variable: the number of
+ * days it waits, or null when it is off and must not even read the heartbeat.
+ *
+ * A malformed value counts as the default. The build refuses one, so only the
+ * dev server and the tests can meet it, and there a typo must neither silence
+ * the banner nor break the page.
+ *
+ * @param {unknown} value what the variable holds: text, or undefined when unset
+ * @returns {number | null}
+ */
+export function resolveAlertDays(value) {
+  const setting = parseAlertDays(value);
+  if (setting.kind === 'off') {
+    return null;
+  }
+  return setting.kind === 'days' ? setting.days : DEFAULT_ALERT_DAYS;
 }
 
 /**

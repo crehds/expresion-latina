@@ -6,6 +6,7 @@ import {
   DEFAULT_MEMBER_ERROR,
   DEFAULT_SAVE_PERIOD_ERROR,
   DEFAULT_SEARCH_ERROR,
+  KEEPALIVE_NEVER,
   LOADING_MEMBER,
   MEMBER_NOT_FOUND,
   MEMBER_NOT_FOUND_TITLE,
@@ -16,6 +17,7 @@ import {
   deletePeriodErrorMessage,
   deletePeriodLabel,
   editPeriodLabel,
+  keepaliveStaleText,
   lastDueText,
   memberErrorMessage,
   membersFound,
@@ -327,5 +329,44 @@ describe('memberErrorMessage', () => {
 
   it('asks the administrator to try again in the generic message', () => {
     expect(DEFAULT_MEMBER_ERROR).toBe('No pudimos cargar al miembro. Inténtalo de nuevo.');
+  });
+});
+
+describe('the keep-alive notice', () => {
+  const RUNS = 'Revisa el historial del flujo «Keep-alive ping» en GitHub Actions.';
+
+  it('says that no ping is recorded, and sends the administrator to the run history', () => {
+    expect(KEEPALIVE_NEVER).toBe(
+      `Todavía no hay ningún ping de mantenimiento registrado. ${RUNS}`,
+    );
+  });
+
+  it('gives the day of the last ping and how many days ago it was', () => {
+    expect(keepaliveStaleText(new Date('2026-10-16T17:00:00Z'), 4)).toBe(
+      `El último ping de mantenimiento registrado fue el 16 de octubre de 2026, hace 4 días. ${RUNS}`,
+    );
+  });
+
+  it('uses the singular for one day', () => {
+    expect(keepaliveStaleText(new Date('2026-10-19T17:00:00Z'), 1)).toBe(
+      `El último ping de mantenimiento registrado fue el 19 de octubre de 2026, hace 1 día. ${RUNS}`,
+    );
+  });
+
+  // The ping is an instant, so the day it falls on depends on the zone: the notice
+  // writes it on the Lima calendar (UTC-05:00), like the account page does.
+  it('writes the day of the ping on the Lima calendar, not on the UTC one', () => {
+    expect(keepaliveStaleText(new Date('2026-10-17T04:59:59Z'), 3))
+      .toContain('fue el 16 de octubre de 2026, ');
+    expect(keepaliveStaleText(new Date('2026-10-17T05:00:00Z'), 3))
+      .toContain('fue el 17 de octubre de 2026, ');
+  });
+
+  // `last_ping_at` can be refreshed by anyone holding the publishable key, and the
+  // run history is the real signal, so the notice only reports what is recorded.
+  it('never says that the workflow failed', () => {
+    [KEEPALIVE_NEVER, keepaliveStaleText(new Date('2026-10-16T17:00:00Z'), 4)].forEach((text) => {
+      expect(text).not.toMatch(/fall|error|caíd|roto|no funciona/i);
+    });
   });
 });

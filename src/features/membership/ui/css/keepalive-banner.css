@@ -1,0 +1,17 @@
+/*
+ * The notice that the keep-alive has not pinged lately, between the
+ * sub-navigation of the admin area and the page. It advises and does not alarm,
+ * so it is a card with the accent on its edge, the way the messages of the admin
+ * screens are marked, rather than anything red. The words carry the meaning.
+ */
+.keepalive-banner {
+  max-width: 60rem;
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--surface-border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}

@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
 import Page from '../../components/Page/Page';
+import KeepaliveBanner from '../../features/membership/ui/KeepaliveBanner';
 
 import './css/admin-frame.css';
 
@@ -24,9 +25,10 @@ const linkClass = ({ isActive }) => (
  * renders for anyone else, and each page brings only its own content (a
  * section with a level 2 heading) and never a heading or a landmark of its own.
  *
- * The keep-alive notice, which warns the administrator that the project has not
- * been pinged lately, belongs between the sub-navigation and the page, so that
- * it reaches every admin page; it is not built yet.
+ * The keep-alive notice, which tells the administrator that the project has not
+ * been pinged lately, sits between the sub-navigation and the page, so that it
+ * reaches every admin page. The frame stays mounted while the administrator moves
+ * between the pages, so the notice reads the heartbeat once for the whole visit.
  */
 export default function AdminFrame() {
   return (
@@ -40,6 +42,7 @@ export default function AdminFrame() {
           ))}
         </ul>
       </nav>
+      <KeepaliveBanner />
       <Outlet />
     </Page>
   );

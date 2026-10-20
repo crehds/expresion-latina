@@ -1,18 +1,33 @@
-import { render, screen, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import {
+  fireEvent, render, screen, within,
+} from '@testing-library/react';
+import {
+  Link, MemoryRouter, Route, Routes,
+} from 'react-router-dom';
 
+import BackendContext from '../../shared/backend/BackendContext';
 import AdminFrame from './AdminFrame';
 
-function renderFrame(path = '/admin/members') {
+function renderFrame(path = '/admin/members', services = null) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route element={<AdminFrame />}>
-          <Route path="/admin/members" element={<h2>members page</h2>} />
-          <Route path="/admin/members/:memberId" element={<h2>member page</h2>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <BackendContext.Provider value={{ enabled: services !== null, services }}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<AdminFrame />}>
+            <Route
+              path="/admin/members"
+              element={(
+                <>
+                  <h2>members page</h2>
+                  <Link to="/admin/members/member-1">open a member</Link>
+                </>
+              )}
+            />
+            <Route path="/admin/members/:memberId" element={<h2>member page</h2>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </BackendContext.Provider>,
   );
 }
 
@@ -56,5 +71,51 @@ describe('AdminFrame', () => {
 
     expect(within(subNavigation()).getByRole('link', { name: 'Miembros' }))
       .toHaveAttribute('aria-current', 'page');
+  });
+
+  describe('the keep-alive notice', () => {
+    const withNoPing = () => ({
+      membership: { getLastPing: vi.fn(async () => ({ ok: true, data: null })) },
+    });
+
+    // The threshold comes from a build-time variable that a local env file may set.
+    beforeEach(() => {
+      vi.stubEnv('VITE_KEEPALIVE_ALERT_DAYS', '');
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('sits right after the sub-navigation and right before the page', async () => {
+      renderFrame('/admin/members', withNoPing());
+
+      const notice = await screen.findByRole('status');
+      const page = screen.getByRole('heading', { level: 2, name: 'members page' });
+      const parts = Array.from(screen.getByRole('main').children);
+
+      expect(notice).toHaveTextContent('Todavía no hay ningún ping de mantenimiento registrado.');
+      expect(parts.indexOf(notice)).toBe(parts.indexOf(subNavigation()) + 1);
+      expect(parts.indexOf(page)).toBe(parts.indexOf(notice) + 1);
+    });
+
+    it('stays while the administrator moves between admin pages, and reads only once', async () => {
+      const services = withNoPing();
+      renderFrame('/admin/members', services);
+      await screen.findByRole('status');
+
+      fireEvent.click(screen.getByRole('link', { name: 'open a member' }));
+
+      expect(screen.getByRole('heading', { level: 2, name: 'member page' })).toBeInTheDocument();
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(services.membership.getLastPing).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the frame as it was when there is nothing to say', () => {
+      renderFrame('/admin/members', { auth: {} });
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: 'members page' })).toBeInTheDocument();
+    });
   });
 });

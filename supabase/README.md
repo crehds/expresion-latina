@@ -435,8 +435,36 @@ confirmation that the workflow ran:
 select last_ping_at from public.ops_heartbeat;
 ```
 
-There is no admin-facing banner for this yet (a later slice adds one);
-run the query above as an admin, or as `postgres` in the SQL editor.
+Run the query above as an admin, or as `postgres` in the SQL editor.
+
+An administrator who opens the admin area (`/admin/members` and the pages
+under it) also sees a notice above the page when the last ping is old. It
+reads `ops_heartbeat.last_ping_at` once, when the area opens, and says one of
+two things: that no ping is recorded yet, or the date of the last one (on the
+Lima calendar) and how many days ago it was. A recent ping shows nothing, and
+so does a heartbeat that cannot be read. The notice only reports what is
+recorded and points to the run history of the "Keep-alive ping" workflow in
+GitHub Actions, which stays the real signal for the reason above: the
+timestamp alone does not prove that the workflow ran.
+
+The notice appears when the last ping is more than **3 days** old (the
+workflow runs daily). Change that per environment with the build-time
+variable `VITE_KEEPALIVE_ALERT_DAYS`, set where the other `VITE_` variables
+are set (the Vercel environment of a deployment). It is optional, and it only
+matters where the feature is on:
+
+- Unset or empty: 3 days.
+- A whole number of days of 1 or more, in digits only (`7`): that many days.
+- `off`, in any case and with nothing around it: no notice, and the heartbeat
+  is not even read.
+
+Anything else fails `vite build`, whether the backend is on or off, with a
+message that names the variable and the accepted forms. That includes `0`, a
+sign (`+3`, `-1`), a leading zero (`03`), a decimal (`3.5`), an exponent
+(`1e2`), a space before or after the number, a unit (`3d`) and a number too
+large to be exact. Like the other `VITE_` variables it is written into the
+bundle at build time, so changing it means building again. In `npm run dev`
+and in the tests nothing refuses a malformed value, and it counts as 3 days.
 
 ### Checking the scheduled purges
 

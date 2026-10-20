@@ -1,4 +1,6 @@
-import { DEFAULT_ALERT_DAYS, keepaliveStatus, parseAlertDays } from './keepaliveAlert';
+import {
+  DEFAULT_ALERT_DAYS, keepaliveStatus, parseAlertDays, resolveAlertDays,
+} from './keepaliveAlert';
 
 describe('parseAlertDays', () => {
   it('has a default of three days', () => {
@@ -60,6 +62,39 @@ describe('parseAlertDays', () => {
     ['a function', () => 3],
   ])('refuses %s as malformed, without throwing', (_label, value) => {
     expect(parseAlertDays(value)).toEqual({ kind: 'malformed' });
+  });
+});
+
+describe('resolveAlertDays', () => {
+  it.each([
+    ['unset', undefined, 3],
+    ['empty', '', 3],
+    ['the default written out', '3', 3],
+    ['a week', '7', 7],
+    ['a year', '365', 365],
+  ])('gives the days the banner waits when the variable is %s', (_label, value, days) => {
+    expect(resolveAlertDays(value)).toBe(days);
+  });
+
+  it.each(['off', 'OFF', 'Off'])('gives null, which is no banner at all, for %j', (value) => {
+    expect(resolveAlertDays(value)).toBeNull();
+  });
+
+  // The build refuses these, so only the dev server and the tests can meet them,
+  // and there a typo must not silence the banner or break the page.
+  it.each([
+    ['text', 'abc'],
+    ['zero', '0'],
+    ['negative', '-1'],
+    ['fractional', '3.5'],
+    ['padded', ' 3'],
+    ['with a leading zero', '03'],
+    ['a misspelt off', 'offf'],
+    ['beyond what a number holds exactly', '9007199254740992'],
+    ['null', null],
+    ['a number', 7],
+  ])('counts the malformed value %s as the default', (_label, value) => {
+    expect(resolveAlertDays(value)).toBe(DEFAULT_ALERT_DAYS);
   });
 });
 

@@ -1,6 +1,7 @@
 /**
  * The Spanish copy of the membership screens, for the administrator: the member
- * directory, and the page of one member with the payments recorded for them.
+ * directory, the page of one member with the payments recorded for them, and the
+ * keep-alive notice above the admin pages.
  *
  * Every message is fixed text. A failed call shows the message of its result
  * code and nothing the backend said, so no raw error and no member data can
@@ -206,3 +207,24 @@ const MEMBER_ERRORS = new Map([
 
 /** The message for the code of a member who could not be read. */
 export const memberErrorMessage = (code) => MEMBER_ERRORS.get(code) ?? DEFAULT_MEMBER_ERROR;
+
+// The notice above the admin pages when the keep-alive has not pinged lately. It
+// only reports what is recorded and never says that the workflow failed:
+// `last_ping_at` can be refreshed by anyone holding the publishable key, so the
+// run history of the workflow, which the notice points to, is the real signal.
+const CHECK_THE_RUNS = 'Revisa el historial del flujo «Keep-alive ping» en GitHub Actions.';
+
+export const KEEPALIVE_NEVER = `Todavía no hay ningún ping de mantenimiento registrado. ${CHECK_THE_RUNS}`;
+
+// The ping is an instant, so the day it falls on depends on the zone: it is
+// written on the Lima calendar, the way the account page writes its instants.
+const PING_DATE_FORMAT = new Intl.DateTimeFormat('es-PE', {
+  dateStyle: 'long',
+  timeZone: 'America/Lima',
+});
+
+/** For a ping older than the threshold: the day of the last one, and how long ago. */
+export const keepaliveStaleText = (lastPingAt, daysAgo) => (
+  `El último ping de mantenimiento registrado fue el ${PING_DATE_FORMAT.format(lastPingAt)}, `
+  + `hace ${daysAgo === 1 ? '1 día' : `${daysAgo} días`}. ${CHECK_THE_RUNS}`
+);
