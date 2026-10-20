@@ -124,14 +124,39 @@ describe('createRequestRunner', () => {
       expect(broken).toStrictEqual({ ok: false, code: 'UNKNOWN' });
     });
 
-    it('answers a code, and does not throw, when read cannot make sense of the data', async () => {
+    // The call got its answer, so a read that throws is a bug in the mapper, not
+    // a lost connection: telling the member to check their internet would send
+    // them looking in the wrong place.
+    it('answers UNKNOWN, and does not throw, when read cannot make sense of the data', async () => {
       const run = createRequestRunner(async () => CLIENT);
 
       const result = await run(answering({ data: null, error: null }), (row) => row.id);
 
-      expect(result.ok).toBe(false);
-      expect(typeof result.code).toBe('string');
-      expect(Object.keys(result)).toEqual(['ok', 'code']);
+      expect(result).toStrictEqual({ ok: false, code: 'UNKNOWN' });
+    });
+
+    it.each([
+      ['a TypeError', () => { throw new TypeError('Failed to fetch'); }],
+      ['an AbortError', () => { throw Object.assign(new Error('aborted'), { name: 'AbortError' }); }],
+      ['any other error', () => { throw new Error('boom ana@example.test'); }],
+      ['something that is not an error', () => { throw 'boom'; }], // eslint-disable-line no-throw-literal
+    ])('answers UNKNOWN, never NETWORK, when read throws %s', async (_name, read) => {
+      const run = createRequestRunner(async () => CLIENT);
+
+      const result = await run(answering({ data: [], error: null }), read);
+
+      expect(result).toStrictEqual({ ok: false, code: 'UNKNOWN' });
+      expect(JSON.stringify(result)).not.toMatch(/ana@example|boom|aborted|fetch/i);
+    });
+
+    it('keeps mapping a call that fails to NETWORK, whatever read would have done', async () => {
+      const run = createRequestRunner(async () => CLIENT);
+      const read = vi.fn(() => { throw new Error('never reached'); });
+
+      const result = await run(async () => { throw new TypeError('Failed to fetch'); }, read);
+
+      expect(result).toStrictEqual({ ok: false, code: 'NETWORK' });
+      expect(read).not.toHaveBeenCalled();
     });
   });
 
