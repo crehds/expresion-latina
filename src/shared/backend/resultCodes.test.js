@@ -9,6 +9,7 @@ describe('RESULT_CODES', () => {
       FORBIDDEN: 'FORBIDDEN',
       NOT_FOUND: 'NOT_FOUND',
       INVALID: 'INVALID',
+      OVERLAP: 'OVERLAP',
       INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
       EMAIL_NOT_CONFIRMED: 'EMAIL_NOT_CONFIRMED',
       WEAK_PASSWORD: 'WEAK_PASSWORD',
@@ -109,6 +110,30 @@ describe('toResultCode', () => {
 
   it.each(['22023', '23514', '22P02'])('maps %s to INVALID', (code) => {
     expect(toResultCode({ code, message: 'x' })).toBe('INVALID');
+  });
+
+  describe('for the overlap of two paid periods', () => {
+    // What PostgREST answers when the EXCLUDE constraint of paid_periods refuses a
+    // period that overlaps another one of the same member (exclusion_violation).
+    // The error body has no HTTP status, and its details name the member and the
+    // dates: only the code may be read.
+    const overlap = {
+      code: '23P01',
+      message: 'conflicting key value violates exclusion constraint "paid_periods_no_overlap"',
+      details: 'Key (member_id, daterange(starts_on, ends_on, \'[]\'::text))=(0b1a4c6e-7d52-4f0a-9d3e-2c5f8a1b7e90, [2026-10-01,2026-10-31]) conflicts with existing key (member_id, daterange(starts_on, ends_on, \'[]\'::text))=(0b1a4c6e-7d52-4f0a-9d3e-2c5f8a1b7e90, [2026-09-15,2026-10-14]).',
+      hint: null,
+    };
+
+    it('maps 23P01 to OVERLAP', () => {
+      expect(toResultCode(overlap)).toBe('OVERLAP');
+    });
+
+    it('is not told apart from the other constraint failures by the message', () => {
+      // The code decides, not the wording of the constraint, so a renamed
+      // constraint still ends as an overlap and a CHECK failure never does.
+      expect(toResultCode({ ...overlap, message: 'x', details: null })).toBe('OVERLAP');
+      expect(toResultCode({ ...overlap, code: '23514' })).toBe('INVALID');
+    });
   });
 
   describe('for the failures of auth-js that the account forms tell the member about', () => {
