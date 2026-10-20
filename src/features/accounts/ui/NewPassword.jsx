@@ -10,7 +10,8 @@
  * a success the member's other devices are signed out (a failure of that step is
  * ignored: the password changed, and the wait is bounded so a hung call cannot
  * hide the success). The form stays busy until the parent is told (`onDone`),
- * which decides what follows.
+ * which decides what follows; if `onDone` throws, the error is logged and the
+ * form is released, so the member is never left with a disabled button.
  */
 import PropTypes from 'prop-types';
 import { useContext, useRef, useState } from 'react';
@@ -71,15 +72,26 @@ export default function NewPassword({ onDone }) {
 
     // The form stays busy from the submit until the parent is told.
     setFinishing(true);
-    const outcome = await run(() => auth.updatePassword({ password }));
-    if (outcome.ok) {
-      // The password did change, so this step can only end in success: whether
-      // the other devices were signed out (or how long that took) does not turn
-      // it into an error.
-      await settleWithin(() => auth.signOutOthers(), SIGN_OUT_OTHERS_WAIT_MS);
-      onDone();
+    try {
+      const outcome = await run(() => auth.updatePassword({ password }));
+      if (outcome.ok) {
+        // The password did change, so this step can only end in success: whether
+        // the other devices were signed out (or how long that took) does not turn
+        // it into an error.
+        await settleWithin(() => auth.signOutOthers(), SIGN_OUT_OTHERS_WAIT_MS);
+        onDone();
+      }
+    } catch (error) {
+      // `run` and `settleWithin` never reject, so only `onDone` can throw here.
+      // That is a bug of the parent, which is told nothing more than it already
+      // knows; it is logged so it does not vanish, and it must not escape this
+      // handler as an unhandled rejection.
+      console.error(error);
+    } finally {
+      // Whatever happened, the member is not left with a button that stays
+      // disabled for good.
+      setFinishing(false);
     }
-    setFinishing(false);
   };
 
   return (
