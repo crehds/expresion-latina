@@ -42,6 +42,11 @@ Mailpit's inbox URL. Mailpit catches every email the local Auth service
 sends (confirmation links, password resets), so nothing needs a real SMTP
 account to test locally.
 
+The local ports are 343xx, not the CLI's 543xx defaults: API
+`http://127.0.0.1:34321`, database 34322, Studio `http://127.0.0.1:34323`,
+Mailpit `http://127.0.0.1:34324` (`config.toml` explains why). A local
+`VITE_SUPABASE_URL` points at `http://127.0.0.1:34321`.
+
 Stop the stack when done:
 
 ```bash
@@ -87,7 +92,7 @@ update public.profiles set is_admin = true where id = (
 - **Confirmations are on.** An email account cannot sign in until it has
   followed the link in its confirmation email. The local stack sends no
   real email: every message lands in Mailpit (the URL `status` prints,
-  `http://127.0.0.1:54324` by default; its API lists them at
+  `http://127.0.0.1:34324` with this project's ports; its API lists them at
   `/api/v1/messages`).
 - **Password rule.** At least 8 characters, with a letter and a digit
   (`minimum_password_length` and `password_requirements`). The sign-up
@@ -113,7 +118,7 @@ update public.profiles set is_admin = true where id = (
 - **Google is off** until the stack is given a Google OAuth client; until
   then its button ends on an "Unsupported provider" error page. To try it,
   create the client as in "Google sign-in" below, with the local Auth
-  callback (`http://127.0.0.1:54321/auth/v1/callback` by default) as an
+  callback (`http://127.0.0.1:34321/auth/v1/callback` with this project's ports) as an
   authorized redirect URI. Export `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
   and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` in the shell that starts the
   stack, uncomment the two `env(...)` lines of `[auth.external.google]` and
@@ -144,7 +149,7 @@ update public.profiles set is_admin = true where id = (
 of the last one. Run this by hand after changing an email template, the Auth
 settings in `config.toml` or the account pages. Start the stack and the app
 (`npm run dev`, with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
-pointing at it), and keep Mailpit open (`http://127.0.0.1:54324`).
+pointing at it), and keep Mailpit open (`http://127.0.0.1:34324`).
 
 1. **Sign-up confirmation.** On `/login` press "Crear cuenta", fill the form,
    tick the privacy checkbox and submit. Expect: the message "Te enviamos un

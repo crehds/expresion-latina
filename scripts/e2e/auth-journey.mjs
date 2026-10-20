@@ -56,8 +56,8 @@ import { SUPABASE_CLI } from '../db/test-db-lib.mjs';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 // The local stack's defaults (supabase/config.toml leaves the ports alone).
-const API_URL = 'http://127.0.0.1:54321';
-const MAILPIT_URL = 'http://127.0.0.1:54324';
+const API_URL = 'http://127.0.0.1:34321';
+const MAILPIT_URL = 'http://127.0.0.1:34324';
 // supabase_db_<project_id>; the project_id is in supabase/config.toml.
 const DB_CONTAINER = 'supabase_db_expresion-latina';
 
@@ -452,7 +452,7 @@ async function cleanUp(problems) {
 async function main() {
   if (!(await isUp(`${API_URL}/auth/v1/health`)) || !(await isUp(`${MAILPIT_URL}/api/v1/info`))) {
     console.error(
-      'El stack local de Supabase no responde (la API en 127.0.0.1:54321 o Mailpit en 127.0.0.1:54324).\n'
+      'El stack local de Supabase no responde (la API en 127.0.0.1:34321 o Mailpit en 127.0.0.1:34324).\n'
       + `Inícialo con: npx --yes ${SUPABASE_CLI} start -x vector`,
     );
     process.exitCode = 1;
