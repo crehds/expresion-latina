@@ -108,8 +108,9 @@ const VARIANTS = [
       // No session is stored, so the account page starts one (it loads supabase-js
       // by design) and sends the visitor to the login page.
       { path: ACCOUNT_PATH, heading: 'Ingresar', usesBackend: true },
-      // The same for the admin pages: the visitor is not an administrator, so
-      // nothing of the administration is requested or shown.
+      // The same for the admin pages: no session is stored, so the admin check
+      // starts one and sends the visitor to the login page before anything of the
+      // administration is requested or shown.
       { path: ADMIN_MEMBERS_PATH, heading: 'Ingresar', usesBackend: true },
     ],
   },
