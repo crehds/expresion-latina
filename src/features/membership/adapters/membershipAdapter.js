@@ -48,7 +48,9 @@ const toPeriod = (row) => ({
 // An UPDATE or a DELETE that matches no row (it was deleted meanwhile, or the
 // policy hides it) is a success with no rows to PostgREST, not an error. Those
 // two calls ask for the ids they touched, and an empty answer is told the way
-// Postgres tells it, no_data_found, which `toResultCode` maps to NOT_FOUND.
+// Postgres tells it, no_data_found, which `toResultCode` maps to NOT_FOUND. The
+// lookup of one member needs the same, since its function answers no rows for a
+// member who is not there.
 const NO_ROW_MATCHED = { code: 'P0002', message: 'no row matched' };
 
 function requireRows(answer) {
@@ -72,6 +74,21 @@ export function createMembershipAdapter(getClient) {
         lim: MEMBER_SEARCH_LIMIT,
       }),
       (rows) => (rows ?? []).map(toMember),
+    ),
+
+    // ONE member of the directory (the `admin_get_member` function: the same
+    // administrator check, the same two gates and the same row as the search).
+    // The function answers no row, and no error, for a member who fails a gate
+    // and for an id that belongs to nobody. Both come out as NOT_FOUND, so a
+    // screen cannot tell them apart. The id goes as given when it is a string;
+    // anything else asks for nobody (NULL), because leaving the argument out of
+    // the request is refused by PostgREST with an error that says nothing about
+    // the id. The periods of the member come from `listPeriods`.
+    getMember: (id) => run(
+      async (client) => requireRows(await client.rpc('admin_get_member', {
+        p_id: typeof id === 'string' ? id : null,
+      })),
+      (rows) => toMember(rows[0]),
     ),
 
     // The periods of ONE member, newest first. The filter is not optional: the

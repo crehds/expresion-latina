@@ -67,8 +67,11 @@ const LEAKS = /0b1a4c6e|ana@example|2026-09-15|2026-10-14|private detail|member_
 //    policies of paid_periods let an admin read every member's rows);
 //  - a write only answers rows when the request chains .select(), and an UPDATE or
 //    a DELETE that matches nothing succeeds with an empty answer;
-//  - the column grants refuse a write to any column but the granted ones (42501).
-// `requests` logs every statement it ran, in order.
+//  - the column grants refuse a write to any column but the granted ones (42501);
+//  - admin_search_members answers the whole directory, and admin_get_member the
+//    rows of the directory whose id is the one asked for: none for an id the
+//    directory does not hold, as the database does for a member it hides.
+// `requests` logs every statement it ran, in order, and `rpcCalls` every function.
 function fakeClient({
   periods = PERIOD_ROWS,
   heartbeat = [],
@@ -170,7 +173,13 @@ function fakeClient({
     from,
     rpc: async (name, args) => {
       rpcCalls.push([name, args]);
-      return error ? { data: null, error } : { data: directory, error: null };
+      if (error) {
+        return { data: null, error };
+      }
+      if (name === 'admin_get_member' && Array.isArray(directory)) {
+        return { data: directory.filter((row) => row.id === args.p_id), error: null };
+      }
+      return { data: directory, error: null };
     },
   };
 }
@@ -259,6 +268,101 @@ describe('createMembershipAdapter', () => {
       ['XX000', 'UNKNOWN'],
     ])('maps the PostgREST code %s to %s and repeats nothing of the error', async (code, expected) => {
       const result = await adapterFor(fakeClient({ error: postgrestError(code) })).searchMembers('ana');
+
+      expect(result).toStrictEqual({ ok: false, code: expected });
+      expect(JSON.stringify(result)).not.toMatch(LEAKS);
+    });
+  });
+
+  describe('getMember', () => {
+    it('calls admin_get_member with the id and reads no table', async () => {
+      const client = fakeClient();
+
+      await adapterFor(client).getMember(MEMBER_A);
+
+      expect(client.rpcCalls).toEqual([['admin_get_member', { p_id: MEMBER_A }]]);
+      // The detail page must not read profiles: an admin sees every profile
+      // there, the ones the directory hides included, and no email.
+      expect(client.requests).toEqual([]);
+    });
+
+    it('answers the one member, mapped like a row of the directory, and keeps nothing else', async () => {
+      const directory = DIRECTORY_ROWS.map((row) => ({ ...row, consent_at: '2026-01-01', is_admin: false }));
+      const adapter = adapterFor(fakeClient({ directory }));
+
+      const result = await adapter.getMember(MEMBER_B);
+      const listed = await adapter.searchMembers('');
+
+      expect(result).toStrictEqual({
+        ok: true,
+        data: {
+          id: MEMBER_B,
+          fullName: 'Beto Ruiz',
+          email: 'beto@example.test',
+          paidUntil: null,
+          isActive: false,
+        },
+      });
+      expect(result.data).toStrictEqual(listed.data[1]);
+    });
+
+    it('answers a member who has paid, with the date as the database wrote it', async () => {
+      const result = await adapterFor(fakeClient()).getMember(MEMBER_A);
+
+      expect(result).toStrictEqual({
+        ok: true,
+        data: {
+          id: MEMBER_A,
+          fullName: 'Ana Perez',
+          email: 'ana@example.test',
+          paidUntil: '2026-09-30',
+          isActive: true,
+        },
+      });
+    });
+
+    // The database answers no rows, and no error, for a member who fails a gate
+    // (no consent, no confirmed email) and for an id that belongs to nobody.
+    it('answers NOT_FOUND, with no member data, when the database answers no row', async () => {
+      const result = await adapterFor(fakeClient()).getMember('00000000-0000-4000-8000-000000000000');
+
+      expect(result).toStrictEqual({ ok: false, code: 'NOT_FOUND' });
+    });
+
+    it.each([
+      ['an empty list', []],
+      ['no data at all', null],
+    ])('answers NOT_FOUND for %s', async (_label, directory) => {
+      const result = await adapterFor(fakeClient({ directory })).getMember(MEMBER_A);
+
+      expect(result).toStrictEqual({ ok: false, code: 'NOT_FOUND' });
+    });
+
+    // The detail page checks the id before any call, so this is a guard and not
+    // a flow: an id that is not a string asks for nobody (NULL) and gets
+    // NOT_FOUND, rather than leaving the function's argument out of the request,
+    // which PostgREST refuses with an error that has nothing to do with the id.
+    it.each([
+      ['undefined', undefined],
+      ['null', null],
+      ['a number', 42],
+    ])('asks for nobody and answers NOT_FOUND when the id is %s', async (_label, id) => {
+      const client = fakeClient();
+
+      const result = await adapterFor(client).getMember(id);
+
+      expect(client.rpcCalls).toEqual([['admin_get_member', { p_id: null }]]);
+      expect(result).toStrictEqual({ ok: false, code: 'NOT_FOUND' });
+    });
+
+    it.each([
+      ['42501', 'FORBIDDEN'],
+      ['22P02', 'INVALID'],
+      ['XX000', 'UNKNOWN'],
+    ])('maps the PostgREST code %s to %s and repeats nothing of the error', async (code, expected) => {
+      const client = fakeClient({ error: postgrestError(code) });
+
+      const result = await adapterFor(client).getMember(MEMBER_A);
 
       expect(result).toStrictEqual({ ok: false, code: expected });
       expect(JSON.stringify(result)).not.toMatch(LEAKS);
@@ -504,6 +608,7 @@ describe('createMembershipAdapter', () => {
   describe('when the client cannot be obtained', () => {
     const methods = [
       ['searchMembers', (adapter) => adapter.searchMembers('ana')],
+      ['getMember', (adapter) => adapter.getMember(MEMBER_A)],
       ['listPeriods', (adapter) => adapter.listPeriods(MEMBER_A)],
       ['createPeriod', (adapter) => adapter.createPeriod({
         memberId: MEMBER_A, startsOn: '2026-10-01', endsOn: '2026-10-31',
