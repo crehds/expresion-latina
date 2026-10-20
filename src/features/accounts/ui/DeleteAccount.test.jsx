@@ -11,7 +11,7 @@ const fail = (code) => ({ ok: false, code });
 
 function renderSection({
   deleteMyAccount = vi.fn(async () => ok()),
-  signOut = vi.fn(async () => {}),
+  signOut = vi.fn(async () => ok()),
   onDeleted = vi.fn(),
 } = {}) {
   render(
@@ -79,7 +79,7 @@ describe('DeleteAccount', () => {
     const calls = [];
     const { deleteMyAccount, signOut, onDeleted } = renderSection({
       deleteMyAccount: vi.fn(async () => { calls.push('deleteMyAccount'); return ok(); }),
-      signOut: vi.fn(async () => { calls.push('signOut'); }),
+      signOut: vi.fn(async () => { calls.push('signOut'); return ok(); }),
       onDeleted: vi.fn(() => calls.push('onDeleted')),
     });
     await user.click(first());
@@ -90,6 +90,22 @@ describe('DeleteAccount', () => {
     expect(deleteMyAccount).toHaveBeenCalledTimes(1);
     expect(onDeleted).toHaveBeenCalledTimes(1);
     expect(calls).toEqual(['deleteMyAccount', 'onDeleted', 'signOut']);
+  });
+
+  // The provider's signOut resolves to a failure when a session may still be held.
+  // The account is gone and the page already says so, so that is not shown.
+  it('still tells the page, and shows nothing, when signing out afterwards fails', async () => {
+    const user = userEvent.setup();
+    const { onDeleted, signOut } = renderSection({
+      signOut: vi.fn(async () => fail('NETWORK')),
+    });
+    await user.click(first());
+
+    await user.click(confirm());
+
+    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(onDeleted).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('still tells the page when signing out afterwards rejects', async () => {

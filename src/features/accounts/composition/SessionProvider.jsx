@@ -9,9 +9,16 @@
  * null` means the consent is still pending; the consent gate reads that.
  *
  * The load `start()` runs is shared by every caller, and a load that worked is
- * kept as done. An error that the load did not produce (a sign-out that failed,
- * a profile read that failed after the load) ends that: the next `start()`
- * loads again, which is what the "try again" of a page asks for.
+ * kept as done. An error that the load did not produce (a profile read that
+ * failed after the load, for a refresh or a change of user) ends that: the next
+ * `start()` loads again, which is what the "try again" of a page asks for.
+ *
+ * `signOut()` is an action, not a load. It resolves to a result and never
+ * throws: `ok` when this device no longer holds a session (the status becomes
+ * `signed-out`), a failure with only a code when one may still be held (nothing
+ * changes: the member stays signed in, with their profile). So a failed sign-out
+ * never sets the `error` status, which is for a load that could not be done, and
+ * leaves nothing to try again but the sign-out itself.
  *
  * Errors carry only a result code, never a message or member data.
  */
@@ -21,7 +28,7 @@ import {
 } from 'react';
 import BackendContext from '../../../shared/backend/BackendContext';
 import { hasStoredSession } from '../../../shared/backend/client';
-import { RESULT_CODES } from '../../../shared/backend/resultCodes';
+import { RESULT_CODES, fail, ok } from '../../../shared/backend/resultCodes';
 
 const noop = async () => {};
 
@@ -32,7 +39,8 @@ const DISABLED = {
   errorCode: null,
   start: noop,
   refresh: noop,
-  signOut: noop,
+  // Nothing is held while the backend is off, so there is nothing left to end.
+  signOut: async () => ok(null),
 };
 
 const SessionContext = createContext(DISABLED);
@@ -68,11 +76,10 @@ export function SessionProvider({ children }) {
   const unsubscribeRef = useRef(null);
   const epochRef = useRef(0);
 
-  // For an error that the shared load did not produce, such as a sign-out that
-  // failed or a profile read that failed after the load: the load that worked is
-  // not shared any more, so the next `start()` runs it again. A load that is still
-  // running is left alone: its own result decides, and a second one must never
-  // start next to it.
+  // For an error that the shared load did not produce, such as a profile read
+  // that failed after the load: the load that worked is not shared any more, so
+  // the next `start()` runs it again. A load that is still running is left alone:
+  // its own result decides, and a second one must never start next to it.
   const reopenStart = useCallback(() => {
     if (startRef.current === LOADED) {
       startRef.current = null;
@@ -186,19 +193,28 @@ export function SessionProvider({ children }) {
     await loadProfile(sessionRef.current, epochRef.current);
   }, [auth, loadProfile]);
 
+  // The adapter has already told whether this device still holds a session (see
+  // its signOut), so `ok` is all it takes to be signed out. A failure changes
+  // nothing here: the session is still held, as far as anyone can tell, and the
+  // caller decides what to show.
   const signOut = useCallback(async () => {
     if (!auth) {
-      return;
+      return ok(null);
     }
-    const result = await auth.signOut();
-    if (result.ok) {
-      sessionRef.current = null;
-      setState(SIGNED_OUT);
-    } else {
-      reopenStart();
-      setState(failure(result.code, sessionRef.current));
+    let result;
+    try {
+      result = await auth.signOut();
+    } catch {
+      // Adapters never reject; if one does, a session may still be held.
+      result = fail(RESULT_CODES.UNKNOWN);
     }
-  }, [auth, reopenStart]);
+    if (result?.ok !== true) {
+      return fail(result?.code ?? RESULT_CODES.UNKNOWN);
+    }
+    sessionRef.current = null;
+    setState(SIGNED_OUT);
+    return ok(null);
+  }, [auth]);
 
   useEffect(() => {
     if (!auth) {

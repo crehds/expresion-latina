@@ -21,6 +21,9 @@ export const CONFIRMATION_SENT = 'Te enviamos un correo para confirmar tu cuenta
 export const RESET_REQUEST_SENT = 'Si existe una cuenta con ese correo, te enviamos un enlace para restablecer tu contraseña.';
 export const RESEND_SENT = 'Si tu cuenta está pendiente de confirmación, te enviamos un nuevo correo.';
 export const DEFAULT_ERROR = 'No pudimos completar la acción. Inténtalo de nuevo.';
+// A sign-out that left the session open: the same words for every code, since what
+// the member needs to know is that this device is still signed in.
+export const SIGN_OUT_FAILED = 'No pudimos cerrar tu sesión: sigue abierta en este dispositivo. Inténtalo de nuevo.';
 
 // A Map, so that an inherited name such as "constructor" is never a code.
 const ERROR_MESSAGES = new Map([

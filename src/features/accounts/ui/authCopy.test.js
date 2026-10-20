@@ -17,6 +17,7 @@ import {
   RESET_REQUEST_MESSAGES,
   RESET_REQUEST_SENT,
   SIGN_IN_MESSAGES,
+  SIGN_OUT_FAILED,
   SIGN_UP_MESSAGES,
   authErrorMessage,
 } from './authCopy';
@@ -58,6 +59,15 @@ describe('authErrorMessage', () => {
     expect(PASSWORD_MIN_LENGTH).toBe(8);
     expect(authErrorMessage(RESULT_CODES.WEAK_PASSWORD)).toContain(`${PASSWORD_MIN_LENGTH} caracteres`);
     expect(PASSWORD_HINT).toBe('Mínimo 8 caracteres, con letras y números.');
+  });
+});
+
+describe('SIGN_OUT_FAILED', () => {
+  // One message for every code: what matters to the member is that the session is
+  // still open on this device, and that they can try again.
+  it('says the session is still open on this device and invites a new try', () => {
+    expect(SIGN_OUT_FAILED)
+      .toBe('No pudimos cerrar tu sesión: sigue abierta en este dispositivo. Inténtalo de nuevo.');
   });
 });
 

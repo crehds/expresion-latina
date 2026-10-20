@@ -129,6 +129,9 @@ function ConsentPrompt({ profile }) {
     afterRecording(session),
   );
 
+  // The result of the sign-out is left unread on purpose: the provider resolves
+  // it to a failure when a session may still be held, but the account is already
+  // deleted and there is nothing the member could do about that session.
   const decline = () => run(
     () => auth.deleteMyAccount(),
     () => session.signOut(),

@@ -60,6 +60,7 @@ function StatefulSession({
       // The page renders the signed-out status before the caller resumes, which
       // is the order the redirect guard has to survive.
       await new Promise((resolve) => { setTimeout(resolve, 0); });
+      return ok();
     }),
   }), [state, start, signOutSpy, signOutImpl]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
@@ -235,25 +236,95 @@ describe('Account', () => {
       expect(loginVisits).not.toHaveBeenCalled();
     });
 
+    // The provider's signOut resolves to a result and never throws. A failure means
+    // a session may still be held on this device, and the status does not change.
     describe('when signing out fails', () => {
-      it('shows an alert, stays on the page and lets the member try again', async () => {
+      const failed = (code = 'NETWORK', extra = {}) => ({ ok: false, code, ...extra });
+      const STILL_OPEN = 'No pudimos cerrar tu sesión: sigue abierta en este dispositivo. Inténtalo de nuevo.';
+
+      it('says the session is still open, stays on the page and lets the member try again', async () => {
+        const user = userEvent.setup();
+        const signOutImpl = vi.fn().mockResolvedValue(failed());
+        renderAccount({ signOutImpl });
+
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(STILL_OPEN);
+        expect(screen.getByText('ana@example.test')).toBeInTheDocument();
+        expect(screen.queryByText('home page')).not.toBeInTheDocument();
+        expect(screen.queryByText(/No pudimos cargar tu cuenta/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+        expect(signOutImpl).toHaveBeenCalledTimes(2);
+      });
+
+      it.each(['NETWORK', 'FORBIDDEN', 'UNKNOWN'])(
+        'says the same for %s, and never what the backend said',
+        async (code) => {
+          const user = userEvent.setup();
+          renderAccount({
+            signOutImpl: vi.fn().mockResolvedValue(failed(code, { message: 'private detail' })),
+          });
+
+          await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+          const alert = await screen.findByRole('alert');
+          expect(alert).toHaveTextContent(STILL_OPEN);
+          expect(document.body).not.toHaveTextContent('private detail');
+        },
+      );
+
+      it('goes to the home page when the next try works, with the alert gone', async () => {
+        const user = userEvent.setup();
+        const signOutImpl = vi.fn()
+          .mockResolvedValueOnce(failed())
+          .mockResolvedValueOnce(ok());
+        renderAccount({ signOutImpl });
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+        await screen.findByRole('alert');
+
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+        expect(await screen.findByText('home page')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(loginVisits).not.toHaveBeenCalled();
+        expect(signOutImpl).toHaveBeenCalledTimes(2);
+      });
+
+      it('takes the alert away while the next try runs, and puts it back if that fails too', async () => {
+        const user = userEvent.setup();
+        let finish;
+        const signOutImpl = vi.fn()
+          .mockResolvedValueOnce(failed())
+          .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+        renderAccount({ signOutImpl });
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+        await screen.findByRole('alert');
+
+        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeDisabled();
+        await act(async () => { finish(failed()); });
+        expect(await screen.findByRole('alert')).toHaveTextContent(STILL_OPEN);
+        expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled();
+      });
+
+      it('takes a sign-out that rejects for a failure too, though the provider does not', async () => {
         const user = userEvent.setup();
         const signOutImpl = vi.fn().mockRejectedValue(new Error('offline'));
         renderAccount({ signOutImpl });
 
         await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos completar la acción. Inténtalo de nuevo.');
-        expect(screen.getByText('ana@example.test')).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent(STILL_OPEN);
         expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeEnabled();
-        await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
-        expect(signOutImpl).toHaveBeenCalledTimes(2);
       });
 
       it('sends the member to the login page if the session ends later on', async () => {
         const user = userEvent.setup();
         const { handle } = renderAccount({
-          signOutImpl: vi.fn().mockRejectedValue(new Error('offline')),
+          signOutImpl: vi.fn().mockResolvedValue(failed()),
         });
 
         await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
@@ -275,7 +346,7 @@ describe('Account', () => {
 
         expect(signOutImpl).toHaveBeenCalledTimes(1);
         expect(button).toBeDisabled();
-        await act(async () => { finish(); });
+        await act(async () => { finish(ok()); });
       });
     });
 
