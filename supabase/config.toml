@@ -37,6 +37,7 @@ port = 34323
 
 [local_smtp]
 # Mailpit's inbox.
+# CLI 2.x table (older CLIs: [inbucket]); verified against the pinned 2.117.0 template.
 port = 34324
 
 [analytics]
