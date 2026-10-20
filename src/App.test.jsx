@@ -76,6 +76,18 @@ describe('App', () => {
 });
 
 describe('App with the backend disabled', () => {
+  // The kill switch reads the environment when the provider mounts, and a local
+  // env file or a shell can hold both variables, so this case blanks them
+  // itself instead of trusting the machine it runs on.
+  beforeEach(() => {
+    vi.stubEnv('VITE_SUPABASE_URL', '');
+    vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   // The default build: no env vars, so no kill switch to flip and nothing to create.
   it('renders the public routes as before and creates no services', async () => {
     const createServices = vi.fn();
