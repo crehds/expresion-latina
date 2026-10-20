@@ -358,6 +358,19 @@ describe('MemberDetail', () => {
       expect(screen.queryByText('Ana Perez')).not.toBeInTheDocument();
     });
 
+    // A failure always says so: the alert follows the failure, not the code.
+    it.each([
+      ['member', { getMember: vi.fn(async () => ({ ok: false })) }],
+      ['payments', { listPeriods: vi.fn(async () => ({ ok: false })) }],
+    ])('shows the generic message in an alert when the read of the %s fails with no code', async (_label, calls) => {
+      renderDetail({ membership: fakeMembership(calls) });
+
+      expect(await screen.findByRole('alert'))
+        .toHaveTextContent('No pudimos cargar al miembro. Inténtalo de nuevo.');
+      expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+      expect(periodsRegion()).not.toBeInTheDocument();
+    });
+
     it('does not show the member either when only the payments failed', async () => {
       const membership = fakeMembership({ listPeriods: vi.fn(async () => fail('NETWORK')) });
       renderDetail({ membership });

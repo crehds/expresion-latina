@@ -381,6 +381,27 @@ describe('PeriodForm', () => {
         expect(screen.getByRole('alert')).toHaveTextContent(message);
       });
 
+      // A failure always says so. The adapter always sets a code, but nothing in the
+      // form may depend on that: a refusal with none would otherwise leave the
+      // administrator with a button that came back and no word about why.
+      it.each([
+        ['no code at all', {}],
+        ['an undefined code', { code: undefined }],
+        ['a null code', { code: null }],
+        ['an empty code', { code: '' }],
+      ])('shows the generic alert and frees the form when the failed result has %s', async (_label, answer) => {
+        renderForm({ onSubmit: vi.fn(async () => ({ ok: false, ...answer })) });
+        valid();
+
+        await act(async () => { fireEvent.submit(form()); });
+
+        expect(screen.getByRole('alert'))
+          .toHaveTextContent('No pudimos guardar el pago. Inténtalo de nuevo.');
+        expect(saveButton()).toBeEnabled();
+        expect(saveButton()).toHaveTextContent('Guardar');
+        expect(cancelButton()).toBeEnabled();
+      });
+
       it('keeps what was typed, and the form usable, so the dates can be changed', async () => {
         renderForm({ onSubmit: vi.fn(async () => fail('OVERLAP')) });
         valid();

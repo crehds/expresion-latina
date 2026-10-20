@@ -432,6 +432,20 @@ describe('MemberPeriods', () => {
       },
     );
 
+    it('keeps the form with the generic message, and reads nothing again, when the failed result has no code', async () => {
+      const membership = fakeMembership({ updatePeriod: vi.fn(async () => ({ ok: false })) });
+      const { reload } = renderPeriods({ membership });
+      fireEvent.click(editButton(OCTOBER_TEXT));
+      setDate(endsOn(), '2026-10-15');
+
+      await act(async () => { fireEvent.click(saveButton()); });
+
+      expect(reload).not.toHaveBeenCalled();
+      expect(screen.getByRole('form', { name: 'Editar pago' })).toBeInTheDocument();
+      expect(screen.getByRole('alert'))
+        .toHaveTextContent('No pudimos guardar el pago. Inténtalo de nuevo.');
+    });
+
     it('closes the form on cancel, leaves the payment as it was, and gives the focus back', () => {
       const { membership } = renderPeriods();
       fireEvent.click(editButton(OCTOBER_TEXT));
@@ -563,6 +577,31 @@ describe('MemberPeriods', () => {
       expect(document.body).not.toHaveTextContent(/ana@example|Key \(id\)/);
     });
 
+    // A failure always says so, whatever the answer carries (the form of a payment
+    // has the same rule): the adapter always sets a code, but the question must not
+    // depend on it.
+    it.each([
+      ['no code at all', {}],
+      ['an undefined code', { code: undefined }],
+      ['a null code', { code: null }],
+      ['an empty code', { code: '' }],
+    ])('shows the generic alert and frees the buttons when the failed result has %s', async (_label, answer) => {
+      const membership = fakeMembership({
+        deletePeriod: vi.fn(async () => ({ ok: false, ...answer })),
+      });
+      const { reload } = renderPeriods({ membership });
+      fireEvent.click(deleteButton(OCTOBER_TEXT));
+
+      await act(async () => { fireEvent.click(confirmDelete()); });
+
+      expect(screen.getByRole('alert'))
+        .toHaveTextContent('No pudimos eliminar el pago. Inténtalo de nuevo.');
+      expect(question()).toBeInTheDocument();
+      expect(confirmDelete()).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Cancelar' })).toBeEnabled();
+      expect(reload).not.toHaveBeenCalled();
+    });
+
     it('takes a delete that threw for an unknown failure and frees the buttons', async () => {
       const membership = fakeMembership({
         deletePeriod: vi.fn(async () => { throw new Error('boom'); }),
@@ -634,6 +673,127 @@ describe('MemberPeriods', () => {
       await user.keyboard('{Enter}');
 
       expect(membership.deletePeriod).toHaveBeenCalledWith('p-1');
+    });
+  });
+
+  // The answer "this payment is gone" belongs to the form or the question that
+  // asked. The administrator can open something else while that is on its way
+  // (only the buttons of the thing that is saving are off), and the notice must
+  // not then sit next to something that has nothing to do with that payment.
+  describe('a payment found gone after the administrator moved on', () => {
+    const GONE = 'Este pago ya no existe. Mostramos la lista al día.';
+
+    // The correction of October is on its way; the test settles it by hand.
+    async function holdCorrectionOfOctober() {
+      const pending = deferred();
+      const membership = fakeMembership({ updatePeriod: vi.fn(() => pending.promise) });
+      const view = renderPeriods({ membership });
+      fireEvent.click(editButton(OCTOBER_TEXT));
+      setDate(endsOn(), '2026-10-15');
+      await act(async () => { fireEvent.click(saveButton()); });
+      return { ...view, pending };
+    }
+
+    it.each([
+      [
+        'the form of another payment',
+        () => fireEvent.click(editButton(NOVEMBER_TEXT)),
+        () => within(rows()[0]).getByRole('form', { name: 'Editar pago' }),
+      ],
+      [
+        'the form to record a payment',
+        () => fireEvent.click(addButton()),
+        () => screen.getByRole('form', { name: 'Registrar pago' }),
+      ],
+      [
+        'the question before a delete',
+        () => fireEvent.click(deleteButton(NOVEMBER_TEXT)),
+        () => question(),
+      ],
+    ])('says nothing, and leaves alone %s that was opened meanwhile', async (_label, openInstead, opened) => {
+      const { reload, pending } = await holdCorrectionOfOctober();
+      openInstead();
+      const element = opened();
+
+      await act(async () => { pending.resolve(fail('NOT_FOUND')); });
+
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(GONE)).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(opened()).toBe(element);
+      expect(element).toContainElement(document.activeElement);
+    });
+
+    it('says nothing when what the administrator opened meanwhile was closed again', async () => {
+      const { reload, pending } = await holdCorrectionOfOctober();
+      fireEvent.click(editButton(NOVEMBER_TEXT));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+      await act(async () => { pending.resolve(fail('NOT_FOUND')); });
+
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(GONE)).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByRole('form')).not.toBeInTheDocument();
+    });
+
+    it('says nothing, and leaves alone the form opened meanwhile, when a delete finds the payment gone', async () => {
+      const pending = deferred();
+      const membership = fakeMembership({ deletePeriod: vi.fn(() => pending.promise) });
+      const { reload } = renderPeriods({ membership });
+      fireEvent.click(deleteButton(OCTOBER_TEXT));
+      await act(async () => { fireEvent.click(confirmDelete()); });
+      fireEvent.click(editButton(NOVEMBER_TEXT));
+      const form = screen.getByRole('form', { name: 'Editar pago' });
+
+      await act(async () => { pending.resolve(fail('NOT_FOUND')); });
+
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(GONE)).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('form', { name: 'Editar pago' })).toBe(form);
+    });
+
+    it('still says so when the form that got the answer is the one that is open', async () => {
+      const { reload, pending } = await holdCorrectionOfOctober();
+
+      await act(async () => { pending.resolve(fail('NOT_FOUND')); });
+
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('form')).not.toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(GONE);
+    });
+
+    it('still says so when the question that got the answer is the one that is open', async () => {
+      const pending = deferred();
+      const membership = fakeMembership({ deletePeriod: vi.fn(() => pending.promise) });
+      const { reload } = renderPeriods({ membership });
+      fireEvent.click(deleteButton(OCTOBER_TEXT));
+      await act(async () => { fireEvent.click(confirmDelete()); });
+
+      await act(async () => { pending.resolve(fail('NOT_FOUND')); });
+
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(queryQuestion()).not.toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(GONE);
+    });
+
+    // The other answers that read the member again: what the database holds may
+    // differ from the screen whatever is open now, but there is nothing to say
+    // about a form that was left, and the one opened meanwhile is not touched.
+    it.each([
+      ['worked', ok()],
+      ['overlapped another payment', fail('OVERLAP')],
+    ])('reads the member again, and leaves alone the form opened meanwhile, for a save that %s', async (_label, answer) => {
+      const { reload, pending } = await holdCorrectionOfOctober();
+      fireEvent.click(editButton(NOVEMBER_TEXT));
+      const form = screen.getByRole('form', { name: 'Editar pago' });
+
+      await act(async () => { pending.resolve(answer); });
+
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('form', { name: 'Editar pago' })).toBe(form);
     });
   });
 });

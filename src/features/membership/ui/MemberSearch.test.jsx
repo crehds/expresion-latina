@@ -294,6 +294,20 @@ describe('MemberSearch', () => {
       expect(alert).not.toHaveTextContent(/duplicate key|3b241101|ana@example/);
     });
 
+    // A failure always says so: the alert follows the failure, not the code.
+    it.each([
+      ['no code at all', {}],
+      ['an undefined code', { code: undefined }],
+      ['a null code', { code: null }],
+      ['an empty code', { code: '' }],
+    ])('shows the generic message in an alert when the failed result has %s', async (_label, answer) => {
+      renderSearch(vi.fn(async () => ({ ok: false, ...answer })));
+
+      expect(await screen.findByRole('alert'))
+        .toHaveTextContent('No pudimos buscar a los miembros. Inténtalo de nuevo.');
+      expect(button()).toBeEnabled();
+    });
+
     it('treats a call that rejects as a failure instead of waiting for ever', async () => {
       renderSearch(vi.fn(async () => { throw new Error('boom'); }));
 

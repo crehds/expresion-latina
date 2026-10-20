@@ -14,10 +14,11 @@
  * per field and the focus on the first one that is wrong. The five-year limit
  * and the overlap with another payment of the member stay with the database,
  * whose refusal comes back as a result code and is shown as the fixed message of
- * that code, never what the backend said. `onSubmit` takes the two dates and
- * resolves to a result; the form stays off while it waits, and a second submit in
- * the same instant is ignored, so one press cannot record a payment twice. The
- * dates stay as they were after a failure, so they can be changed and sent again.
+ * that code (the generic one when the result carries none), never what the
+ * backend said. `onSubmit` takes the two dates and resolves to a result; the form
+ * stays off while it waits, and a second submit in the same instant is ignored,
+ * so one press cannot record a payment twice. The dates stay as they were after a
+ * failure, so they can be changed and sent again.
  */
 import PropTypes from 'prop-types';
 import {
@@ -149,7 +150,8 @@ export default function PeriodForm({
     try {
       const result = await onSubmit({ startsOn: values.startsOn, endsOn: values.endsOn });
       if (!result.ok) {
-        setFailureCode(result.code);
+        // A failure always says so: one that carries no code gets the generic message.
+        setFailureCode(result.code || RESULT_CODES.UNKNOWN);
       }
     } catch {
       // Whatever went wrong, the form is freed and the administrator can try again.

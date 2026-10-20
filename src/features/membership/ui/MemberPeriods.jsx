@@ -13,7 +13,11 @@
  * what is shown is what the database holds: after a change that worked, after
  * dates that overlap another payment (so the payment in the way shows up) and
  * after a payment that turned out to be gone. A form or a question stays busy
- * until that read has ended. Every failure shows the fixed message of its code.
+ * until that read has ended. Every failure shows the fixed message of its code
+ * (the generic one when it has none). The notice that a payment is gone is
+ * shown only while the form or the question that found out is still the one that
+ * is open: the administrator can open something else while a change is on its
+ * way, and an answer that arrives late reads the list again but says nothing.
  * The focus goes where the administrator is working: into a form or a question
  * when it opens, and back to the button that opened it when it closes.
  */
@@ -70,7 +74,8 @@ function DeleteConfirm({ onConfirm, onCancel }) {
     try {
       const result = await onConfirm();
       if (!result.ok) {
-        setFailureCode(result.code);
+        // A failure always says so: one that carries no code gets the generic message.
+        setFailureCode(result.code || RESULT_CODES.UNKNOWN);
       }
     } catch {
       setFailureCode(RESULT_CODES.UNKNOWN);
@@ -119,6 +124,10 @@ export default function MemberPeriods({ memberId, periods, reload }) {
   const titleId = useId();
   const [mode, setMode] = useState(null);
   const [periodGone, setPeriodGone] = useState(false);
+  // What is open, as `mode` has it, but changed at the moment it is decided. A
+  // change that ends later has to know what is open then, and the `mode` it was
+  // started with only says what was open when it began.
+  const openRef = useRef(null);
   // The buttons that open things, to give the focus back to, and the heading to
   // fall back on when the button is gone (the payment that was deleted).
   const openersRef = useRef(new Map());
@@ -145,14 +154,23 @@ export default function MemberPeriods({ memberId, periods, reload }) {
     }
   };
 
+  const show = (next) => {
+    openRef.current = next;
+    setMode(next);
+  };
+
   const open = (next) => {
     setPeriodGone(false);
-    setMode(next);
+    show(next);
   };
 
   // Closes `target` only if it is still what is open: the administrator may have
   // opened something else while it was saving.
-  const finish = (target) => setMode((current) => (current === target ? null : current));
+  const finish = (target) => {
+    if (openRef.current === target) {
+      show(null);
+    }
+  };
 
   // The page shows its own failure if it cannot read the member again.
   const refresh = async () => {
@@ -167,6 +185,12 @@ export default function MemberPeriods({ memberId, periods, reload }) {
   // differ from the screen: after it worked, after the dates overlapped another
   // payment, and after the payment turned out to be gone. The result goes back to
   // the form or the question, which show the message of a failure.
+  //
+  // The notice that the payment is gone is the one message that is not theirs, so
+  // it is said only while `target` is still what is open. If the administrator
+  // has opened something else meanwhile (or closed it again), the list is read
+  // again all the same, but the notice would sit next to something that has
+  // nothing to do with that payment.
   const change = async (target, call) => {
     const result = await call();
     if (
@@ -178,7 +202,7 @@ export default function MemberPeriods({ memberId, periods, reload }) {
     }
     if (result.ok) {
       finish(target);
-    } else if (result.code === RESULT_CODES.NOT_FOUND) {
+    } else if (result.code === RESULT_CODES.NOT_FOUND && openRef.current === target) {
       setPeriodGone(true);
       finish(target);
     }
