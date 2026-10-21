@@ -34,7 +34,7 @@ import {
 } from 'react';
 
 import BackendContext from '../../../shared/backend/BackendContext';
-import { RESULT_CODES } from '../../../shared/backend/resultCodes';
+import { RESULT_CODES, fail } from '../../../shared/backend/resultCodes';
 import { todayInLima } from '../../../shared/limaCalendar';
 import SessionContext from '../../accounts/composition/SessionProvider';
 import { occurrenceKey } from '../domain/occurrences';
@@ -82,10 +82,18 @@ export default function AttendanceProvider({ children }) {
   const read = useCallback(async () => {
     const epoch = epochRef.current;
     const fromDate = todayInLima(new Date());
-    const [periods, confirmations] = await Promise.all([
-      membership.listOwnPeriods({ userId, fromDate }),
-      attendance.listOwnConfirmations({ userId, fromDate }),
-    ]);
+    let periods;
+    let confirmations;
+    try {
+      [periods, confirmations] = await Promise.all([
+        membership.listOwnPeriods({ userId, fromDate }),
+        attendance.listOwnConfirmations({ userId, fromDate }),
+      ]);
+    } catch {
+      // Adapters never reject; if one does, the read failed like any other.
+      periods = fail(RESULT_CODES.UNKNOWN);
+      confirmations = periods;
+    }
     if (epochRef.current !== epoch) {
       return null;
     }
@@ -158,7 +166,14 @@ export default function AttendanceProvider({ children }) {
     setBusyKey(key);
     setFailure({ code: null, key: null });
 
-    const result = await run(occurrence);
+    let result;
+    try {
+      result = await run(occurrence);
+    } catch {
+      // Adapters never reject; if one does, the action failed and the provider
+      // must not stay busy for ever.
+      result = fail(RESULT_CODES.UNKNOWN);
+    }
     if (epochRef.current !== epoch) {
       return;
     }

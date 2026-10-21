@@ -426,6 +426,98 @@ describe('AttendanceProvider', () => {
     });
   });
 
+  // The request runner never rejects, so these are latent today; an adapter that
+  // does must still free the provider and say so.
+  describe('when an adapter call rejects', () => {
+    it.each(['confirm', 'cancel'])('frees the busy state after a rejecting %s and reports UNKNOWN', async (method) => {
+      const services = fakeServices({ confirmations: ok([MONDAY]) });
+      services.attendance[method].mockRejectedValueOnce(new Error('boom'));
+      const { result } = await mount({ services });
+
+      await act(async () => { await result.current[method](MONDAY); });
+
+      expect(result.current.busyKey).toBeNull();
+      expect(result.current.errorCode).toBe('UNKNOWN');
+      expect(result.current.errorKey).toBe(occurrenceKey(MONDAY));
+
+      await act(async () => { await result.current[method](MONDAY); });
+
+      expect(services.attendance[method]).toHaveBeenCalledTimes(2);
+      expect(result.current.errorCode).toBeNull();
+    });
+
+    it('writes nothing for a rejecting action that went stale', async () => {
+      const services = fakeServices();
+      let reject;
+      services.attendance.confirm.mockReturnValue(new Promise((_, fails) => { reject = fails; }));
+      let session = signedIn(USER);
+      const view = renderHook(() => useAttendance(), {
+        wrapper: wrapperFor({ services, getSession: () => session }),
+      });
+      await act(async () => {});
+      act(() => { view.result.current.confirm(MONDAY); });
+
+      session = signedIn(OTHER_USER);
+      view.rerender();
+      await act(async () => {});
+      await act(async () => { reject(new Error('boom')); });
+
+      expect(view.result.current.errorCode).toBeNull();
+      expect(view.result.current.busyKey).toBeNull();
+    });
+
+    it.each(['listOwnPeriods', 'listOwnConfirmations'])('reports UNKNOWN when %s rejects, and retry loads', async (method) => {
+      const services = fakeServices();
+      const owner = method === 'listOwnPeriods' ? services.membership : services.attendance;
+      owner[method].mockRejectedValueOnce(new Error('boom'));
+
+      const { result } = await mount({ services });
+
+      expect(result.current.ready).toBe(false);
+      expect(result.current.errorCode).toBe('UNKNOWN');
+      expect(result.current.errorKey).toBeNull();
+
+      await act(async () => { await result.current.retry(); });
+
+      expect(result.current.ready).toBe(true);
+      expect(result.current.errorCode).toBeNull();
+    });
+
+    it('keeps what is shown and the refusal when the read after a refusal rejects', async () => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      const { result } = await mount({ services });
+      services.membership.listOwnPeriods.mockRejectedValue(new Error('boom'));
+
+      await act(async () => { await result.current.confirm(MONDAY); });
+
+      expect(result.current.ready).toBe(true);
+      expect(result.current.membership).toEqual({ periods: PERIODS });
+      expect(result.current.errorCode).toBe('FORBIDDEN');
+    });
+
+    it('drops a rejecting read that went stale', async () => {
+      const services = fakeServices();
+      let reject;
+      services.membership.listOwnPeriods.mockReturnValueOnce(
+        new Promise((_, fails) => { reject = fails; }),
+      );
+      let session = signedIn(USER);
+      const view = renderHook(() => useAttendance(), {
+        wrapper: wrapperFor({ services, getSession: () => session }),
+      });
+      await act(async () => {});
+
+      session = signedIn(OTHER_USER);
+      view.rerender();
+      await act(async () => {});
+      await act(async () => { reject(new Error('boom')); });
+
+      expect(view.result.current.ready).toBe(true);
+      expect(view.result.current.errorCode).toBeNull();
+    });
+  });
+
   describe('now', () => {
     it('advances every 30 seconds while a member is signed in', async () => {
       const { result } = await mount();
