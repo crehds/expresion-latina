@@ -269,8 +269,11 @@ of Studio (`http://127.0.0.1:34323`).
 
 ### Manual checklist (attendance on the schedule)
 
-The member leg of `npm run test:e2e:auth` runs all of this against the real
-stack. Do it by hand after changing the attendance controls, the schedule page
+The member leg of `npm run test:e2e:auth` runs these steps against the real
+stack, except two that only unit tests cover
+(`src/pages/Schedules/Schedules.attendance.test.jsx`): the signed-out page in
+step 1 and the rehearsal in step 2. Do it by hand after changing the attendance
+controls, the schedule page
 or the `attendance_confirmations` table. Start the stack and the app as above and
 sign a member up through the app, and do not make them an administrator (an
 administrator's policies read everyone's rows, which hides a missing filter).
