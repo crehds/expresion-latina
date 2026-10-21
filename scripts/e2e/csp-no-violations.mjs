@@ -17,15 +17,15 @@
  *     supabase-js and asks the (fake, here aborted) origin which providers are
  *     on, so on that page those requests are expected and only the policy
  *     violations count. The account page and the pages of the administration
- *     (the member directory and the page of one member) start a session on
+ *     (the member directory, the page of one member and the attendance page) start a session on
  *     mount, which loads supabase-js by design too, before they send a visitor
  *     with no session to the login page.
  *
  * The privacy notice, the email link page (/auth/confirm, visited with no
  * token, so it shows its invalid-link state), the account page (/account,
  * which sends a visitor with no session to the login page) and the pages of
- * the administration (/admin/members and the page of one member under it,
- * which do the same) exist only while the feature is on, so the first build
+ * the administration (/admin/members, the page of one member under it and
+ * /admin/attendance, which do the same) exist only while the feature is on, so the first build
  * also visits them, expecting the not-found page.
  *
  * It reads the tracked content as it is and writes nothing tracked: each build
@@ -83,6 +83,8 @@ const ADMIN_MEMBERS_PATH = '/admin/members';
 // changes nothing here: the admin check turns the visitor away before the page
 // asks for anything.
 const ADMIN_MEMBER_PATH = `${ADMIN_MEMBERS_PATH}/00000000-0000-4000-8000-000000000000`;
+// The attendee list: the same admin check stands in front of it.
+const ADMIN_ATTENDANCE_PATH = '/admin/attendance';
 
 // The privacy notice goes before the login page: the login page's retries of a
 // request that fails can land after its visit, and the check that attributes a
@@ -98,6 +100,7 @@ const VARIANTS = [
       { path: ACCOUNT_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
       { path: ADMIN_MEMBERS_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
       { path: ADMIN_MEMBER_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
+      { path: ADMIN_ATTENDANCE_PATH, heading: NOT_FOUND_HEADING, usesBackend: false },
     ],
   },
   {
@@ -119,6 +122,7 @@ const VARIANTS = [
       // administration is requested or shown.
       { path: ADMIN_MEMBERS_PATH, heading: 'Ingresar', usesBackend: true },
       { path: ADMIN_MEMBER_PATH, heading: 'Ingresar', usesBackend: true },
+      { path: ADMIN_ATTENDANCE_PATH, heading: 'Ingresar', usesBackend: true },
     ],
   },
 ];
@@ -302,8 +306,8 @@ async function main() {
     '\nNinguna ruta pública viola la política de seguridad, con la función apagada y encendida, '
     + 'ni tampoco el aviso de privacidad ni la página del enlace del correo (no encontrados con la '
     + 'función apagada, sin pedir nada al backend con la función encendida) ni la página de '
-    + 'ingreso ni las de la cuenta y de administración (el directorio de miembros y la página de '
-    + 'un miembro: no encontradas con la función apagada; con la función encendida y sin sesión '
+    + 'ingreso ni las de la cuenta y de administración (el directorio de miembros, la página de '
+    + 'un miembro y la de asistencia: no encontradas con la función apagada; con la función encendida y sin sesión '
     + 'llevan al ingreso).',
   );
 }

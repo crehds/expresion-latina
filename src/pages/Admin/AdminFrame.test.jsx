@@ -24,6 +24,7 @@ function renderFrame(path = '/admin/members', services = null) {
               )}
             />
             <Route path="/admin/members/:memberId" element={<h2>member page</h2>} />
+            <Route path="/admin/attendance" element={<h2>attendance page</h2>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -55,8 +56,18 @@ describe('AdminFrame', () => {
 
     const links = within(subNavigation()).getAllByRole('link');
 
-    expect(links.map((link) => link.textContent)).toEqual(['Miembros']);
-    expect(links[0]).toHaveAttribute('href', '/admin/members');
+    expect(links.map((link) => link.textContent)).toEqual(['Miembros', 'Asistencia']);
+    expect(links.map((link) => link.getAttribute('href')))
+      .toEqual(['/admin/members', '/admin/attendance']);
+  });
+
+  it('marks the attendance page, and only it, when that page is shown', () => {
+    renderFrame('/admin/attendance');
+
+    expect(within(subNavigation()).getByRole('link', { name: 'Asistencia' }))
+      .toHaveAttribute('aria-current', 'page');
+    expect(within(subNavigation()).getByRole('link', { name: 'Miembros' }))
+      .not.toHaveAttribute('aria-current');
   });
 
   it('marks the page being shown as the current one', () => {

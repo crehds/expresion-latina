@@ -162,6 +162,7 @@ describe('App account routes', () => {
     '/account',
     '/admin/members',
     '/admin/members/00000000-0000-4000-8000-000000000000',
+    '/admin/attendance',
   ];
 
   it.each(ROUTES)('renders the not-found page at %s while the backend is off', async (path) => {
@@ -348,9 +349,11 @@ describe('App admin routes', () => {
     const searchMembers = vi.fn(async () => ({ ok: true, data: [member] }));
     const getMember = vi.fn(async () => ({ ok: true, data: member }));
     const listPeriods = vi.fn(async () => ({ ok: true, data: [] }));
+    const listUpcomingConfirmations = vi.fn(async () => ({ ok: true, data: [] }));
     const services = {
       auth: { getProviders: vi.fn(async () => ({ ok: true, data: { google: false } })) },
       membership: { searchMembers, getMember, listPeriods },
+      attendance: { listUpcomingConfirmations },
     };
     render(
       <MemoryRouter initialEntries={[path]}>
@@ -362,7 +365,7 @@ describe('App admin routes', () => {
       </MemoryRouter>,
     );
     return {
-      searchMembers, getMember, listPeriods, session,
+      searchMembers, getMember, listPeriods, listUpcomingConfirmations, session,
     };
   }
 
@@ -436,7 +439,75 @@ describe('App admin routes', () => {
     expect(screen.queryByRole('heading', { name: 'Administración' })).not.toBeInTheDocument();
   });
 
+  it('sends a visitor from the attendance page to the login page, asking the backend for nothing', async () => {
+    const { listUpcomingConfirmations, session } = renderAdmin(
+      '/admin/attendance',
+      sessionOf(SIGNED_OUT),
+    );
+
+    expect(await heading(1, 'Ingresar')).toBeInTheDocument();
+    expect(session.start).toHaveBeenCalled();
+    expect(listUpcomingConfirmations).not.toHaveBeenCalled();
+  });
+
+  it('renders the not-found page at the attendance page for someone who is not an administrator, asking the backend for nothing', async () => {
+    const { listUpcomingConfirmations } = renderAdmin(
+      '/admin/attendance',
+      sessionOf({ profile: profile(false) }),
+    );
+
+    expect(await heading(1, /no encontramos/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Administración' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Asistencia' })).not.toBeInTheDocument();
+    expect(listUpcomingConfirmations).not.toHaveBeenCalled();
+  });
+
+  it('answers not found at the attendance page while the backend is off, even for an administrator session', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/attendance']}>
+        <SessionContext.Provider value={sessionOf()}>
+          <App />
+        </SessionContext.Provider>
+      </MemoryRouter>,
+    );
+
+    expect(await heading(1, /no encontramos/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Administración' })).not.toBeInTheDocument();
+  });
+
   describe('for an administrator', () => {
+    it('renders the attendance page inside the admin frame, with its entries marked', async () => {
+      const { listUpcomingConfirmations, searchMembers } = renderAdmin(
+        '/admin/attendance',
+        sessionOf(),
+      );
+
+      expect(await heading(1, 'Administración')).toBeInTheDocument();
+      expect(await heading(2, 'Asistencia')).toBeInTheDocument();
+      expect(await screen.findByText('Nadie ha confirmado todavía.')).toBeInTheDocument();
+      expect(listUpcomingConfirmations).toHaveBeenCalledTimes(1);
+      expect(searchMembers).not.toHaveBeenCalled();
+      const subNavigation = screen.getByRole('navigation', { name: 'Secciones de administración' });
+      expect(within(subNavigation).getByRole('link', { name: 'Asistencia' }))
+        .toHaveAttribute('aria-current', 'page');
+      expect(within(subNavigation).getByRole('link', { name: 'Miembros' }))
+        .not.toHaveAttribute('aria-current');
+      // The Admin entry of the menu stays lit on every admin page.
+      expect(screen.getByText('Admin')).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('moves from the members page to the attendance page through the sub-navigation', async () => {
+      const { listUpcomingConfirmations } = renderAdmin('/admin/members', sessionOf());
+      await heading(1, 'Administración');
+
+      fireEvent.click(within(screen.getByRole('navigation', { name: 'Secciones de administración' }))
+        .getByRole('link', { name: 'Asistencia' }));
+
+      expect(await heading(2, 'Asistencia')).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(listUpcomingConfirmations).toHaveBeenCalledTimes(1);
+    });
+
     it('renders the members page inside the admin frame', async () => {
       const { searchMembers } = renderAdmin('/admin/members', sessionOf());
 

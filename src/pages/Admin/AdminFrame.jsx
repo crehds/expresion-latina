@@ -9,6 +9,7 @@ import './css/admin-frame.css';
 // joins the list by being added here, next to the route that shows it.
 const ADMIN_PAGES = [
   { to: '/admin/members', label: 'Miembros' },
+  { to: '/admin/attendance', label: 'Asistencia' },
 ];
 
 const linkClass = ({ isActive }) => (
