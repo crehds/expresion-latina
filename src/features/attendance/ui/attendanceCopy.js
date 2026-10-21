@@ -49,3 +49,7 @@ const ERRORS = new Map([
 
 /** The message for the code of a failed action; a code without its own gets the generic one. */
 export const attendanceErrorMessage = (code) => ERRORS.get(code) ?? DEFAULT_ERROR;
+
+// The notice above the schedule when the member's attendance could not be read.
+export const READ_ERROR = 'No pudimos cargar tu asistencia.';
+export const RETRY = 'Reintentar';

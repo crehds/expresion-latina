@@ -5,6 +5,8 @@ import {
   CONFIRM_ATTENDANCE,
   NOT_ACTIVE,
   NOT_COVERED,
+  READ_ERROR,
+  RETRY,
   WHATSAPP_LINK_TEXT,
   attendanceErrorMessage,
   classDateText,
@@ -20,6 +22,8 @@ describe('attendanceCopy', () => {
     expect(NOT_COVERED).toBe('Tu membresía no cubre esta clase.');
     expect(WHATSAPP_LINK_TEXT).toBe('Escríbenos por WhatsApp');
     expect(ALREADY_STARTED).toBe('Esta clase ya empezó.');
+    expect(READ_ERROR).toBe('No pudimos cargar tu asistencia.');
+    expect(RETRY).toBe('Reintentar');
   });
 
   describe('classDateText', () => {
