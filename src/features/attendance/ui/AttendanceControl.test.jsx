@@ -178,4 +178,15 @@ describe('AttendanceControl', () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+
+  // Only a class that started gets its error alone: any other state without a body
+  // has no reason to speak.
+  it.each(['hidden', 'nonsense', undefined])(
+    'renders nothing for the state %s even with an error code',
+    (state) => {
+      const { container } = renderControl({ state, errorCode: 'STARTED' });
+
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
 });
