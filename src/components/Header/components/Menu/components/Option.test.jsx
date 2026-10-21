@@ -10,11 +10,17 @@ import Option from './Option';
  * rather than driven through a router: which pathname is current is the
  * router's business, and what the entry does with it is this component's.
  */
-function renderOption(pathname, path = '/teachers', name = 'Profesores') {
+function renderOption(pathname, path = '/teachers', name = 'Profesores', activePath = undefined) {
   return render(
     <MemoryRouter>
       <ul>
-        <Option name={name} path={path} location={{ pathname }} onNavigate={() => {}} />
+        <Option
+          name={name}
+          path={path}
+          activePath={activePath}
+          location={{ pathname }}
+          onNavigate={() => {}}
+        />
       </ul>
     </MemoryRouter>,
   );
@@ -81,5 +87,62 @@ describe('the entries for pages you are not on', () => {
     renderOption('/', '/', 'Inicio');
 
     expect(link('Inicio')).toHaveAttribute('aria-current', 'page');
+  });
+});
+
+/*
+ * An entry can link to the first of several pages (Admin goes to the members)
+ * and still stand for all of them, by naming the area it covers.
+ */
+describe('an entry that covers a wider area than the page it links to', () => {
+  const renderAdmin = (pathname) => renderOption(pathname, '/admin/members', 'Admin', '/admin');
+
+  it('keeps linking to its own path', () => {
+    renderAdmin('/');
+
+    expect(link('Admin')).toHaveAttribute('href', '/admin/members');
+  });
+
+  it('is marked on a page of the area that is not the one it links to', () => {
+    renderAdmin('/admin/attendance');
+
+    expect(link('Admin')).toHaveAttribute('aria-current', 'page');
+    expect(link('Admin')).toHaveClass('option__link--active');
+  });
+
+  it('is marked on the page it links to', () => {
+    renderAdmin('/admin/members');
+
+    expect(link('Admin')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('is marked on the area itself', () => {
+    renderAdmin('/admin');
+
+    expect(link('Admin')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('is marked on a page deeper than one segment', () => {
+    renderAdmin('/admin/members/member-1');
+
+    expect(link('Admin')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('is not marked on a route that only shares the prefix of the area', () => {
+    renderAdmin('/administracion');
+
+    expect(link('Admin')).not.toHaveAttribute('aria-current');
+  });
+
+  it('is not marked outside the area', () => {
+    renderAdmin('/account');
+
+    expect(link('Admin')).not.toHaveAttribute('aria-current');
+  });
+
+  it('covers only the page it links to when it names no area', () => {
+    renderOption('/admin/attendance', '/admin/members', 'Admin');
+
+    expect(link('Admin')).not.toHaveAttribute('aria-current');
   });
 });

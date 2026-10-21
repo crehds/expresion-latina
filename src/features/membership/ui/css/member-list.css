@@ -1,0 +1,100 @@
+/*
+ * One card per member. On a phone the name, the email, the status and the date
+ * stack; once there is room the name and the email sit on the left and the
+ * status and the date on the right. The status is told by its words, never by
+ * colour alone, and the accent stays with what the administrator acts on.
+ */
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3xs) var(--space-md);
+  padding: var(--space-sm);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  font-size: 1.6rem;
+  line-height: 2.4rem;
+}
+
+.member-list__name {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 4.4rem;
+  color: var(--text-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.member-list__name:hover,
+.member-list__name:focus-visible {
+  color: var(--accent);
+}
+
+.member-list__name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.member-list__email {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.member-list__status {
+  justify-self: start;
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--surface-border-strong);
+  border-radius: var(--radius-pill);
+  font-size: 1.4rem;
+  line-height: 2.4rem;
+}
+
+.member-list__status--active {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+.member-list__status--inactive {
+  color: var(--text-secondary);
+}
+
+.member-list__payment {
+  color: var(--text-primary);
+}
+
+@media (min-width: 768px) {
+  .member-list__item {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "name status"
+      "email payment";
+    align-items: center;
+  }
+
+  .member-list__name {
+    grid-area: name;
+  }
+
+  .member-list__email {
+    grid-area: email;
+  }
+
+  .member-list__status {
+    grid-area: status;
+  }
+
+  .member-list__payment {
+    grid-area: payment;
+  }
+}

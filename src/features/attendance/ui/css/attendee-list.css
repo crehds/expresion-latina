@@ -1,0 +1,60 @@
+/*
+ * One card per upcoming class: the class name, when and where it is, how many
+ * people confirmed and their names. The count is told by its words, never by
+ * colour. No inline style, because the CSP has no 'unsafe-inline' for styles.
+ */
+.attendee-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attendee-list__occurrence {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  padding: var(--space-sm);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.attendee-list__title {
+  margin: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.attendee-list__when {
+  color: var(--text-secondary);
+}
+
+.attendee-list__count {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.attendee-list__names {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attendee-list__name {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 768px) {
+  .attendee-list__names {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3xs) var(--space-md);
+  }
+}

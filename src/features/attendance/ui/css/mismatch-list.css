@@ -1,0 +1,54 @@
+/*
+ * The confirmations whose class left the schedule: one card each, with the name
+ * of the member first. The section is set apart from the classes by its border
+ * and its title, which say it in words; colour alone tells nothing. No inline
+ * style, because the CSP has no 'unsafe-inline' for styles.
+ */
+.mismatch-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: 1px dashed var(--surface-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.mismatch-list__title {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.mismatch-list__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mismatch-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  padding: var(--space-xs);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-size: 1.6rem;
+  line-height: 2.4rem;
+}
+
+.mismatch-list__name {
+  color: var(--text-primary);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.mismatch-list__class {
+  color: var(--text-primary);
+}
+
+.mismatch-list__when {
+  color: var(--text-secondary);
+}

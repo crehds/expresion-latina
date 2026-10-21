@@ -9,8 +9,14 @@
  * here too, so the adapters stay free of the build configuration.
  */
 import { createAuthAdapter } from '../features/accounts/adapters/authAdapter';
+import { createAttendanceAdapter } from '../features/attendance/adapters/attendanceAdapter';
+import { createMembershipAdapter } from '../features/membership/adapters/membershipAdapter';
 import { fetchAuthSettings } from '../shared/backend/client';
 
 export default function createServices(getClient) {
-  return { auth: createAuthAdapter(getClient, { fetchSettings: fetchAuthSettings }) };
+  return {
+    auth: createAuthAdapter(getClient, { fetchSettings: fetchAuthSettings }),
+    membership: createMembershipAdapter(getClient),
+    attendance: createAttendanceAdapter(getClient),
+  };
 }

@@ -42,6 +42,11 @@ Mailpit's inbox URL. Mailpit catches every email the local Auth service
 sends (confirmation links, password resets), so nothing needs a real SMTP
 account to test locally.
 
+The local ports are 343xx, not the CLI's 543xx defaults: API
+`http://127.0.0.1:34321`, database 34322, Studio `http://127.0.0.1:34323`,
+Mailpit `http://127.0.0.1:34324` (`config.toml` explains why). A local
+`VITE_SUPABASE_URL` points at `http://127.0.0.1:34321`.
+
 Stop the stack when done:
 
 ```bash
@@ -87,7 +92,7 @@ update public.profiles set is_admin = true where id = (
 - **Confirmations are on.** An email account cannot sign in until it has
   followed the link in its confirmation email. The local stack sends no
   real email: every message lands in Mailpit (the URL `status` prints,
-  `http://127.0.0.1:54324` by default; its API lists them at
+  `http://127.0.0.1:34324` with this project's ports; its API lists them at
   `/api/v1/messages`).
 - **Password rule.** At least 8 characters, with a letter and a digit
   (`minimum_password_length` and `password_requirements`). The sign-up
@@ -113,7 +118,7 @@ update public.profiles set is_admin = true where id = (
 - **Google is off** until the stack is given a Google OAuth client; until
   then its button ends on an "Unsupported provider" error page. To try it,
   create the client as in "Google sign-in" below, with the local Auth
-  callback (`http://127.0.0.1:54321/auth/v1/callback` by default) as an
+  callback (`http://127.0.0.1:34321/auth/v1/callback` with this project's ports) as an
   authorized redirect URI. Export `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
   and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` in the shell that starts the
   stack, uncomment the two `env(...)` lines of `[auth.external.google]` and
@@ -128,13 +133,27 @@ update public.profiles set is_admin = true where id = (
   database, and signs in again with the password. Then it asks for a
   password reset from the login page, opens the link of the recovery email,
   presses "Continuar", sets a new password, and checks that the new password
-  signs in and the old one does not. Last it drives the account page: the
-  menu shows "Mi cuenta" and no "Ingresar", the page shows the name, the
-  email and the consent on record, "Cerrar sesión" brings "Ingresar" back, a
-  new sign-in reaches the page again, and "Eliminar mi cuenta" erases the
-  auth user and its profile (checked in the database) so that account can no
-  longer sign in. It deletes the account and its emails afterwards (if the
-  journey did not already), whether it passes or not. It needs the
+  signs in and the old one does not. Then it drives the admin area. Until the
+  account is promoted with SQL the menu has no "Admin" and `/admin/members`
+  is the not-found page. Once it is, the journey finds the member in the
+  directory and opens their page, records a payment (the start typed, the end
+  from "+1 mes", the row in the database equal to what the form showed),
+  corrects it to end yesterday so the member turns inactive, has the database
+  refuse a payment that overlaps (the real `23P01`), corrects and deletes a
+  payment that was deleted with SQL behind the page's back (the real answer
+  of no row matched), and deletes the last one with its two-step
+  confirmation. It also checks the keep-alive notice against the heartbeat:
+  one that is four days old shows it, `public.keepalive()` takes it away, and
+  an empty table shows the "no ping" message. The build is pinned to
+  `VITE_KEEPALIVE_ALERT_DAYS=3`, so a local env file cannot change that. Last
+  it drives the account page: the menu shows "Mi cuenta" and no "Ingresar",
+  the page shows the name, the email and the consent on record, "Cerrar
+  sesión" brings "Ingresar" back, a new sign-in reaches the page again, and
+  "Eliminar mi cuenta" erases the auth user and its profile (checked in the
+  database) so that account can no longer sign in. It deletes the account
+  (its payments go with it) and its emails afterwards (if the journey did
+  not already), and puts `public.ops_heartbeat` back as it found it, the row
+  it had to the microsecond or no row, whether it passes or not. It needs the
   stack running (see "Bootstrapping") and port 3000 free, and it is not part
   of `npm run test:e2e` or of CI, which has no stack.
 
@@ -144,7 +163,7 @@ update public.profiles set is_admin = true where id = (
 of the last one. Run this by hand after changing an email template, the Auth
 settings in `config.toml` or the account pages. Start the stack and the app
 (`npm run dev`, with `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`
-pointing at it), and keep Mailpit open (`http://127.0.0.1:54324`).
+pointing at it), and keep Mailpit open (`http://127.0.0.1:34324`).
 
 1. **Sign-up confirmation.** On `/login` press "Crear cuenta", fill the form,
    tick the privacy checkbox and submit. Expect: the message "Te enviamos un
@@ -183,6 +202,222 @@ pointing at it), and keep Mailpit open (`http://127.0.0.1:54324`).
    inicio" (not the login page). In the database the `auth.users` row and
    its `public.profiles` row are gone, and signing in with that account
    answers "Correo o contraseña incorrectos."
+
+### Manual checklist (admin area)
+
+The admin leg of `npm run test:e2e:auth` runs all of this against the real
+stack. Do it by hand after changing the admin pages, the payments or the
+keep-alive notice, or to see them with your own eyes. Start the stack and the
+app as above and sign a member up through the app (any address, confirmed
+through Mailpit), so there is someone to find. Run the SQL in the SQL editor
+of Studio (`http://127.0.0.1:34323`).
+
+1. **Make the member an administrator.** Until then the menu has no "Admin"
+   and `/admin/members` shows "No encontramos esta página". Promote the
+   account as in "Email sign-up requires a consent version", then reload the
+   page (the profile loads once per session): the menu shows "Admin".
+2. **Find the member.** "Admin" opens the directory. Type the email, press
+   "Buscar" ("1 miembro") and open the name. The page of the member shows
+   "Inactivo" and "Sin pagos registrados".
+3. **Record a payment.** Press "Registrar pago", type a start a few days ago,
+   press "+1 mes" (the end appears, and can still be edited) and "Guardar".
+   Expect "Activo" and "Pagado hasta" the end you saw in the form.
+4. **Correct it.** Press "Editar" on the payment, move the end to yesterday
+   and "Guardar". Expect "Inactivo" and "Último vencimiento" with yesterday.
+5. **Overlap.** Record a payment whose dates overlap the first one. Expect
+   "Esas fechas se cruzan con otro pago de este miembro. Cambia las fechas e
+   inténtalo de nuevo." and nothing new in the list.
+6. **A payment that is gone.** Record another payment and delete its row with
+   SQL (`delete from public.paid_periods where ...`). The page still shows
+   it: press "Editar", change the end and "Guardar" (or "Eliminar" and "Sí,
+   eliminar el pago"). Expect "Este pago ya no existe. Mostramos la lista al
+   día." and the list without it.
+7. **Delete.** "Eliminar" on the last payment asks "¿Eliminar este pago? Esta
+   acción no se puede deshacer."; "Cancelar" changes nothing, and "Sí,
+   eliminar el pago" removes it. Expect "Todavía no hay pagos registrados."
+8. **The keep-alive notice.** The heartbeat is the project's, so note its
+   value first (an empty result means the table has no row):
+
+   ```sql
+   select last_ping_at from public.ops_heartbeat;
+   ```
+
+   Then change it and reload any admin page after each statement:
+
+   ```sql
+   -- "El último ping de mantenimiento registrado fue el ..., hace 4 días. ..."
+   insert into public.ops_heartbeat (id, last_ping_at)
+   values (1, now() - interval '4 days')
+   on conflict (id) do update set last_ping_at = excluded.last_ping_at;
+
+   -- no notice
+   select public.keepalive();
+
+   -- "Todavía no hay ningún ping de mantenimiento registrado. ..."
+   delete from public.ops_heartbeat;
+   ```
+
+   Put the heartbeat back as you found it: the insert above with the value you
+   noted instead of `now() - interval '4 days'`, or nothing more if the table
+   was empty. With `VITE_KEEPALIVE_ALERT_DAYS=off` in the environment of the
+   app (restart `npm run dev` after changing it) no notice appears, whatever
+   the table holds.
+
+9. **Clean up.** Delete the test member
+   (`delete from auth.users where email = '...'`): their profile and their
+   payments go with it.
+
+### Manual checklist (attendance on the schedule)
+
+The member leg of `npm run test:e2e:auth` runs these steps against the real
+stack, except two that only unit tests cover
+(`src/pages/Schedules/Schedules.attendance.test.jsx`): the signed-out page in
+step 1 and the rehearsal in step 2. Do it by hand after changing the attendance
+controls, the schedule page
+or the `attendance_confirmations` table. Start the stack and the app as above and
+sign a member up through the app, and do not make them an administrator (an
+administrator's policies read everyone's rows, which hides a missing filter).
+Open `/schedules` on a wide window and look at the first class of a weekday that
+is not today (in Lima). Run the SQL in the SQL editor of Studio.
+
+1. **No payment.** The class says "Tu membresía no está activa." with the link
+   "Escríbenos por WhatsApp", and no class has a "Confirmar asistencia" button.
+   Signed out, the page is the same as ever: no message and no button.
+2. **Record a payment** that covers today and the next month, and reload:
+
+   ```sql
+   insert into public.paid_periods (member_id, starts_on, ends_on)
+   select id, private.lima_today(), private.lima_today() + 30
+   from auth.users where email = '...';
+   ```
+
+   The class shows "Próxima clase: ..." with its date and "Confirmar asistencia".
+   A rehearsal ("Ensayo Elenco") shows neither a button nor a message.
+
+3. **Confirm.** Press "Confirmar asistencia": "Confirmaste tu asistencia." and
+   "Cancelar asistencia". In the database there is one row, its times are written
+   with seconds and its `starts_at` is in the future:
+
+   ```sql
+   select start_time::text, end_time::text, starts_at > now()
+   from public.attendance_confirmations;
+   ```
+
+4. **Reload.** The class still says "Cancelar asistencia". If it offers
+   "Confirmar asistencia" again, the page did not read the 'HH:MM:SS' times back.
+5. **Cancel.** Press "Cancelar asistencia": the button goes back to "Confirmar
+   asistencia" and the table has no row.
+6. **Shorten the payment** to end today and reload:
+
+   ```sql
+   update public.paid_periods set ends_on = private.lima_today()
+   where member_id = (select id from auth.users where email = '...');
+   ```
+
+   A class of another day says "Tu membresía vence el ..." with today, and has
+   no button.
+
+7. **Delete the payment** and reload: "Tu membresía no está activa." again.
+8. **Clean up.** Delete the test member
+   (`delete from auth.users where email = '...'`): their profile, payments and
+   confirmations go with it.
+
+### Manual checklist (admin attendance)
+
+The admin attendance leg of `npm run test:e2e:auth` runs these steps against the
+real stack. Do it by hand after changing the attendee list
+(`src/pages/Admin/AdminAttendance.jsx`), `listUpcomingConfirmations` or the
+`attendance_confirmations` table, or to see it with your own eyes. Start the
+stack and the app as above, sign a member up through the app and make them an
+administrator (step 1 of "Manual checklist (admin area)"). Run the SQL in the SQL
+editor of Studio. The test member is the member and the administrator at once, so
+every row of the list is theirs: that an administrator reads the rows of every
+member is proven by the database tests (`npm run test:db`), not by this
+checklist.
+
+1. **Confirm a class.** Take the first class of a weekday that is not today (in
+   Lima) from `src/data/academy.json`: its start and end, its genre (id and name)
+   and its room. The room key is the slug of the room (`Sala 1` is `sala-1`).
+   Confirm it for the member on the date of that weekday within the next seven
+   days:
+
+   ```sql
+   insert into public.attendance_confirmations
+     (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+   select id, '<date>', '<start>', '<end>', '<genre id>', '<room key>', '<genre name>', '<room>'
+   from auth.users where email = '...';
+   ```
+
+2. **Open the list.** "Admin", then "Asistencia" in the sub-navigation. Under the
+   name of the class there is its date, times and room (for example "26 de
+   octubre de 2026 · 18:00 a 19:00 · Sala 1", with the times as HH:MM although the
+   database prints HH:MM:SS) and the name of the member, and no email anywhere.
+   In the network tab the page asks `attendance_confirmations` once, with
+   `class_date=gte.<today>` and `class_date=lte.<today + 7 days>`,
+   `order=id.asc`, `limit=500` and `profiles(full_name)` in `select`, and with no
+   filter on `member_id` and none on `id`.
+3. **A confirmation that matches no class.** Add one for the same genre and room
+   at a time the schedule does not have, two days ahead, and reload:
+
+   ```sql
+   insert into public.attendance_confirmations
+     (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+   select id, private.lima_today() + 2, '23:30', '23:45',
+     '<genre id>', '<room key>', '<genre name>', '<room>'
+   from auth.users where email = '...';
+   ```
+
+   The section "Ya no coincide con el horario" shows it with the name of the
+   member, the name of the class and its date, times and room. The class above
+   still lists the member.
+
+4. **More than a page.** Add 520 confirmations for a made-up genre and reload:
+
+   ```sql
+   insert into public.attendance_confirmations
+     (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+   select u.id, private.lima_today() + 3, time '00:00' + n * interval '1 minute',
+     time '00:01' + n * interval '1 minute', 'e2e-relleno', 'sala-1', 'Relleno E2E', 'Sala 1'
+   from auth.users u, generate_series(0, 519) as n
+   where u.email = '...';
+   ```
+
+   The network tab shows two requests to `attendance_confirmations`, both with
+   `order=id.asc` and `limit=500`. The first answers 500 rows. The second has
+   `id=gt.<the id of the last row of the first answer>` and answers the rest. The
+   section "Ya no coincide con el horario" lists all of them, and no alert shows.
+
+5. **Stop being an administrator** and load `/admin/attendance` again:
+
+   ```sql
+   update public.profiles set is_admin = false
+   where id = (select id from auth.users where email = '...');
+   ```
+
+   The page says "No encontramos esta página", the menu has no "Admin" and the
+   network tab shows no request to `attendance_confirmations`.
+
+6. **Clean up.** Delete the test member
+   (`delete from auth.users where email = '...'`): their profile, payments and
+   confirmations go with it.
+
+Only unit tests cover the rest of the page
+(`src/pages/Admin/AdminAttendance.test.jsx`,
+`src/features/attendance/ui/*.test.jsx`,
+`src/features/attendance/adapters/attendanceAdapter.test.js` and
+`src/App.test.jsx`):
+
+- the empty list ("Nadie ha confirmado todavía.");
+- a failed read ("No pudimos cargar las confirmaciones de asistencia." with
+  "Reintentar");
+- the degraded state ("No pudimos comparar las confirmaciones con el horario
+  actual.", with the list grouped by class and no mismatch section). A time with
+  seconds cannot be inserted with SQL (the whole-minute checks of the table refuse
+  it), so only a faked adapter reaches that state;
+- a confirmation that appears or goes between two pages;
+- the order of the names, the count of each class and "Miembro sin nombre" for a
+  member whose profile does not come with the confirmation;
+- the sub-navigation and the "Admin" entry of the menu being marked on this page.
 
 ## Production runbook
 
@@ -430,8 +665,36 @@ confirmation that the workflow ran:
 select last_ping_at from public.ops_heartbeat;
 ```
 
-There is no admin-facing banner for this yet (a later slice adds one);
-run the query above as an admin, or as `postgres` in the SQL editor.
+Run the query above as an admin, or as `postgres` in the SQL editor.
+
+An administrator who opens the admin area (`/admin/members` and the pages
+under it) also sees a notice above the page when the last ping is old. It
+reads `ops_heartbeat.last_ping_at` once, when the area opens, and says one of
+two things: that no ping is recorded yet, or the date of the last one (on the
+Lima calendar) and how many days ago it was. A recent ping shows nothing, and
+so does a heartbeat that cannot be read. The notice only reports what is
+recorded and points to the run history of the "Keep-alive ping" workflow in
+GitHub Actions, which stays the real signal for the reason above: the
+timestamp alone does not prove that the workflow ran.
+
+The notice appears when the last ping is more than **3 days** old (the
+workflow runs daily). Change that per environment with the build-time
+variable `VITE_KEEPALIVE_ALERT_DAYS`, set where the other `VITE_` variables
+are set (the Vercel environment of a deployment). It is optional, and it only
+matters where the feature is on:
+
+- Unset or empty: 3 days.
+- A whole number of days of 1 or more, in digits only (`7`): that many days.
+- `off`, in any case and with nothing around it: no notice, and the heartbeat
+  is not even read.
+
+Anything else fails `vite build`, whether the backend is on or off, with a
+message that names the variable and the accepted forms. That includes `0`, a
+sign (`+3`, `-1`), a leading zero (`03`), a decimal (`3.5`), an exponent
+(`1e2`), a space before or after the number, a unit (`3d`) and a number too
+large to be exact. Like the other `VITE_` variables it is written into the
+bundle at build time, so changing it means building again. In `npm run dev`
+and in the tests nothing refuses a malformed value, and it counts as 3 days.
 
 ### Checking the scheduled purges
 

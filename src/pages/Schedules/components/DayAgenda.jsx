@@ -7,10 +7,10 @@ import '../css/day-agenda.css';
 /**
  * One day's classes, earliest first. A day with none says so: the academy
  * being closed is ordinary information, not a gap to hide.
+ *
+ * `renderSessionAction(session)`, when given, returns what goes under each class.
  */
-function DayAgenda(props) {
-  const { day, sessions } = props;
-
+function DayAgenda({ day, sessions, renderSessionAction = undefined }) {
   return (
     <section className="day-agenda" aria-label={day.name}>
       {sessions.length === 0 ? (
@@ -24,7 +24,7 @@ function DayAgenda(props) {
         <ol className="day-agenda__list">
           {sessions.map((session) => (
             <li key={session.id}>
-              <SessionCard session={session} />
+              <SessionCard session={session} action={renderSessionAction?.(session)} />
             </li>
           ))}
         </ol>
@@ -36,6 +36,7 @@ function DayAgenda(props) {
 DayAgenda.propTypes = {
   day: PropTypes.shape({ name: PropTypes.string.isRequired }).isRequired,
   sessions: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string.isRequired })).isRequired,
+  renderSessionAction: PropTypes.func,
 };
 
 export default DayAgenda;

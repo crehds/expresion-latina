@@ -92,3 +92,28 @@ describe('two classes with the same teacher', () => {
     });
   });
 });
+
+describe('a class card with an action', () => {
+  it('renders the action as the last child of the card, with no wrapper', () => {
+    render(
+      <SessionCard session={session()} action={<button type="button">Hacer algo</button>} />,
+      { wrapper: MemoryRouter },
+    );
+
+    const card = screen.getByRole('article');
+    expect(card.lastElementChild).toBe(screen.getByRole('button', { name: 'Hacer algo' }));
+  });
+
+  it.each([undefined, null, false])('is the same markup as a card with no action for %s', (action) => {
+    const bare = render(<SessionCard session={session()} />, { wrapper: MemoryRouter });
+    const bareHtml = bare.container.innerHTML;
+    bare.unmount();
+
+    const withAction = render(
+      <SessionCard session={session()} action={action} />,
+      { wrapper: MemoryRouter },
+    );
+
+    expect(withAction.container.innerHTML).toBe(bareHtml);
+  });
+});

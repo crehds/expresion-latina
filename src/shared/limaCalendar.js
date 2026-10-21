@@ -82,6 +82,23 @@ function daysInMonth(year, monthIndex) {
 }
 
 /**
+ * Whether `value` is an ISO date string ('YYYY-MM-DD') that names a real
+ * calendar day: the question a form asks of what was typed before it is used,
+ * answered with the same rules as every function here, and never by throwing.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function isIsoDate(value) {
+  try {
+    parseIsoDate(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Today's date on the Lima calendar, for a given instant.
  *
  * @param {Date} now the instant to read; never read from the clock here
