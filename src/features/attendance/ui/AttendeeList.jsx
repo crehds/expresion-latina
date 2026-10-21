@@ -24,6 +24,10 @@ const byName = (a, b) => a.name.localeCompare(b.name, 'es');
 function Occurrence({ rows }) {
   const titleId = useId();
   const [first] = rows;
+  // A class with no confirmation has nothing to title it by, so it shows nothing.
+  if (!first) {
+    return null;
+  }
   const attendees = rows
     .map((row) => ({ key: row.memberId, name: row.fullName ?? UNNAMED_MEMBER }))
     .sort(byName);

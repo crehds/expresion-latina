@@ -72,7 +72,12 @@ const LEAKS = /0b1a4c6e|private detail|member_id/;
 // delete with the rows it removed only when the request chains .select(). A
 // delete that matches nothing succeeds with an empty answer, as RLS makes it.
 // `requests` logs every statement in order.
-function fakeClient({ rows = ROWS, error = null } = {}) {
+// `beforeRequest(index, table)` runs before each statement and may change the table,
+// as another session would between two pages; `errorAt` makes that one statement
+// (counted from 0) fail while the others succeed.
+function fakeClient({
+  rows = ROWS, error = null, beforeRequest = null, errorAt = null,
+} = {}) {
   const table = rows.map((row) => ({ ...row }));
   const requests = [];
 
@@ -82,6 +87,7 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
   );
 
   function compare(operator, actual, value) {
+    if (operator === 'gt') return actual > value;
     return operator === 'gte' ? actual >= value : actual <= value;
   }
 
@@ -102,8 +108,10 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
     });
   }
 
-  function execute(state) {
+  function execute(state, index) {
+    if (beforeRequest) beforeRequest(index, table);
     if (error) return { data: null, error };
+    if (index === errorAt) return { data: null, error: { code: '57014', message: 'timeout' } };
     if (state.operation === 'insert') {
       table.push({ id: `c-${table.length}`, ...state.values });
       return { data: null, error: null };
@@ -115,10 +123,8 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
     }
     const ordered = sorted(matching, state.orders);
     // `.range(from, to)` is inclusive on both ends.
-    return {
-      data: state.range ? ordered.slice(state.range[0], state.range[1] + 1) : ordered,
-      error: null,
-    };
+    const ranged = state.range ? ordered.slice(state.range[0], state.range[1] + 1) : ordered;
+    return { data: state.limit === null ? ranged : ranged.slice(0, state.limit), error: null };
   }
 
   function from(name) {
@@ -130,6 +136,7 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
       filters: [],
       orders: [],
       range: null,
+      limit: null,
       returning: false,
     };
     const builder = {
@@ -156,6 +163,14 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
         state.filters.push(['gte', column, value]);
         return builder;
       },
+      gt(column, value) {
+        state.filters.push(['gt', column, value]);
+        return builder;
+      },
+      limit(count) {
+        state.limit = count;
+        return builder;
+      },
       lte(column, value) {
         state.filters.push(['lte', column, value]);
         return builder;
@@ -170,7 +185,7 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
       },
       then(resolve, reject) {
         requests.push({ ...state, filters: [...state.filters], orders: [...state.orders] });
-        return Promise.resolve(execute(state)).then(resolve, reject);
+        return Promise.resolve(execute(state, requests.length - 1)).then(resolve, reject);
       },
     };
     return builder;
@@ -338,7 +353,7 @@ describe('createAttendanceAdapter', () => {
       });
     });
 
-    it('asks for the window, the name embed and a stable order, and for no single member', async () => {
+    it('asks for the window and the name embed, and for no single member', async () => {
       const client = fakeClient({ rows: [adminRow(1)] });
 
       await adapterOver(client).listUpcomingConfirmations(WINDOW);
@@ -346,15 +361,22 @@ describe('createAttendanceAdapter', () => {
       const [request] = client.requests;
       expect(request.table).toBe('attendance_confirmations');
       expect(request.columns).toBe(
-        'member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label, '
+        'id, member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label, '
         + 'profiles(full_name)',
       );
       expect(request.filters).toEqual([
         ['gte', 'class_date', '2026-10-21'],
         ['lte', 'class_date', '2026-10-28'],
       ]);
-      // The id breaks ties, so a page boundary can never repeat or skip a row.
-      expect(request.orders).toEqual(['class_date', 'start_time', 'id']);
+      expect(request.range).toBeNull();
+    });
+
+    it('does not hand the row id to the screen', async () => {
+      const client = fakeClient({ rows: [adminRow(1)] });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(Object.keys(result.data[0])).not.toContain('id');
     });
 
     it('turns the HH:MM:SS the database prints into HH:MM on this path too (R4)', async () => {
@@ -386,15 +408,22 @@ describe('createAttendanceAdapter', () => {
       expect(result.data.map((row) => row.fullName)).toEqual([null, null]);
     });
 
-    it('reads in pages of 500 until a page comes back short', async () => {
+    // Keyset pagination: the pages follow the primary key, and each next page asks for
+    // the keys after the last one it got, so a row that appears or goes between two
+    // requests can never move the rows of the next page.
+    it('reads in pages of 500 by the id, each after the last id of the page before', async () => {
       const rows = Array.from({ length: 1200 }, (_, index) => adminRow(index));
       const client = fakeClient({ rows });
 
       const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
 
-      expect(client.requests.map((request) => request.range)).toEqual([
-        [0, 499], [500, 999], [1000, 1499],
-      ]);
+      expect(client.requests.map((request) => request.orders)).toEqual([['id'], ['id'], ['id']]);
+      expect(client.requests.map((request) => request.limit)).toEqual([500, 500, 500]);
+      expect(client.requests.map((request) => request.range)).toEqual([null, null, null]);
+      const after = (request) => request.filters.find(([operator]) => operator === 'gt');
+      expect(after(client.requests[0])).toBeUndefined();
+      expect(after(client.requests[1])).toEqual(['gt', 'id', 'c-00499']);
+      expect(after(client.requests[2])).toEqual(['gt', 'id', 'c-00999']);
       expect(result.data).toHaveLength(1200);
       expect(new Set(result.data.map((row) => row.memberId)).size).toBe(1200);
     });
@@ -405,8 +434,80 @@ describe('createAttendanceAdapter', () => {
 
       const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
 
-      expect(client.requests.map((request) => request.range)).toEqual([[0, 499], [500, 999]]);
+      expect(client.requests).toHaveLength(2);
       expect(result.data).toHaveLength(500);
+    });
+
+    it('lists no row twice when one is deleted between two pages', async () => {
+      const rows = Array.from({ length: 700 }, (_, index) => adminRow(index));
+      const client = fakeClient({
+        rows,
+        // Another session cancels the first row of the first page: with offsets the
+        // second page would start one row late and skip, or repeat, a neighbour.
+        beforeRequest: (index, table) => {
+          if (index === 1) table.splice(0, 1);
+        },
+      });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      const ids = result.data.map((row) => row.memberId);
+      expect(new Set(ids).size).toBe(ids.length);
+      // 700 rows, one of them already read when it went: every other row came once.
+      expect(ids).toHaveLength(700);
+      expect(ids).toContain('m-699');
+    });
+
+    it('lists no row twice when one is added before the last id between two pages', async () => {
+      const rows = Array.from({ length: 700 }, (_, index) => adminRow(index * 2));
+      const client = fakeClient({
+        rows,
+        beforeRequest: (index, table) => {
+          // A new key sorting inside the part already read.
+          if (index === 1) table.push(adminRow(1, { id: 'c-00001' }));
+        },
+      });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      const ids = result.data.map((row) => row.memberId);
+      expect(new Set(ids).size).toBe(ids.length);
+      // The new row sat behind the cursor: it is missed until the next load, never doubled.
+      expect(ids).toHaveLength(700);
+      expect(ids).not.toContain('m-1');
+    });
+
+    it('sorts what it collected by class date, start time and name, not by id', async () => {
+      const client = fakeClient({
+        rows: [
+          adminRow(1, { class_date: '2026-10-27', start_time: '18:00:00', profiles: { full_name: 'Zoe' } }),
+          adminRow(2, { class_date: '2026-10-26', start_time: '19:00:00', profiles: { full_name: 'Luis' } }),
+          adminRow(3, { class_date: '2026-10-26', start_time: '18:00:00', profiles: { full_name: 'Beto' } }),
+          adminRow(4, { class_date: '2026-10-26', start_time: '19:00:00', profiles: { full_name: 'Ana' } }),
+          adminRow(5, { class_date: '2026-10-26', start_time: '19:00:00', profiles: null }),
+        ],
+      });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(result.data.map((row) => [row.classDate, row.startTime, row.fullName])).toEqual([
+        ['2026-10-26', '18:00', 'Beto'],
+        ['2026-10-26', '19:00', null],
+        ['2026-10-26', '19:00', 'Ana'],
+        ['2026-10-26', '19:00', 'Luis'],
+        ['2026-10-27', '18:00', 'Zoe'],
+      ]);
+    });
+
+    it('fails the whole read when the second page fails, never a half list', async () => {
+      const rows = Array.from({ length: 700 }, (_, index) => adminRow(index));
+      const client = fakeClient({ rows, errorAt: 1 });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(result.ok).toBe(false);
+      expect(result).not.toHaveProperty('data');
+      expect(JSON.stringify(result)).not.toMatch(LEAKS);
     });
 
     it('reads a single page for a short list', async () => {

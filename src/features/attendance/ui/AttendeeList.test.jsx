@@ -120,6 +120,14 @@ describe('AttendeeList', () => {
     expect(items().length).toBeGreaterThan(0);
   });
 
+  it('renders nothing for a class with no confirmation, and never throws', () => {
+    render(<AttendeeList groups={[group('a', []), group('b', [row({ genreName: 'Bachata' })])]} />);
+
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent))
+      .toEqual(['Bachata']);
+    expect(screen.getByText('1 persona')).toBeInTheDocument();
+  });
+
   it('renders no list at all for no class', () => {
     render(<AttendeeList groups={[]} />);
 

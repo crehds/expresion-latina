@@ -48,8 +48,9 @@ const toOccurrence = (row) => ({
 });
 
 // The administrator's list also names the member (the foreign key to profiles is
-// followed by the embed) and keeps the member id, which is only a React key.
-const ADMIN_COLUMNS = `member_id, ${OCCURRENCE_COLUMNS}, profiles(full_name)`;
+// followed by the embed) and keeps the member id, which is only a React key. The
+// row id is read only to page by it and is not passed on.
+const ADMIN_COLUMNS = `id, member_id, ${OCCURRENCE_COLUMNS}, profiles(full_name)`;
 
 // Rows per request of the administrator's list.
 const ADMIN_PAGE_SIZE = 500;
@@ -64,6 +65,14 @@ const toListedConfirmation = (row) => {
     ...toOccurrence(row),
   };
 };
+
+// Class date, then start time, then the name of the member; a row without a name
+// goes first. The sort is stable, so equal rows keep the order they were read in.
+const inClassOrder = (a, b) => (
+  a.classDate.localeCompare(b.classDate)
+  || a.startTime.localeCompare(b.startTime)
+  || (a.fullName ?? '').localeCompare(b.fullName ?? '', 'es')
+);
 
 export function createAttendanceAdapter(getClient) {
   // Runs `call(client)` and turns whatever it returns or throws into a result.
@@ -88,33 +97,40 @@ export function createAttendanceAdapter(getClient) {
     // an administrator read every member's rows, which is what this list is for.
     // Only the member's name comes from the profile; no email, period or status.
     //
-    // The list is read in pages until one comes back short, because the API cuts a
-    // single answer at a fixed number of rows and a list cut short would pass for
-    // the whole one. The id is the last sort key so that the pages never overlap.
+    // The list is read in pages of ADMIN_PAGE_SIZE until one comes back short,
+    // because the API cuts a single answer at a fixed number of rows and a list cut
+    // short would pass for the whole one. The pages follow the primary key: each
+    // asks for the ids after the last one of the page before, so a row that is
+    // added or cancelled between two requests cannot move the rows of the next page
+    // and no row is read twice. A row added meanwhile may be missed until the list
+    // is read again. The collected rows are then put in class order here.
     listUpcomingConfirmations: ({ fromDate, toDate }) => run(
       async (client) => {
         const rows = [];
-        for (let from = 0; ; from += ADMIN_PAGE_SIZE) {
-          // eslint-disable-next-line no-await-in-loop -- each page waits for the one before
-          const page = await client
+        let lastId = null;
+        for (;;) {
+          let query = client
             .from('attendance_confirmations')
             .select(ADMIN_COLUMNS)
             .gte('class_date', fromDate)
-            .lte('class_date', toDate)
-            .order('class_date')
-            .order('start_time')
-            .order('id')
-            .range(from, from + ADMIN_PAGE_SIZE - 1);
+            .lte('class_date', toDate);
+          if (lastId !== null) {
+            query = query.gt('id', lastId);
+          }
+          // eslint-disable-next-line no-await-in-loop -- each page starts after the one before
+          const page = await query.order('id').limit(ADMIN_PAGE_SIZE);
           if (page.error) {
             return { data: null, error: page.error };
           }
-          rows.push(...(page.data ?? []));
-          if ((page.data ?? []).length < ADMIN_PAGE_SIZE) {
+          const received = page.data ?? [];
+          rows.push(...received);
+          if (received.length < ADMIN_PAGE_SIZE) {
             return { data: rows, error: null };
           }
+          lastId = received[received.length - 1].id;
         }
       },
-      (rows) => rows.map(toListedConfirmation),
+      (rows) => rows.map(toListedConfirmation).sort(inClassOrder),
     ),
 
     // Only the seven granted columns: `member_id` and `starts_at` are filled in by
