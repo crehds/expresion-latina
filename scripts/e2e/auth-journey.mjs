@@ -14,17 +14,25 @@
  * real "wrong credentials" answer map to its message. Last, the reset leg: it
  * asks for a reset from the login page, opens the link of the recovery email,
  * presses "Continuar", sets a new password, and checks that the new password
- * signs in and the old one does not. Then the admin leg, before the account is
- * deleted: while the member is no administrator the menu has no "Admin" and
- * /admin/members is the not-found page; the account is promoted with SQL, the
- * page is reloaded (the profile loads once per session), and the menu opens the
- * directory, where the member is searched by email and their page opened. There
- * a payment is recorded (the start typed, the end from "+1 mes", and the row in
- * the database equal to what the form showed), corrected to end yesterday, which
- * makes the member inactive, and refused when it overlaps (the real 23P01, read
- * off the response). A payment deleted with SQL behind the page's back is then
- * corrected, and another one deleted, to see the real answer of no row matched
- * (NOT_FOUND) twice; the last payment is deleted with its two-step confirmation.
+ * signs in and the old one does not. Then the member leg, while the member is
+ * still no administrator: the public schedule shows the inactive message and the
+ * WhatsApp link with no payment; with one recorded with SQL a class offers
+ * "Confirmar asistencia" and, once confirmed, "Cancelar asistencia" (the row holds
+ * the times as HH:MM:SS and a future starts_at, and a reload still shows
+ * "Cancelar", which proves the page reads those times back as HH:MM); cancelling
+ * leaves no row; a payment that ends today makes a class of another day say
+ * "Tu membresía vence el"; deleting it brings the inactive message back. Then the
+ * admin leg, before the account is deleted: while the member is no administrator
+ * the menu has no "Admin" and /admin/members is the not-found page; the account
+ * is promoted with SQL, the page is reloaded (the profile loads once per
+ * session), and the menu opens the directory, where the member is searched by
+ * email and their page opened. There a payment is recorded (the start typed,
+ * the end from "+1 mes", and the row in the database equal to what the form
+ * showed), corrected to end yesterday, which makes the member inactive, and
+ * refused when it overlaps (the real 23P01, read off the response). A payment
+ * deleted with SQL behind the page's back is then corrected, and another one
+ * deleted, to see the real answer of no row matched (NOT_FOUND) twice; the last
+ * payment is deleted with its two-step confirmation.
  * Last, the keep-alive notice: a heartbeat four days old shows it,
  * `public.keepalive()` takes it away, and no row at all shows the "no ping" one.
  * Then the account leg: the menu offers "Mi cuenta" and no "Ingresar", the
@@ -709,6 +717,119 @@ async function adminNotice(page) {
     .waitFor();
 }
 
+// The member leg: the attendance controls of the public schedule, against the real
+// PostgREST. The class is the first one of Monday, or of Tuesday when today is
+// Monday, so that its next occurrence is never today whatever the time of day (a
+// class that started earlier today would be a different card state). The page
+// looks one week ahead, so it is always inside the window. The member is no
+// administrator yet: an administrator's policies read everyone's rows, and the
+// own-rows filters of the page would go unproven.
+async function memberAttendanceLeg(page) {
+  const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
+  assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de la asistencia');
+  const today = psql("select (now() at time zone 'America/Lima')::date::text");
+  const weekdayToday = Number(
+    psql("select extract(dow from (now() at time zone 'America/Lima'))::int"),
+  );
+  const weekday = weekdayToday === 1 ? 2 : 1;
+  const dayName = weekday === 2 ? 'Martes' : 'Lunes';
+  const classDate = addDays(today, (weekday - weekdayToday + 7) % 7);
+
+  const card = page.getByRole('region', { name: dayName }).getByRole('article').first();
+  const confirmButton = card.getByRole('button', { name: 'Confirmar asistencia' });
+  const cancelButton = card.getByRole('button', { name: 'Cancelar asistencia' });
+  const inactive = card.getByText('Tu membresía no está activa.', { exact: true });
+  const confirmationsOf = () => psql(
+    `select count(*) from public.attendance_confirmations where member_id = '${userId}'`,
+  );
+  const expectNoLoadError = async (step) => {
+    assert.equal(
+      await page.getByText('No pudimos cargar tu asistencia.').count(),
+      0,
+      `${step}: la página no pudo leer la asistencia${await visibleAlerts(page)}`,
+    );
+  };
+
+  console.log('Abriendo los horarios sin ningún pago: membresía inactiva y WhatsApp...');
+  await page.goto(`${SITE}/schedules`);
+  await page.getByRole('heading', { level: 1, name: 'Horarios' }).waitFor();
+  await inactive.waitFor();
+  assert.equal(
+    await card.getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
+    1,
+    'la clase inactiva no ofrece el enlace de WhatsApp',
+  );
+  assert.equal(
+    await page.getByRole('button', { name: 'Confirmar asistencia' }).count(),
+    0,
+    'un miembro sin pagos ve "Confirmar asistencia"',
+  );
+  await expectNoLoadError('sin pagos');
+  const start = await card.locator('time').first().getAttribute('datetime');
+  assert.match(start ?? '', /^\d{2}:\d{2}$/, 'la clase no muestra su hora de inicio');
+
+  console.log('Registrando un pago con SQL y recargando: la clase se puede confirmar...');
+  psql(
+    'insert into public.paid_periods (member_id, starts_on, ends_on) '
+    + `values ('${userId}', '${today}', '${addDays(today, 30)}')`,
+  );
+  const periodsRead = nextRequest(page, 'GET', 'paid_periods');
+  await page.reload();
+  await confirmButton.waitFor();
+  await card.getByText(`Próxima clase: ${longDate(classDate)}`, { exact: true }).waitFor();
+  // What the real PostgREST was asked: the own rows only, from today, in order.
+  const periodsResponse = await periodsRead;
+  const periodsUrl = new URL(periodsResponse.url());
+  assert.equal(periodsResponse.status(), 200, 'la lectura de los pagos propios no dio 200');
+  assert.equal(periodsUrl.searchParams.get('member_id'), `eq.${userId}`);
+  assert.equal(periodsUrl.searchParams.get('ends_on'), `gte.${today}`);
+  assert.equal(periodsUrl.searchParams.get('order'), 'starts_on.asc');
+  await expectNoLoadError('con un pago');
+
+  console.log('Confirmando la asistencia...');
+  await confirmButton.click();
+  await card.getByText('Confirmaste tu asistencia.', { exact: true }).waitFor();
+  await cancelButton.waitFor();
+  assert.equal(await confirmationsOf(), '1', 'la confirmación no quedó en la base');
+  // The database prints a time as HH:MM:SS, and the starts_at it computed is ahead.
+  assert.match(
+    psql(
+      "select start_time::text || '|' || end_time::text || '|' || (starts_at > now())::text "
+      + `from public.attendance_confirmations where member_id = '${userId}'`,
+    ),
+    new RegExp(`^${start}:00\\|\\d{2}:\\d{2}:00\\|true$`),
+    'la fila guardada no tiene las horas HH:MM:SS con segundos en cero ni un starts_at futuro',
+  );
+
+  console.log('Recargando: la confirmación sigue (la hora HH:MM:SS se normaliza)...');
+  await page.reload();
+  await cancelButton.waitFor();
+  assert.equal(await confirmButton.count(), 0, 'tras recargar, la clase confirmada ofrece confirmar');
+  await expectNoLoadError('con la confirmación');
+
+  console.log('Cancelando la asistencia...');
+  await cancelButton.click();
+  await confirmButton.waitFor();
+  assert.equal(await confirmationsOf(), '0', 'la cancelación no borró la fila');
+
+  console.log('Acortando el pago hasta hoy: una clase de otro día avisa cuándo vence...');
+  psql(`update public.paid_periods set ends_on = '${today}' where member_id = '${userId}'`);
+  await page.reload();
+  await card.getByText(`Tu membresía vence el ${longDate(today)}.`, { exact: true }).waitFor();
+  assert.equal(await card.getByRole('button').count(), 0, 'una clase fuera del pago ofrece un botón');
+  await expectNoLoadError('con el pago acortado');
+
+  console.log('Borrando el pago: vuelve el mensaje de membresía inactiva...');
+  psql(`delete from public.paid_periods where member_id = '${userId}'`);
+  await page.reload();
+  await inactive.waitFor();
+  assert.equal(
+    await page.getByRole('button', { name: 'Confirmar asistencia' }).count(),
+    0,
+    'un miembro sin pagos ve "Confirmar asistencia" tras borrar el pago',
+  );
+}
+
 async function adminLeg(page) {
   const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
   assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de la administración');
@@ -909,6 +1030,7 @@ async function main() {
     await confirmByEmail(page);
     await signInAgain(page);
     await resetPassword(page);
+    await memberAttendanceLeg(page);
     await adminLeg(page);
     await accountLeg(page);
   } catch (cause) {
@@ -942,7 +1064,7 @@ async function main() {
   console.log(
     '\nEl registro real funciona: cuenta creada, correo confirmado con el botón, consentimiento '
     + 'guardado, enlace usado rechazado, ingreso con la contraseña, contraseña restablecida con '
-    + 'el correo de recuperación, administración (directorio, pagos registrados, corregidos, '
+    + 'el correo de recuperación, asistencia en los horarios (inactiva, confirmada, cancelada, vencida), administración (directorio, pagos registrados, corregidos, '
     + 'rechazados por cruce y encontrados borrados, aviso del latido y su restauración), página '
     + 'de la cuenta, cierre de sesión, cuenta eliminada y ninguna violación de la política de '
     + 'seguridad.',

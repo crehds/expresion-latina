@@ -267,6 +267,61 @@ of Studio (`http://127.0.0.1:34323`).
    (`delete from auth.users where email = '...'`): their profile and their
    payments go with it.
 
+### Manual checklist (attendance on the schedule)
+
+The member leg of `npm run test:e2e:auth` runs these steps against the real
+stack, except two that only unit tests cover
+(`src/pages/Schedules/Schedules.attendance.test.jsx`): the signed-out page in
+step 1 and the rehearsal in step 2. Do it by hand after changing the attendance
+controls, the schedule page
+or the `attendance_confirmations` table. Start the stack and the app as above and
+sign a member up through the app, and do not make them an administrator (an
+administrator's policies read everyone's rows, which hides a missing filter).
+Open `/schedules` on a wide window and look at the first class of a weekday that
+is not today (in Lima). Run the SQL in the SQL editor of Studio.
+
+1. **No payment.** The class says "Tu membresía no está activa." with the link
+   "Escríbenos por WhatsApp", and no class has a "Confirmar asistencia" button.
+   Signed out, the page is the same as ever: no message and no button.
+2. **Record a payment** that covers today and the next month, and reload:
+
+   ```sql
+   insert into public.paid_periods (member_id, starts_on, ends_on)
+   select id, private.lima_today(), private.lima_today() + 30
+   from auth.users where email = '...';
+   ```
+
+   The class shows "Próxima clase: ..." with its date and "Confirmar asistencia".
+   A rehearsal ("Ensayo Elenco") shows neither a button nor a message.
+
+3. **Confirm.** Press "Confirmar asistencia": "Confirmaste tu asistencia." and
+   "Cancelar asistencia". In the database there is one row, its times are written
+   with seconds and its `starts_at` is in the future:
+
+   ```sql
+   select start_time::text, end_time::text, starts_at > now()
+   from public.attendance_confirmations;
+   ```
+
+4. **Reload.** The class still says "Cancelar asistencia". If it offers
+   "Confirmar asistencia" again, the page did not read the 'HH:MM:SS' times back.
+5. **Cancel.** Press "Cancelar asistencia": the button goes back to "Confirmar
+   asistencia" and the table has no row.
+6. **Shorten the payment** to end today and reload:
+
+   ```sql
+   update public.paid_periods set ends_on = private.lima_today()
+   where member_id = (select id from auth.users where email = '...');
+   ```
+
+   A class of another day says "Tu membresía vence el ..." with today, and has
+   no button.
+
+7. **Delete the payment** and reload: "Tu membresía no está activa." again.
+8. **Clean up.** Delete the test member
+   (`delete from auth.users where email = '...'`): their profile, payments and
+   confirmations go with it.
+
 ## Production runbook
 
 Everything below is for when the owner is ready to run this feature

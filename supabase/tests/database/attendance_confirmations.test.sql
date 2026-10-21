@@ -21,7 +21,7 @@
 -- 'America/Lima')::date`, instead (Gotcha, PR2a corrective re-run).
 begin;
 
-select plan(40);
+select plan(44);
 
 insert into auth.users (
   id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -614,6 +614,41 @@ select is(
   (select count(*)::int from public.attendance_confirmations where room_key = 'studio-pending-owner'),
   1,
   'a pending member''s attempted cancel affects no rows -- the confirmation survives, read back as postgres'
+);
+
+-- ============================================================
+-- Group 16: whole-minute times (migration 20261020120000). The app
+-- identifies an occurrence by 'HH:MM', so a time with seconds would make a
+-- row that no schedule slot can ever match. Inserted directly as postgres so
+-- the CHECKs are isolated from RLS; they bind service_role and every other
+-- writer too.
+-- ============================================================
+select throws_ok(
+  $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ('b0000000-0000-0000-0000-000000000002', '2026-11-02', '19:00:30', '20:00', 'salsa', 'studio-minute-1', 'Salsa', 'Studio Minute 1')$$,
+  '23514',
+  null,
+  'a start_time with seconds violates the whole-minute check'
+);
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ('b0000000-0000-0000-0000-000000000002', '2026-11-02', '19:00', '20:00:30', 'salsa', 'studio-minute-2', 'Salsa', 'Studio Minute 2')$$,
+  '23514',
+  null,
+  'an end_time with seconds violates the whole-minute check'
+);
+
+select lives_ok(
+  $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ('b0000000-0000-0000-0000-000000000002', '2026-11-02', '19:00', '20:00', 'salsa', 'studio-minute-3', 'Salsa', 'Studio Minute 3')$$,
+  'a whole-minute start and end are accepted'
+);
+
+select is(
+  (select start_time::text || ' ' || end_time::text from public.attendance_confirmations where room_key = 'studio-minute-3'),
+  '19:00:00 20:00:00',
+  'the stored times read back as HH:MM:SS with zero seconds, which is what the adapter normalizes'
 );
 
 select * from finish();

@@ -102,7 +102,9 @@ function fakeClient({
     }
 
     const matching = tables[table].filter((row) => (
-      state.filters.every(([column, value]) => row[column] === value)
+      state.filters.every(([column, value, operator]) => (
+        operator === 'gte' ? row[column] >= value : row[column] === value
+      ))
     ));
     const project = (row) => Object.fromEntries(
       state.columns.map((column) => [column, row[column]]),
@@ -156,6 +158,7 @@ function fakeClient({
       update: (values) => { state.operation = 'update'; state.values = values; return builder; },
       delete: () => { state.operation = 'delete'; return builder; },
       eq: (column, value) => { state.filters.push([column, value]); return builder; },
+      gte: (column, value) => { state.filters.push([column, value, 'gte']); return builder; },
       order: (column, { ascending = true } = {}) => {
         state.order = { column, ascending };
         return builder;
@@ -365,6 +368,71 @@ describe('createMembershipAdapter', () => {
       const result = await adapterFor(client).getMember(MEMBER_A);
 
       expect(result).toStrictEqual({ ok: false, code: expected });
+      expect(JSON.stringify(result)).not.toMatch(LEAKS);
+    });
+  });
+
+  describe('listOwnPeriods', () => {
+    it('reads the own periods that end on or after the date, as { startsOn, endsOn }', async () => {
+      const result = await adapterFor(fakeClient()).listOwnPeriods({
+        userId: MEMBER_A,
+        fromDate: '2026-09-15',
+      });
+
+      expect(result).toStrictEqual({
+        ok: true,
+        data: [{ startsOn: '2026-09-01', endsOn: '2026-09-30' }],
+      });
+    });
+
+    it('keeps a period that ends exactly on the date', async () => {
+      const result = await adapterFor(fakeClient()).listOwnPeriods({
+        userId: MEMBER_A,
+        fromDate: '2026-09-30',
+      });
+
+      expect(result.data).toEqual([{ startsOn: '2026-09-01', endsOn: '2026-09-30' }]);
+    });
+
+    // An administrator's policy returns every member's rows: without the filter the
+    // owner's own schedule page would count everyone's periods as theirs.
+    it('filters by member_id and by the end date', async () => {
+      const client = fakeClient();
+
+      await adapterFor(client).listOwnPeriods({ userId: MEMBER_B, fromDate: '2026-10-01' });
+
+      expect(client.requests).toHaveLength(1);
+      expect(client.requests[0]).toMatchObject({ table: 'paid_periods', operation: 'select' });
+      expect(client.requests[0].filters).toEqual([
+        ['member_id', MEMBER_B],
+        ['ends_on', '2026-10-01', 'gte'],
+      ]);
+    });
+
+    it('never returns the period of another member', async () => {
+      const result = await adapterFor(fakeClient()).listOwnPeriods({
+        userId: MEMBER_B,
+        fromDate: '2026-01-01',
+      });
+
+      expect(result.data).toEqual([{ startsOn: '2026-09-15', endsOn: '2026-10-14' }]);
+    });
+
+    it('asks for the two columns it maps and nothing else', async () => {
+      const client = fakeClient();
+
+      await adapterFor(client).listOwnPeriods({ userId: MEMBER_A, fromDate: '2026-01-01' });
+
+      expect(client.requests[0].columns).toEqual(['starts_on', 'ends_on']);
+    });
+
+    it('maps a failure to its code and repeats nothing of the error', async () => {
+      const result = await adapterFor(fakeClient({ error: postgrestError('42501') })).listOwnPeriods({
+        userId: MEMBER_A,
+        fromDate: '2026-01-01',
+      });
+
+      expect(result).toStrictEqual({ ok: false, code: 'FORBIDDEN' });
       expect(JSON.stringify(result)).not.toMatch(LEAKS);
     });
   });

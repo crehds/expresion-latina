@@ -14,6 +14,9 @@ export const RESULT_CODES = Object.freeze({
   INVALID: 'INVALID',
   // A paid period that overlaps another period of the same member.
   OVERLAP: 'OVERLAP',
+  // A cancel that removed no row: the class already started (or the confirmation
+  // was already gone), and the database does not tell which.
+  STARTED: 'STARTED',
   // The ones below are the failures of the account forms (sign-in, sign-up,
   // password reset and a new password) and of an email link that the member is
   // told about.

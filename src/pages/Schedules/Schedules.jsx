@@ -1,7 +1,11 @@
 import { Component } from 'react';
 
 import { Page } from '../../components';
+import { whatsappLink } from '../../data';
 import { getActiveDays, getSessionsForWeekday, hasPublishedSchedule } from '../../data/selectors';
+import AttendanceProvider from '../../features/attendance/composition/AttendanceProvider';
+import AttendanceReadError from '../../features/attendance/ui/AttendanceReadError';
+import SessionAttendance from '../../features/attendance/ui/SessionAttendance';
 import DayAgenda from './components/DayAgenda';
 import DayPicker from './components/DayPicker';
 import WeekColumns from './components/WeekColumns';
@@ -17,7 +21,13 @@ function initialWeekday(days) {
   return days[0]?.weekday ?? today;
 }
 
-class Schedules extends Component {
+// What goes under each class: the attendance control of a signed-in member. It
+// renders nothing for anyone else, so the card is what it was without it.
+const renderSessionAction = (session) => (
+  <SessionAttendance session={session} whatsappLink={whatsappLink} />
+);
+
+class ScheduleView extends Component {
   constructor(props) {
     super(props);
 
@@ -63,10 +73,12 @@ class Schedules extends Component {
     if (isWide) {
       return (
         <Page title="Horarios" lead="Las clases de la semana, día por día." className="schedules">
+          <AttendanceReadError />
           <WeekColumns
             days={this.days}
             sessionsByWeekday={getSessionsForWeekday}
             currentWeekday={currentWeekday}
+            renderSessionAction={renderSessionAction}
           />
         </Page>
       );
@@ -76,17 +88,32 @@ class Schedules extends Component {
 
     return (
       <Page title="Horarios" lead="Elige un día para ver sus clases." className="schedules">
+        <AttendanceReadError />
         <DayPicker
           days={this.days}
           selectedWeekday={selectedWeekday}
           onSelect={this.handleSelectDay}
         />
         {selectedDay && (
-          <DayAgenda day={selectedDay} sessions={getSessionsForWeekday(selectedWeekday)} />
+          <DayAgenda
+            day={selectedDay}
+            sessions={getSessionsForWeekday(selectedWeekday)}
+            renderSessionAction={renderSessionAction}
+          />
         )}
       </Page>
     );
   }
+}
+
+// The provider sits here, and not in App.jsx, so that it exists only on this page.
+// It is inert for anyone without a signed-in member and never starts the session.
+function Schedules() {
+  return (
+    <AttendanceProvider>
+      <ScheduleView />
+    </AttendanceProvider>
+  );
 }
 
 export default Schedules;
