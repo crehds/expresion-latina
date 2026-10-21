@@ -479,6 +479,20 @@ const paymentGone = (page) => page
   .getByRole('alert')
   .filter({ hasText: 'Este pago ya no existe. Mostramos la lista al día.' });
 
+// How the page names what can be done to a payment: the button that edits it, the
+// button that deletes it, and the question that the second one opens.
+const editButton = (page, startsOn, endsOn) => page.getByRole('button', {
+  name: `Editar el pago: ${rangeText(startsOn, endsOn)}`,
+  exact: true,
+});
+const deleteButton = (page, startsOn, endsOn) => page.getByRole('button', {
+  name: `Eliminar el pago: ${rangeText(startsOn, endsOn)}`,
+  exact: true,
+});
+const deleteQuestion = (page) => page.getByRole('group', {
+  name: '¿Eliminar este pago? Esta acción no se puede deshacer.',
+});
+
 // What the member is told when the payment they act on has been deleted behind
 // the page's back: the page is still showing it, and the database answers that
 // no row matched. The notice stays, the list is read again without the row, and
@@ -571,9 +585,7 @@ async function adminPayments(page, userId) {
   );
 
   console.log('Corrigiendo el pago: el fin pasa a ser ayer y el miembro queda inactivo...');
-  await page
-    .getByRole('button', { name: `Editar el pago: ${rangeText(start, end)}`, exact: true })
-    .click();
+  await editButton(page, start, end).click();
   await page.getByRole('form', { name: 'Editar pago' }).waitFor();
   await endsOnField(page).fill(yesterday);
   await saveAndClose(page, 'Editar pago', 'la corrección del pago');
@@ -613,59 +625,47 @@ async function adminPayments(page, userId) {
     'la base no guardó el segundo pago',
   );
   psql(`delete from public.paid_periods where member_id = '${userId}' and starts_on = '${secondStart}'`);
-  await page
-    .getByRole('button', { name: `Editar el pago: ${rangeText(secondStart, secondEnd)}`, exact: true })
-    .click();
+  await editButton(page, secondStart, secondEnd).click();
   await page.getByRole('form', { name: 'Editar pago' }).waitFor();
   await endsOnField(page).fill(addDays(today, 8));
   const corrected = nextRequest(page, 'PATCH', 'paid_periods');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expectPaymentGone(
-    page,
-    corrected,
-    rangeText(secondStart, secondEnd),
-    'la corrección de un pago que ya no existe',
-  );
+  const staleEdit = 'la corrección de un pago que ya no existe';
+  await expectPaymentGone(page, corrected, rangeText(secondStart, secondEnd), staleEdit);
   await page.getByRole('form', { name: 'Editar pago' }).waitFor({ state: 'detached' });
-  await expectCount(paymentRows(page), 1, 'la lista no se leyó de nuevo sin el pago borrado');
+  await expectCount(
+    paymentRows(page),
+    1,
+    `${staleEdit}: la lista no se leyó de nuevo sin el pago borrado`,
+  );
 
   console.log('Borrando otro pago en la base a espaldas de la página y eliminándolo...');
   const thirdStart = addDays(today, 12);
   const thirdEnd = addDays(today, 20);
   await recordPayment(page, thirdStart, thirdEnd, 'el registro del tercer pago');
   psql(`delete from public.paid_periods where member_id = '${userId}' and starts_on = '${thirdStart}'`);
-  await page
-    .getByRole('button', {
-      name: `Eliminar el pago: ${rangeText(thirdStart, thirdEnd)}`,
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole('group', { name: '¿Eliminar este pago? Esta acción no se puede deshacer.' })
-    .waitFor();
+  await deleteButton(page, thirdStart, thirdEnd).click();
+  await deleteQuestion(page).waitFor();
   const erased = nextRequest(page, 'DELETE', 'paid_periods');
   await page.getByRole('button', { name: 'Sí, eliminar el pago', exact: true }).click();
-  await expectPaymentGone(
-    page,
-    erased,
-    rangeText(thirdStart, thirdEnd),
-    'la eliminación de un pago que ya no existe',
+  const staleDelete = 'la eliminación de un pago que ya no existe';
+  await expectPaymentGone(page, erased, rangeText(thirdStart, thirdEnd), staleDelete);
+  await expectCount(
+    paymentRows(page),
+    1,
+    `${staleDelete}: la lista no se leyó de nuevo sin el pago borrado`,
   );
-  await expectCount(paymentRows(page), 1, 'la lista no se leyó de nuevo sin el pago borrado');
   assert.equal(periodsOf(userId), `${start}|${yesterday}`, 'la base cambió el pago que quedaba');
 
   console.log('Eliminando el último pago: primero se cancela, después se confirma...');
-  const lastRange = rangeText(start, yesterday);
-  const question = page.getByRole('group', {
-    name: '¿Eliminar este pago? Esta acción no se puede deshacer.',
-  });
-  await page.getByRole('button', { name: `Eliminar el pago: ${lastRange}`, exact: true }).click();
+  const question = deleteQuestion(page);
+  await deleteButton(page, start, yesterday).click();
   await question.waitFor();
   await question.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await question.waitFor({ state: 'detached' });
   assert.equal(periodsOf(userId), `${start}|${yesterday}`, 'cancelar la pregunta eliminó el pago');
 
-  await page.getByRole('button', { name: `Eliminar el pago: ${lastRange}`, exact: true }).click();
+  await deleteButton(page, start, yesterday).click();
   await question.waitFor();
   await question.getByRole('button', { name: 'Sí, eliminar el pago', exact: true }).click();
   await page.getByText('Todavía no hay pagos registrados.', { exact: true }).waitFor();
@@ -685,15 +685,23 @@ const keepaliveNotice = (page) => page
 async function reloadAfterHeartbeat(page) {
   const answered = nextRequest(page, 'GET', 'ops_heartbeat');
   await page.reload();
+  let answer;
   try {
-    await answered;
+    answer = await answered;
   } catch {
     throw new Error('la página no pidió el latido (ops_heartbeat) al recargarse');
   }
   await page.getByRole('heading', { level: 2, name: NAME }).waitFor();
   await page.waitForLoadState('networkidle');
-  // The answer is drawn on the next tick of the page.
-  await sleep(300);
+  // The notice is drawn from that answer: the page reads the body, sets its state
+  // and React draws it in a task of its own, with no timer in between
+  // (KeepaliveBanner). So once the body has arrived and two animation frames have
+  // gone by, a notice that is going to appear has appeared, which a fixed pause
+  // could only guess at.
+  assert.equal(await answer.finished(), null, 'la respuesta del latido no llegó completa');
+  await page.evaluate(() => new Promise((settle) => {
+    requestAnimationFrame(() => requestAnimationFrame(settle));
+  }));
 }
 
 async function adminNotice(page) {
