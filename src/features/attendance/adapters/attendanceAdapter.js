@@ -47,6 +47,24 @@ const toOccurrence = (row) => ({
   roomLabel: row.room_label,
 });
 
+// The administrator's list also names the member (the foreign key to profiles is
+// followed by the embed) and keeps the member id, which is only a React key.
+const ADMIN_COLUMNS = `member_id, ${OCCURRENCE_COLUMNS}, profiles(full_name)`;
+
+// Rows per request of the administrator's list.
+const ADMIN_PAGE_SIZE = 500;
+
+// A confirmation of the administrator's list. A profile that did not come with
+// the row, or has no name, gives a null name: the screen words that, not the mapper.
+const toListedConfirmation = (row) => {
+  const name = row.profiles?.full_name;
+  return {
+    memberId: row.member_id,
+    fullName: typeof name === 'string' && name.trim() !== '' ? name : null,
+    ...toOccurrence(row),
+  };
+};
+
 export function createAttendanceAdapter(getClient) {
   // Runs `call(client)` and turns whatever it returns or throws into a result.
   // `call` returns `{ error, data }`-shaped values; `read` maps `data` on success.
@@ -63,6 +81,40 @@ export function createAttendanceAdapter(getClient) {
         .eq('member_id', userId)
         .gte('class_date', fromDate),
       (rows) => (rows ?? []).map(toOccurrence),
+    ),
+
+    // Everyone's confirmations from `fromDate` to `toDate`, for the administrator's
+    // attendee list. There is no filter on the member on purpose: the policy lets
+    // an administrator read every member's rows, which is what this list is for.
+    // Only the member's name comes from the profile; no email, period or status.
+    //
+    // The list is read in pages until one comes back short, because the API cuts a
+    // single answer at a fixed number of rows and a list cut short would pass for
+    // the whole one. The id is the last sort key so that the pages never overlap.
+    listUpcomingConfirmations: ({ fromDate, toDate }) => run(
+      async (client) => {
+        const rows = [];
+        for (let from = 0; ; from += ADMIN_PAGE_SIZE) {
+          // eslint-disable-next-line no-await-in-loop -- each page waits for the one before
+          const page = await client
+            .from('attendance_confirmations')
+            .select(ADMIN_COLUMNS)
+            .gte('class_date', fromDate)
+            .lte('class_date', toDate)
+            .order('class_date')
+            .order('start_time')
+            .order('id')
+            .range(from, from + ADMIN_PAGE_SIZE - 1);
+          if (page.error) {
+            return { data: null, error: page.error };
+          }
+          rows.push(...(page.data ?? []));
+          if ((page.data ?? []).length < ADMIN_PAGE_SIZE) {
+            return { data: rows, error: null };
+          }
+        }
+      },
+      (rows) => rows.map(toListedConfirmation),
     ),
 
     // Only the seven granted columns: `member_id` and `starts_at` are filled in by

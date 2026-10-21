@@ -81,12 +81,25 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
     column.endsWith('_time') && typeof value === 'string' ? value.slice(0, 5) : value
   );
 
+  function compare(operator, actual, value) {
+    return operator === 'gte' ? actual >= value : actual <= value;
+  }
+
   function matches(row, state) {
     return state.filters.every(([operator, column, value]) => (
       operator === 'eq'
         ? comparable(column, row[column]) === comparable(column, value)
-        : row[column] >= value
+        : compare(operator, row[column], value)
     ));
+  }
+
+  // PostgREST sorts by each `.order()` in the order it was chained.
+  function sorted(rowsToSort, orders) {
+    return [...rowsToSort].sort((a, b) => {
+      const decisive = orders.find((column) => a[column] !== b[column]);
+      if (decisive === undefined) return 0;
+      return a[decisive] < b[decisive] ? -1 : 1;
+    });
   }
 
   function execute(state) {
@@ -100,12 +113,24 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
       matching.forEach((row) => table.splice(table.indexOf(row), 1));
       return { data: state.returning ? matching.map(({ id }) => ({ id })) : null, error: null };
     }
-    return { data: matching, error: null };
+    const ordered = sorted(matching, state.orders);
+    // `.range(from, to)` is inclusive on both ends.
+    return {
+      data: state.range ? ordered.slice(state.range[0], state.range[1] + 1) : ordered,
+      error: null,
+    };
   }
 
   function from(name) {
     const state = {
-      table: name, operation: 'select', columns: null, values: null, filters: [], returning: false,
+      table: name,
+      operation: 'select',
+      columns: null,
+      values: null,
+      filters: [],
+      orders: [],
+      range: null,
+      returning: false,
     };
     const builder = {
       select(columns) {
@@ -131,8 +156,20 @@ function fakeClient({ rows = ROWS, error = null } = {}) {
         state.filters.push(['gte', column, value]);
         return builder;
       },
+      lte(column, value) {
+        state.filters.push(['lte', column, value]);
+        return builder;
+      },
+      order(column) {
+        state.orders.push(column);
+        return builder;
+      },
+      range(first, last) {
+        state.range = [first, last];
+        return builder;
+      },
       then(resolve, reject) {
-        requests.push({ ...state, filters: [...state.filters] });
+        requests.push({ ...state, filters: [...state.filters], orders: [...state.orders] });
         return Promise.resolve(execute(state)).then(resolve, reject);
       },
     };
@@ -239,6 +276,169 @@ describe('createAttendanceAdapter', () => {
       });
 
       expect(result).toEqual({ ok: false, code: 'UNKNOWN' });
+    });
+  });
+
+  describe('listUpcomingConfirmations', () => {
+    const WINDOW = { fromDate: '2026-10-21', toDate: '2026-10-28' };
+
+    // A row as the admin's embed returns it: the confirmation plus its member's name.
+    const adminRow = (index, overrides = {}) => ({
+      id: `c-${String(index).padStart(5, '0')}`,
+      member_id: `m-${index}`,
+      class_date: '2026-10-26',
+      start_time: '19:00:00',
+      end_time: '20:00:00',
+      genre_id: 'salsa',
+      room_key: 'sala-1',
+      genre_name: 'Salsa',
+      room_label: 'Sala 1',
+      profiles: { full_name: `Member ${index}` },
+      ...overrides,
+    });
+
+    it('lists everyone\'s confirmations inside the window, with the name of each member', async () => {
+      const client = fakeClient({
+        rows: [
+          adminRow(1, { profiles: { full_name: 'Ana Perez' } }),
+          adminRow(2, { member_id: MEMBER_B, class_date: '2026-10-27', profiles: { full_name: 'Luis Soto' } }),
+          adminRow(3, { class_date: '2026-10-20' }),
+          adminRow(4, { class_date: '2026-10-29' }),
+        ],
+      });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(result).toEqual({
+        ok: true,
+        data: [
+          {
+            memberId: 'm-1',
+            fullName: 'Ana Perez',
+            classDate: '2026-10-26',
+            startTime: '19:00',
+            endTime: '20:00',
+            genreId: 'salsa',
+            roomKey: 'sala-1',
+            genreName: 'Salsa',
+            roomLabel: 'Sala 1',
+          },
+          {
+            memberId: MEMBER_B,
+            fullName: 'Luis Soto',
+            classDate: '2026-10-27',
+            startTime: '19:00',
+            endTime: '20:00',
+            genreId: 'salsa',
+            roomKey: 'sala-1',
+            genreName: 'Salsa',
+            roomLabel: 'Sala 1',
+          },
+        ],
+      });
+    });
+
+    it('asks for the window, the name embed and a stable order, and for no single member', async () => {
+      const client = fakeClient({ rows: [adminRow(1)] });
+
+      await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      const [request] = client.requests;
+      expect(request.table).toBe('attendance_confirmations');
+      expect(request.columns).toBe(
+        'member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label, '
+        + 'profiles(full_name)',
+      );
+      expect(request.filters).toEqual([
+        ['gte', 'class_date', '2026-10-21'],
+        ['lte', 'class_date', '2026-10-28'],
+      ]);
+      // The id breaks ties, so a page boundary can never repeat or skip a row.
+      expect(request.orders).toEqual(['class_date', 'start_time', 'id']);
+    });
+
+    it('turns the HH:MM:SS the database prints into HH:MM on this path too (R4)', async () => {
+      const client = fakeClient({ rows: [adminRow(1, { start_time: '19:00:00', end_time: '20:00:00' })] });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(result.data[0]).toMatchObject({ startTime: '19:00', endTime: '20:00' });
+    });
+
+    it.each(['19:00:30', '7:00', '', null])(
+      'fails the whole read when one time is not whole-minute (%s)',
+      async (bad) => {
+        const client = fakeClient({ rows: [adminRow(1), adminRow(2, { start_time: bad })] });
+
+        const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+        expect(result).toEqual({ ok: false, code: 'UNKNOWN' });
+      },
+    );
+
+    it('gives no name, not a made-up one, to a confirmation whose profile did not come', async () => {
+      const client = fakeClient({
+        rows: [adminRow(1, { profiles: null }), adminRow(2, { profiles: { full_name: '  ' } })],
+      });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(result.data.map((row) => row.fullName)).toEqual([null, null]);
+    });
+
+    it('reads in pages of 500 until a page comes back short', async () => {
+      const rows = Array.from({ length: 1200 }, (_, index) => adminRow(index));
+      const client = fakeClient({ rows });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(client.requests.map((request) => request.range)).toEqual([
+        [0, 499], [500, 999], [1000, 1499],
+      ]);
+      expect(result.data).toHaveLength(1200);
+      expect(new Set(result.data.map((row) => row.memberId)).size).toBe(1200);
+    });
+
+    it('asks once more when a page is exactly full, and stops on the empty one', async () => {
+      const rows = Array.from({ length: 500 }, (_, index) => adminRow(index));
+      const client = fakeClient({ rows });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(client.requests.map((request) => request.range)).toEqual([[0, 499], [500, 999]]);
+      expect(result.data).toHaveLength(500);
+    });
+
+    it('reads a single page for a short list', async () => {
+      const client = fakeClient({ rows: [adminRow(1)] });
+
+      await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(client.requests).toHaveLength(1);
+    });
+
+    it('answers an empty list when nobody confirmed', async () => {
+      const client = fakeClient({ rows: [] });
+
+      expect(await adapterOver(client).listUpcomingConfirmations(WINDOW))
+        .toEqual({ ok: true, data: [] });
+    });
+
+    it('maps a refusal to FORBIDDEN carrying the code and nothing of the error', async () => {
+      const client = fakeClient({ error: postgrestError('42501') });
+
+      const result = await adapterOver(client).listUpcomingConfirmations(WINDOW);
+
+      expect(result).toEqual({ ok: false, code: 'FORBIDDEN' });
+      expect(JSON.stringify(result)).not.toMatch(LEAKS);
+    });
+
+    it('answers NETWORK when the client cannot be loaded', async () => {
+      const adapter = createAttendanceAdapter(async () => {
+        throw new TypeError('Failed to fetch dynamically imported module');
+      });
+
+      expect(await adapter.listUpcomingConfirmations(WINDOW)).toEqual({ ok: false, code: 'NETWORK' });
     });
   });
 
