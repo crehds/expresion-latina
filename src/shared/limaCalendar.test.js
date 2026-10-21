@@ -1,5 +1,5 @@
 import {
-  todayInLima, addDays, anniversary, weekdayOf, limaInstant,
+  todayInLima, addDays, anniversary, weekdayOf, limaInstant, isIsoDate,
 } from './limaCalendar';
 
 describe('todayInLima', () => {
@@ -139,5 +139,61 @@ describe('limaInstant', () => {
 
   it('propagates the invalid-date rejection from parseIsoDate', () => {
     expect(() => limaInstant('not-a-date', '19:00')).toThrow();
+  });
+});
+
+describe('isIsoDate', () => {
+  it.each([
+    '2026-10-19',
+    '2026-12-31',
+    '2028-02-29',
+    '1999-01-01',
+  ])('accepts the real calendar date %s', (value) => {
+    expect(isIsoDate(value)).toBe(true);
+  });
+
+  // The shape alone is not enough: Date.UTC would roll these into the next
+  // month, so a form that only matched the pattern would accept them.
+  it.each([
+    ['30 February', '2026-02-30'],
+    ['29 February in a common year', '2027-02-29'],
+    ['31 April', '2026-04-31'],
+    ['month 13', '2026-13-01'],
+    ['month 00', '2026-00-10'],
+    ['day 00', '2026-10-00'],
+  ])('rejects an impossible date: %s', (_label, value) => {
+    expect(isIsoDate(value)).toBe(false);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['a single-digit month and day', '2026-1-1'],
+    ['a two-digit year', '26-10-19'],
+    ['a year of five digits', '12026-10-19'],
+    ['a slash separator', '2026/10/19'],
+    ['a day first', '19-10-2026'],
+    ['an instant', '2026-10-19T00:00:00Z'],
+    ['a leading space', ' 2026-10-19'],
+    ['a trailing space', '2026-10-19 '],
+    ['a trailing newline', '2026-10-19\n'],
+    ['words', 'not-a-date'],
+  ])('rejects a string that is not in the shape: %s', (_label, value) => {
+    expect(isIsoDate(value)).toBe(false);
+  });
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['a number', 20261019],
+    ['a Date', new Date('2026-10-19T00:00:00Z')],
+    ['an array', ['2026-10-19']],
+    ['an object', { toString: () => '2026-10-19' }],
+  ])('rejects what is not a string: %s', (_label, value) => {
+    expect(isIsoDate(value)).toBe(false);
+  });
+
+  it('never throws, whatever it is given', () => {
+    expect(() => isIsoDate(Symbol('2026-10-19'))).not.toThrow();
+    expect(isIsoDate(Symbol('2026-10-19'))).toBe(false);
   });
 });

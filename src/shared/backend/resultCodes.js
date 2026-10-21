@@ -12,6 +12,8 @@ export const RESULT_CODES = Object.freeze({
   FORBIDDEN: 'FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
   INVALID: 'INVALID',
+  // A paid period that overlaps another period of the same member.
+  OVERLAP: 'OVERLAP',
   // The ones below are the failures of the account forms (sign-in, sign-up,
   // password reset and a new password) and of an email link that the member is
   // told about.
@@ -96,6 +98,12 @@ export function toResultCode(error) {
   }
   if (error.code === 'P0002') {
     return RESULT_CODES.NOT_FOUND;
+  }
+  // exclusion_violation: the EXCLUDE constraint of paid_periods refused a period
+  // that overlaps another one of the same member. The error body names the member
+  // and the dates in `details`; only the code is read.
+  if (error.code === '23P01') {
+    return RESULT_CODES.OVERLAP;
   }
   if (INVALID_CODES.has(error.code)) {
     return RESULT_CODES.INVALID;

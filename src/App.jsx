@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 
 import { Footer, Header } from './components';
 import Loader from './components/Loader/Loader';
+import AdminRoute from './composition/AdminRoute';
 import BackendRoute from './composition/BackendRoute';
 import ConsentGate from './features/accounts/ui/ConsentGate';
 
@@ -23,6 +24,9 @@ const AuthCallback = lazy(() => import('./pages/AuthCallback/AuthCallback'));
 const AuthConfirm = lazy(() => import('./pages/AuthConfirm/AuthConfirm'));
 const Account = lazy(() => import('./pages/Account/Account'));
 const Privacy = lazy(() => import('./pages/Privacy/Privacy'));
+const AdminFrame = lazy(() => import('./pages/Admin/AdminFrame'));
+const AdminMembers = lazy(() => import('./pages/Admin/AdminMembers'));
+const AdminMemberDetail = lazy(() => import('./pages/Admin/AdminMemberDetail'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 export default function App() {
@@ -56,6 +60,20 @@ export default function App() {
               * accept.
               */}
             <Route path="/privacy" element={<BackendRoute><Privacy /></BackendRoute>} />
+            {/*
+              * The admin pages: behind the kill switch like the account pages and
+              * then behind the admin check, which mounts nothing for anyone else.
+              * They share one frame (the heading of the area and the
+              * sub-navigation), so a new admin page is one more route here and one
+              * more entry in the frame. The layout route has no path of its own,
+              * which leaves /admin on its own answering not found.
+              */}
+            <Route
+              element={<BackendRoute><AdminRoute><AdminFrame /></AdminRoute></BackendRoute>}
+            >
+              <Route path="/admin/members" element={<AdminMembers />} />
+              <Route path="/admin/members/:memberId" element={<AdminMemberDetail />} />
+            </Route>
             {/*
               * Last, and matching whatever the ones above did not. Without it an
               * address nobody recognises rendered the nav and the footer with

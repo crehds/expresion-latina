@@ -45,7 +45,7 @@ function fakeSession(overrides = {}) {
     errorCode: null,
     start: vi.fn(),
     refresh: vi.fn(async () => {}),
-    signOut: vi.fn(async () => {}),
+    signOut: vi.fn(async () => ok()),
     ...overrides,
   };
 }
@@ -154,6 +154,21 @@ describe('ConsentGate with a pending profile and nothing stored', () => {
     expect(services.auth.deleteMyAccount).toHaveBeenCalledTimes(1);
     expect(session.signOut).toHaveBeenCalledTimes(1);
     expect(services.auth.recordConsent).not.toHaveBeenCalled();
+  });
+
+  // The provider's signOut resolves to a failure when a session may still be held.
+  // The account is already deleted, so there is nothing the member could do about
+  // it, and the gate shows no message for it.
+  it('shows no error when the sign-out after a successful decline fails', async () => {
+    const user = userEvent.setup();
+    const signOut = vi.fn(async () => fail('NETWORK'));
+    const { services } = renderGate({ session: fakeSession({ signOut }) });
+
+    await user.click(screen.getByRole('button', { name: 'No acepto, eliminar mi cuenta' }));
+
+    expect(services.auth.deleteMyAccount).toHaveBeenCalledTimes(1);
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('does not sign out when the deletion failed', async () => {

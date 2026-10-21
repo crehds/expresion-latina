@@ -7,7 +7,15 @@
 # Reference: https://supabase.com/docs/guides/local-development/cli/config
 project_id = "expresion-latina"
 
+# Local ports: 343xx instead of the CLI's 543xx defaults. At boot, Windows
+# (Hyper-V / WinNAT) reserves random blocks of its TCP dynamic port range
+# (49152-65535), and a reserved default port makes `supabase start` fail with
+# "access permissions". Ports below that range are outside those reservations.
+# The last two digits match the defaults: API 34321, database 34322, Studio
+# 34323, Mailpit 34324.
+
 [api]
+port = 34321
 # The Data API exposes only these schemas. `private` must never be listed:
 # its helpers are reachable only through the policies and functions that use
 # them.
@@ -16,8 +24,24 @@ schemas = ["public", "graphql_public"]
 # catalog privilege guard tests the same default grants production applies.
 
 [db]
+port = 34322
+shadow_port = 34320
 # Match the Postgres major version of the hosted project.
 major_version = 17
+
+[db.pooler]
+port = 34329
+
+[studio]
+port = 34323
+
+[local_smtp]
+# Mailpit's inbox.
+# CLI 2.x table (older CLIs: [inbucket]); verified against the pinned 2.117.0 template.
+port = 34324
+
+[analytics]
+port = 34327
 
 [auth]
 # Where Auth sends the browser back to after a sign-in or an email link: the

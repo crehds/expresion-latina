@@ -22,12 +22,18 @@ function covers(pathname, path) {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
-export default function Option(props) {
-  const {
-    name, location, onNavigate, path,
-  } = props;
-
-  const active = covers(location.pathname, path);
+/**
+ * One entry of the menu.
+ *
+ * It is lit while the page being shown is the one it links to or lies under it.
+ * An entry that links to the first of several pages (Admin goes to the members)
+ * can name the area it stands for with `activePath`, and is then lit on every
+ * page of that area.
+ */
+export default function Option({
+  name, location, onNavigate, path, activePath = undefined,
+}) {
+  const active = covers(location.pathname, activePath ?? path);
   return (
     <li className="text-md option">
       <Link
@@ -46,5 +52,6 @@ Option.propTypes = {
   name: PropTypes.string.isRequired,
   onNavigate: PropTypes.func.isRequired,
   path: PropTypes.string.isRequired,
+  activePath: PropTypes.string,
   location: PropTypes.instanceOf(Object).isRequired,
 };

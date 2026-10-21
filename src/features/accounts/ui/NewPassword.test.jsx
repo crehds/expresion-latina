@@ -154,6 +154,39 @@ describe('NewPassword', () => {
       await screen.findByRole('alert');
       expect(signOutOthers).not.toHaveBeenCalled();
     });
+
+    // The password has changed by then, so a callback of the parent that throws is
+    // a bug of the parent, not a reason to leave the member with a button that
+    // never works again.
+    describe('when the callback of the parent throws', () => {
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      async function submitWithThrowingParent(failure) {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const rendered = renderForm({
+          onDone: vi.fn(() => { throw failure; }),
+        });
+        await fillAndSubmit(userEvent.setup());
+        await waitFor(() => expect(rendered.onDone).toHaveBeenCalledTimes(1));
+        return { consoleError, ...rendered };
+      }
+
+      it('enables the button again, so the form is not left disabled for good', async () => {
+        await submitWithThrowingParent(new Error('parent failed'));
+
+        await waitFor(() => expect(submit()).toBeEnabled());
+      });
+
+      it('reports the error instead of letting it escape as an unhandled rejection', async () => {
+        const failure = new Error('parent failed');
+
+        const { consoleError } = await submitWithThrowingParent(failure);
+
+        await waitFor(() => expect(consoleError).toHaveBeenCalledWith(failure));
+      });
+    });
   });
 
   describe('when the fields are not valid', () => {

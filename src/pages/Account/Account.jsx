@@ -5,9 +5,8 @@ import { Page } from '../../components';
 import { useSession } from '../../features/accounts/composition/SessionProvider';
 import DeleteAccount from '../../features/accounts/ui/DeleteAccount';
 import NewPassword from '../../features/accounts/ui/NewPassword';
-import { authErrorMessage } from '../../features/accounts/ui/authCopy';
+import { SIGN_OUT_FAILED } from '../../features/accounts/ui/authCopy';
 import startSession from '../../features/accounts/ui/startSession';
-import { RESULT_CODES } from '../../shared/backend/resultCodes';
 
 import './css/account.css';
 
@@ -30,6 +29,11 @@ const consentLine = ({ consentVersion, consentAt }) => (
  * the form) and deletes the account. Once the account is deleted the page shows
  * its final state and stays there: the sign-out that follows must not send the
  * member to the login page.
+ *
+ * The sign-out goes home only when the session says this device holds no session
+ * any more. When one may still be held, the member stays here with an alert that
+ * says so, and the button works again; leaving them on the home page, signed in,
+ * would let them believe they had signed out of a shared device.
  */
 export default function Account() {
   const session = useSession();
@@ -83,7 +87,9 @@ export default function Account() {
   }
 
   // A failed sign-out leaves the member here, with a way to try again; a
-  // second click while one is running is ignored.
+  // second click while one is running is ignored. The provider resolves to a
+  // result and does not throw, but a rejection is a failure here too, since the
+  // member must never be sent home on a guess.
   const signOut = async () => {
     if (leavingRef.current) {
       return;
@@ -91,10 +97,15 @@ export default function Account() {
     leavingRef.current = true;
     setSigningOut(true);
     setSignOutFailed(false);
+    let signedOut = false;
     try {
-      await session.signOut();
-      navigate('/');
+      signedOut = (await session.signOut()).ok === true;
     } catch {
+      // Left as a failure.
+    }
+    if (signedOut) {
+      navigate('/');
+    } else {
       leavingRef.current = false;
       setSigningOut(false);
       setSignOutFailed(true);
@@ -121,9 +132,7 @@ export default function Account() {
           )}
           <Link className="account__link" to="/privacy">Ver el aviso de privacidad</Link>
           {signOutFailed && (
-            <p className="text-md account__message" role="alert">
-              {authErrorMessage(RESULT_CODES.UNKNOWN)}
-            </p>
+            <p className="text-md account__message" role="alert">{SIGN_OUT_FAILED}</p>
           )}
           <button
             type="button"

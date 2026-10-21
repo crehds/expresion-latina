@@ -8,6 +8,11 @@
  * race. A failed call shows the fixed message of its result code in an alert,
  * never what the backend said, and the account and the session stay as they
  * were. Both buttons are disabled while the call runs.
+ *
+ * How that sign-out ends is not shown. The provider resolves it to a failure
+ * when a session may still be held, but the account is gone and the page says
+ * so: there is nothing left the member could do about a session of an account
+ * that no longer exists.
  */
 import PropTypes from 'prop-types';
 import {
@@ -58,10 +63,11 @@ export default function DeleteAccount({ onDeleted }) {
     }
     onDeleted();
     try {
+      // The result is left unread on purpose (see the top of this file). The provider
+      // does not reject, so the catch is only for one that does.
       await session.signOut();
     } catch {
-      // The account is gone and the page already says so; a failed sign-out
-      // changes nothing the member can act on.
+      // The account is gone and the page already says so.
     }
   };
 
