@@ -8,16 +8,19 @@ vi.mock('../shared/backend/client', async (importOriginal) => ({
 }));
 
 describe('createServices', () => {
-  it('builds the auth and the membership adapters from the lazy client getter', () => {
+  it('builds the auth, the membership and the attendance adapters from the lazy client getter', () => {
     const getClient = vi.fn();
 
     const services = createServices(getClient);
 
-    expect(Object.keys(services)).toEqual(['auth', 'membership']);
+    expect(Object.keys(services)).toEqual(['auth', 'membership', 'attendance']);
     expect(typeof services.auth.getSession).toBe('function');
     expect(typeof services.auth.signOut).toBe('function');
     expect(typeof services.membership.searchMembers).toBe('function');
     expect(typeof services.membership.listPeriods).toBe('function');
+    expect(typeof services.attendance.listOwnConfirmations).toBe('function');
+    expect(typeof services.attendance.confirm).toBe('function');
+    expect(typeof services.attendance.cancel).toBe('function');
   });
 
   it('does not load the client while building the services', () => {
