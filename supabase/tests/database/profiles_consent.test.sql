@@ -15,7 +15,7 @@
 -- in the same transaction to switch identity between scenarios.
 begin;
 
-select plan(41);
+select plan(48);
 
 -- Member A signs up by email with consent given at sign-up; member B
 -- signs up through Google, so its profile starts PENDING.
@@ -246,6 +246,11 @@ select ok(
   (select consent_at = now() from public.profiles where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
   'record_consent stamps consent_at with the server clock'
 );
+select is(
+  (select full_name from public.profiles where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+  'Member B',
+  'record_consent fills the name in from the sign-up metadata the first time'
+);
 
 -- A DIFFERENT value than what record_consent already copied in, so a
 -- blocked UPDATE (bug) would leave the old value and fail this assertion
@@ -306,6 +311,60 @@ select throws_ok(
 );
 
 reset role;
+
+-- record_consent fills the name in from the sign-up metadata the first time
+-- (profile still pending): `full_name` first, which member B above covers,
+-- then Google's `name` for an account that only has that one, trimmed; and
+-- it cuts a name over the limit instead of letting the table CHECK reject it
+-- (20260924130000_profiles_and_consent.sql: the select of the metadata, and
+-- the `left(...)` in the update).
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'google-name-only@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{"name":"  Google Name  "}', now(), now()
+);
+-- The limit's worth of 'a' and then ten 'b': what is left of the name shows
+-- which end of it survives the cut.
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  '22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'google-long-name@example.com',
+  '{"provider":"google","providers":["google"]}',
+  ('{"full_name":"' || repeat('a', private.full_name_max_length ()) || repeat('b', 10) || '"}')::jsonb,
+  now(), now()
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+select lives_ok(
+  $$select public.record_consent('2026-01-01')$$,
+  'a pending account whose metadata has only a name can record consent'
+);
+
+set local request.jwt.claims to '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
+
+select lives_ok(
+  $$select public.record_consent('2026-01-01')$$,
+  'a pending account whose name is over the limit can record consent'
+);
+
+reset role;
+
+select is(
+  (select full_name from public.profiles where id = '11111111-1111-1111-1111-111111111111'),
+  'Google Name',
+  'record_consent falls back to the trimmed name metadata when there is no full_name'
+);
+select is(
+  (select full_name from public.profiles where id = '22222222-2222-2222-2222-222222222222'),
+  repeat('a', private.full_name_max_length ()),
+  'record_consent keeps the first characters of a name over the limit'
+);
 
 -- PR1b review follow-up (Finding 3): record_consent must not silently
 -- succeed when it has no profile row to update -- e.g. an auth user
@@ -380,6 +439,18 @@ update public.profiles set is_admin = false where id = 'aaaaaaaa-aaaa-aaaa-aaaa-
 -- the first time (profile still pending).
 insert into public.privacy_notice_versions (version) values ('2026-06-01');
 
+-- Member C signed up in this same transaction, and now() does not move inside
+-- one, so C's consent_at already equals now(): a record_consent that never
+-- stamped it again would still pass the check below. Put it far in the past
+-- first (as postgres: a member has no UPDATE on that column), so that only the
+-- re-consent can bring it back to now().
+update public.profiles set consent_at = '2020-01-01 00:00:00+00' where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+
+select ok(
+  (select consent_at < now() from public.profiles where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+  'member C starts the re-consent with a consent_at in the past'
+);
+
 set local role authenticated;
 set local request.jwt.claims to '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}';
 
@@ -422,6 +493,14 @@ select is(
   (select is_admin from public.profiles where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
   true,
   'service_role''s update actually changed the row'
+);
+
+-- The INSERT path has its own privileges to lose. Member E lost its profile
+-- in the "no profile row" scenario above and nothing has created one since,
+-- so service_role can insert it.
+select lives_ok(
+  $$insert into public.profiles (id, full_name) values ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Member E')$$,
+  'service_role can insert a profile row'
 );
 
 reset role;
