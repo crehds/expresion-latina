@@ -77,3 +77,36 @@ export function defaultStart(periods, today) {
 export function endAfter(start, { months }) {
   return addDays(anniversary(start, months), -1);
 }
+
+// The latest end among the periods that overlap a run ending on `end` or start
+// the day after it; `end` itself when none does.
+function endReachedFrom(periods, end) {
+  const next = addDays(end, 1);
+  const reaching = periods.filter((period) => period.startsOn <= next && period.endsOn > end);
+  return reaching.length === 0 ? end : latestOf(reaching.map((period) => period.endsOn));
+}
+
+/**
+ * The last day of the unbroken run of coverage that includes `today`: the end of
+ * the periods that cover today, extended through every period that overlaps the
+ * run or starts the day after it ends. A gap of a single day stops the run, and
+ * so does a period that ends before today. This is what "your membership runs
+ * until" means to a member, unlike `paidUntil`, which is the latest end of ANY
+ * period, a prepaid one after a gap included.
+ *
+ * @param {Period[]} periods
+ * @param {string} today an ISO date
+ * @returns {string|null} null when no period covers `today`
+ */
+export function coveredThrough(periods, today) {
+  const covering = periods.filter((period) => period.startsOn <= today && period.endsOn >= today);
+  if (covering.length === 0) return null;
+
+  let end = latestOf(covering.map((period) => period.endsOn));
+  let longer = endReachedFrom(periods, end);
+  while (longer !== end) {
+    end = longer;
+    longer = endReachedFrom(periods, end);
+  }
+  return end;
+}

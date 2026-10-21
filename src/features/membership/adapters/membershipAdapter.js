@@ -91,6 +91,21 @@ export function createMembershipAdapter(getClient) {
       (rows) => toMember(rows[0]),
     ),
 
+    // The signed-in member's OWN periods that end on or after a date (the Lima
+    // today), as the `{ startsOn, endsOn }` the attendance rules work on. The filter
+    // on the member is not optional: the policy lets an administrator read every
+    // member's periods, so without it an administrator's schedule page would count
+    // everyone's payments as theirs.
+    listOwnPeriods: ({ userId, fromDate }) => run(
+      (client) => client
+        .from('paid_periods')
+        .select('starts_on, ends_on')
+        .eq('member_id', userId)
+        .gte('ends_on', fromDate)
+        .order('starts_on', { ascending: true }),
+      (rows) => (rows ?? []).map((row) => ({ startsOn: row.starts_on, endsOn: row.ends_on })),
+    ),
+
     // The periods of ONE member, newest first. The filter is not optional: the
     // policy of `paid_periods` lets an administrator read the rows of every
     // member, so without it this would return all of them.
