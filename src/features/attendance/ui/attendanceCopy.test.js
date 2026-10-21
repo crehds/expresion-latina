@@ -1,16 +1,26 @@
 import {
+  ADMIN_ATTENDANCE_TITLE,
+  ADMIN_READ_ERROR,
   ALREADY_STARTED,
   CANCEL_ATTENDANCE,
   CONFIRMED,
   CONFIRM_ATTENDANCE,
+  DATE_UNAVAILABLE,
+  LOADING_ATTENDEES,
+  MISMATCH_TITLE,
   NOT_ACTIVE,
   NOT_COVERED,
+  NO_ATTENDEES,
   READ_ERROR,
   RETRY,
+  SCHEDULE_COMPARE_ERROR,
+  UNNAMED_MEMBER,
   WHATSAPP_LINK_TEXT,
   attendanceErrorMessage,
+  attendeeCount,
   classDateText,
   expiresText,
+  occurrenceLine,
 } from './attendanceCopy';
 
 describe('attendanceCopy', () => {
@@ -24,6 +34,44 @@ describe('attendanceCopy', () => {
     expect(ALREADY_STARTED).toBe('Esta clase ya empezó.');
     expect(READ_ERROR).toBe('No pudimos cargar tu asistencia.');
     expect(RETRY).toBe('Reintentar');
+  });
+
+  it('has the fixed texts of the administrator\'s list', () => {
+    expect(ADMIN_ATTENDANCE_TITLE).toBe('Asistencia');
+    expect(LOADING_ATTENDEES).toBe('Cargando las confirmaciones…');
+    expect(NO_ATTENDEES).toBe('Nadie ha confirmado todavía.');
+    expect(ADMIN_READ_ERROR).toBe('No pudimos cargar las confirmaciones de asistencia.');
+    expect(SCHEDULE_COMPARE_ERROR).toBe(
+      'No pudimos comparar las confirmaciones con el horario actual.',
+    );
+    expect(MISMATCH_TITLE).toBe('Ya no coincide con el horario');
+    expect(UNNAMED_MEMBER).toBe('Miembro sin nombre');
+    expect(DATE_UNAVAILABLE).toBe('Fecha no disponible');
+  });
+
+  describe('attendeeCount', () => {
+    it('counts in the singular and the plural', () => {
+      expect(attendeeCount(1)).toBe('1 persona');
+      expect(attendeeCount(2)).toBe('2 personas');
+      expect(attendeeCount(12)).toBe('12 personas');
+    });
+  });
+
+  describe('occurrenceLine', () => {
+    const stored = {
+      classDate: '2026-10-26', startTime: '19:00', endTime: '20:00', roomLabel: 'Sala 1',
+    };
+
+    it('writes the date, the times and the room of the stored class', () => {
+      expect(occurrenceLine(stored)).toBe('26 de octubre de 2026 · 19:00 a 20:00 · Sala 1');
+    });
+
+    it.each(['', 'soon', '2026-02-30', null, undefined])(
+      'falls back to the neutral date for %s',
+      (classDate) => {
+        expect(occurrenceLine({ ...stored, classDate })).toBe('Fecha no disponible · 19:00 a 20:00 · Sala 1');
+      },
+    );
   });
 
   describe('classDateText', () => {

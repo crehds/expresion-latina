@@ -50,6 +50,37 @@ const ERRORS = new Map([
 /** The message for the code of a failed action; a code without its own gets the generic one. */
 export const attendanceErrorMessage = (code) => ERRORS.get(code) ?? DEFAULT_ERROR;
 
+// The administrator's attendee list (Spec: Admin-Only Attendee Visibility).
+export const ADMIN_ATTENDANCE_TITLE = 'Asistencia';
+export const LOADING_ATTENDEES = 'Cargando las confirmaciones…';
+export const NO_ATTENDEES = 'Nadie ha confirmado todavía.';
+// Fixed for every failed read: the list shows the code of nothing and the text of
+// no error, so no member data can reach the screen through it.
+export const ADMIN_READ_ERROR = 'No pudimos cargar las confirmaciones de asistencia.';
+// The schedule could not be compared with the confirmations, so the list is shown
+// without telling which of them stopped matching.
+export const SCHEDULE_COMPARE_ERROR = 'No pudimos comparar las confirmaciones con el horario actual.';
+// The title of the confirmations whose class is no longer in the schedule; the
+// words are fixed by the spec (Schedule Changes).
+export const MISMATCH_TITLE = 'Ya no coincide con el horario';
+// A member whose profile did not come with the confirmation, or has no name.
+export const UNNAMED_MEMBER = 'Miembro sin nombre';
+export const DATE_UNAVAILABLE = 'Fecha no disponible';
+
+/** How many people confirmed a class. */
+export const attendeeCount = (count) => (count === 1 ? '1 persona' : `${count} personas`);
+
+/**
+ * Where and when a stored class was: the date, the times and the room, as they
+ * were written when the member confirmed. A date that is no calendar day gets a
+ * neutral line instead of taking the list down.
+ */
+export const occurrenceLine = ({
+  classDate, startTime, endTime, roomLabel,
+}) => (
+  `${formatDateOnlyOrNull(classDate) ?? DATE_UNAVAILABLE} · ${startTime} a ${endTime} · ${roomLabel}`
+);
+
 // The notice above the schedule when the member's attendance could not be read.
 export const READ_ERROR = 'No pudimos cargar tu asistencia.';
 export const RETRY = 'Reintentar';
