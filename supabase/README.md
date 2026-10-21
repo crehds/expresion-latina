@@ -155,10 +155,11 @@ update public.profiles set is_admin = true where id = (
   (its payments go with it) and its emails afterwards (if the journey did
   not already), and puts `public.ops_heartbeat` back as it found it, the row
   it had to the microsecond or no row, whether it passes or not. Every date it
-  uses comes from one reading of the Lima day when it starts, and a run that
-  crosses Lima midnight stops and says so: run it again. It needs the
-  stack running (see "Bootstrapping") and port 3000 free, and it is not part
-  of `npm run test:e2e` or of CI, which has no stack.
+  uses comes from one reading of the Lima day when it starts. The steps that
+  depend on it check that the day is still the same when they start and again
+  if they fail, and a run that crossed Lima midnight then stops and says so: run
+  it again. It needs the stack running (see "Bootstrapping") and port 3000
+  free, and it is not part of `npm run test:e2e` or of CI, which has no stack.
 
 ### Manual checklist (Mailpit)
 

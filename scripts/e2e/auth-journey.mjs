@@ -56,9 +56,12 @@
  * journey is a failure.
  *
  * Every date the legs use comes from one reading of the Lima day, taken when the
- * run starts. The legs that depend on it check, before they do, that the Lima day
- * is still that one: a run that crosses Lima midnight stops and says so, and is
- * run again, instead of failing on a date that is off by a day.
+ * run starts. The legs that depend on it (the member attendance, the payments, the
+ * heartbeat notice and the attendee list) check, before they start, that the Lima
+ * day is still that one, and read it again if they fail. When it has changed, the
+ * run stops with a message that says it crossed Lima midnight, followed by the
+ * failure, and is run again, instead of failing on a date that is off by a day.
+ * A crossing outside those legs changes no date, and is not looked for.
  *
  * The page is served on port 3000 and browsed as http://localhost:3000, never
  * 127.0.0.1: supabase/config.toml names that origin as the site URL and in the
@@ -436,16 +439,46 @@ function limaToday() {
   return limaDay;
 }
 
+// The Lima day as the database counts it now.
+const limaNow = () => psql("select (now() at time zone 'America/Lima')::date::text");
+
+// What the run says when the Lima day is no longer the one it started with.
+const midnightMessage = (step, started, now) => (
+  `${step}: la prueba cruzó la medianoche de Lima (empezó el ${started} y ya es ${now}): `
+  + 'vuelve a correrla'
+);
+
 // What a leg does before the checks that depend on a date: it fails, saying why,
 // when the Lima day is no longer the one the run started with.
 function expectSameLimaDay(step) {
   const { date } = limaToday();
-  const now = psql("select (now() at time zone 'America/Lima')::date::text");
-  assert.equal(
-    now,
-    date,
-    `${step}: la prueba cruzó la medianoche de Lima (empezó el ${date} y ya es ${now}): vuelve a correrla`,
-  );
+  const now = limaNow();
+  assert.equal(now, date, midnightMessage(step, date, now));
+}
+
+// Runs a leg that depends on the Lima day. It checks the day before the leg starts
+// and, if the leg fails, reads it once more before the failure goes on: a leg that
+// was running when Lima midnight went by fails on a date that is off by a day, and
+// that mismatch says nothing of the cause. If the day has changed, the failure is
+// replaced by the midnight message, with the failure as its cause; if it has not,
+// or if it cannot be read, the failure goes on exactly as it was.
+async function onLimaDay(step, leg) {
+  expectSameLimaDay(step);
+  try {
+    return await leg();
+  } catch (failure) {
+    let now = null;
+    try {
+      now = limaNow();
+    } catch {
+      // The day cannot be read, and the failure of the leg is what there is to report.
+    }
+    const { date } = limaToday();
+    if (now !== null && now !== date) {
+      throw new Error(midnightMessage(step, date, now), { cause: failure });
+    }
+    throw failure;
+  }
 }
 
 // The payments of a member as the database holds them: "start|end" for each,
@@ -607,7 +640,6 @@ async function adminMemberPage(page, userId) {
 
 // Record, correct, refuse an overlap, find a payment gone twice, delete.
 async function adminPayments(page, userId) {
-  expectSameLimaDay('los pagos');
   const { date: today } = limaToday();
   const yesterday = addDays(today, -1);
 
@@ -749,7 +781,6 @@ async function reloadAfterHeartbeat(page) {
 }
 
 async function adminNotice(page) {
-  expectSameLimaDay('el aviso del latido');
   console.log('Comprobando el aviso del latido: con un último ping de hace cuatro días...');
   savedHeartbeat = heartbeatNow();
   psql(
@@ -849,7 +880,6 @@ function firstClassOf(schedule, weekday) {
 // own-rows filters of the page would go unproven.
 async function memberAttendanceLeg(page) {
   const userId = testUserId('antes de la asistencia');
-  expectSameLimaDay('la asistencia en los horarios');
   const {
     today, weekday, dayName, classDate,
   } = classDay();
@@ -874,7 +904,10 @@ async function memberAttendanceLeg(page) {
   await page.goto(`${SITE}/schedules`);
   await page.getByRole('heading', { level: 1, name: 'Horarios' }).waitFor();
   // The first card of the day's column is what the leg works with, so it must be
-  // the class that the schedule puts first, by its start and by its name.
+  // the class that the schedule puts first. That is first by its start only, the
+  // way the page sorts (a stable sort on the start over the order of the data, in
+  // src/data/selectors.js): no sort uses the name, which is here to tell which
+  // class the card is, and the schedule has no two classes of a day at one start.
   const start = await card.locator('time').first().getAttribute('datetime');
   assert.match(start ?? '', /^\d{2}:\d{2}$/, 'la clase no muestra su hora de inicio');
   assert.equal(
@@ -963,13 +996,6 @@ async function memberAttendanceLeg(page) {
     'un miembro sin pagos ve "Confirmar asistencia" tras borrar el pago',
   );
 }
-
-// The attendee list of the admin area, against the real PostgREST. The
-// confirmations are written with SQL, as the postgres role: they stand for what
-// members confirmed from the schedule, so what the leg proves is what the
-// administrator then reads and sees (the embed with the name of the member, the
-// reading in pages by the primary key, the times the database prints as HH:MM:SS,
-// and the confirmations that no longer match the schedule).
 
 // Rows per request of the administrator's list (ADMIN_PAGE_SIZE of
 // src/features/attendance/adapters/attendanceAdapter.js), and enough extra
@@ -1235,8 +1261,13 @@ async function listInTwoPages(page, scene) {
   await expectNoFailure('con la lista en dos páginas');
 }
 
+// The attendee list of the admin area, against the real PostgREST. The
+// confirmations are written with SQL, as the postgres role: they stand for what
+// members confirmed from the schedule, so what the leg proves is what the
+// administrator then reads and sees (the embed with the name of the member, the
+// reading in pages by the primary key, the times the database prints as HH:MM:SS,
+// and the confirmations that no longer match the schedule).
 async function adminAttendance(page, userId) {
-  expectSameLimaDay('la lista de asistencia');
   const scene = attendanceScene(page, userId);
   await listConfirmedClass(page, scene);
   await listInTwoPages(page, scene);
@@ -1289,9 +1320,9 @@ async function adminLeg(page) {
 
   await adminAccess(page);
   await adminMemberPage(page, userId);
-  await adminPayments(page, userId);
-  await adminNotice(page);
-  await adminAttendance(page, userId);
+  await onLimaDay('los pagos', () => adminPayments(page, userId));
+  await onLimaDay('el aviso del latido', () => adminNotice(page));
+  await onLimaDay('la lista de asistencia', () => adminAttendance(page, userId));
 
   console.log('Volviendo al inicio desde la administración...');
   await mainMenu(page).getByRole('link', { name: 'Inicio', exact: true }).click();
@@ -1487,11 +1518,15 @@ async function main() {
     await confirmByEmail(page);
     await signInAgain(page);
     await resetPassword(page);
-    await memberAttendanceLeg(page);
+    await onLimaDay('la asistencia en los horarios', () => memberAttendanceLeg(page));
     await adminLeg(page);
     await accountLeg(page);
   } catch (cause) {
     problems.push(cause.message);
+    // The failure that the midnight message replaced is not lost: it follows it.
+    if (cause.cause instanceof Error) {
+      problems.push(`el fallo original: ${cause.cause.message}`);
+    }
   } finally {
     // Whatever the journey reached before it stopped, a violation counts.
     violations.forEach((violation) => problems.push(`violación de la política: ${violation}`));
