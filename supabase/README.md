@@ -3,7 +3,7 @@
 Schema, tests and local dev seed data for the Member Attendance feature.
 Nothing here talks to a hosted Supabase project unless someone explicitly
 runs `supabase link` and `supabase db push` -- this project's own scripts
-never do that (see `scripts/db/test-db.mjs`).
+never do that (see `RESET_WARNING` in `scripts/db/test-db-lib.mjs`).
 
 The sections below cover local development first (Prerequisites through
 "Local auth"), then everything needed to run this against a real, hosted
@@ -26,8 +26,9 @@ npm run test:db
 This starts the local stack if it is not already running (the first run
 pulls Docker images and can take a few minutes), resets the local database
 from `supabase/migrations/`, loads `supabase/seed.sql`, and runs the pgTAP
-suite under `supabase/tests/database/`. `scripts/db/test-db.mjs` documents
-exactly what each step does, including why it warns before every reset.
+suite under `supabase/tests/database/`. `runTestDb` in
+`scripts/db/test-db-lib.mjs` documents exactly what each step does, and
+`RESET_WARNING` there says why it warns before every reset.
 
 To run the stack without resetting or testing -- to browse it in Supabase
 Studio, for example:
