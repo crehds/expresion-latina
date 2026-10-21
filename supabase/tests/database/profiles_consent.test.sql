@@ -15,7 +15,7 @@
 -- in the same transaction to switch identity between scenarios.
 begin;
 
-select plan(48);
+select plan(51);
 
 -- Member A signs up by email with consent given at sign-up; member B
 -- signs up through Google, so its profile starts PENDING.
@@ -366,6 +366,42 @@ select is(
   'record_consent keeps the first characters of a name over the limit'
 );
 
+-- The metadata may have no name at all. A pending profile holds '' then, and
+-- keeping '' is what the update does with or without its guard against an empty
+-- name, so that case shows nothing. The guard shows on a pending profile that
+-- already holds a name (one named by hand before the member ever consented, say):
+-- an empty name in the metadata must not blank it.
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  '33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'google-no-name@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{}', now(), now()
+);
+update public.profiles set full_name = 'Already Named' where id = '33333333-3333-3333-3333-333333333333';
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
+
+select lives_ok(
+  $$select public.record_consent('2026-01-01')$$,
+  'a pending account whose metadata has no name can record consent'
+);
+
+reset role;
+
+select is(
+  (select full_name from public.profiles where id = '33333333-3333-3333-3333-333333333333'),
+  'Already Named',
+  'record_consent keeps the stored name when the metadata has none'
+);
+select is(
+  private.has_consent('33333333-3333-3333-3333-333333333333'),
+  true,
+  'the consent of a pending account whose metadata has no name is recorded'
+);
+
 -- PR1b review follow-up (Finding 3): record_consent must not silently
 -- succeed when it has no profile row to update -- e.g. an auth user
 -- created before this migration existed. Simulate that by deleting the
@@ -444,7 +480,18 @@ insert into public.privacy_notice_versions (version) values ('2026-06-01');
 -- stamped it again would still pass the check below. Put it far in the past
 -- first (as postgres: a member has no UPDATE on that column), so that only the
 -- re-consent can bring it back to now().
-update public.profiles set consent_at = '2020-01-01 00:00:00+00' where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+--
+-- The name has the same problem: the sign-up metadata of C says 'Member C', and
+-- so does its profile, so a record_consent that wrote the metadata over the
+-- stored name on a re-consent would change nothing the check below could see. C
+-- gets another name, as if it had renamed itself since signing up, so that only
+-- a record_consent that leaves the stored name alone passes.
+update public.profiles
+set
+  consent_at = '2020-01-01 00:00:00+00',
+  full_name = 'Member C Renamed'
+where
+  id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 
 select ok(
   (select consent_at < now() from public.profiles where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
@@ -469,7 +516,7 @@ select ok(
 );
 select is(
   (select full_name from public.profiles where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
-  'Member C',
+  'Member C Renamed',
   're-consent does not overwrite an already-set full_name'
 );
 
