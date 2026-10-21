@@ -27,6 +27,7 @@ const Privacy = lazy(() => import('./pages/Privacy/Privacy'));
 const AdminFrame = lazy(() => import('./pages/Admin/AdminFrame'));
 const AdminMembers = lazy(() => import('./pages/Admin/AdminMembers'));
 const AdminMemberDetail = lazy(() => import('./pages/Admin/AdminMemberDetail'));
+const AdminAttendance = lazy(() => import('./pages/Admin/AdminAttendance'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 export default function App() {
@@ -73,6 +74,7 @@ export default function App() {
             >
               <Route path="/admin/members" element={<AdminMembers />} />
               <Route path="/admin/members/:memberId" element={<AdminMemberDetail />} />
+              <Route path="/admin/attendance" element={<AdminAttendance />} />
             </Route>
             {/*
               * Last, and matching whatever the ones above did not. Without it an

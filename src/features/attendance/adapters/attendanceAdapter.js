@@ -47,6 +47,33 @@ const toOccurrence = (row) => ({
   roomLabel: row.room_label,
 });
 
+// The administrator's list also names the member (the foreign key to profiles is
+// followed by the embed) and keeps the member id, which is only a React key. The
+// row id is read only to page by it and is not passed on.
+const ADMIN_COLUMNS = `id, member_id, ${OCCURRENCE_COLUMNS}, profiles(full_name)`;
+
+// Rows per request of the administrator's list.
+const ADMIN_PAGE_SIZE = 500;
+
+// A confirmation of the administrator's list. A profile that did not come with
+// the row, or has no name, gives a null name: the screen words that, not the mapper.
+const toListedConfirmation = (row) => {
+  const name = row.profiles?.full_name;
+  return {
+    memberId: row.member_id,
+    fullName: typeof name === 'string' && name.trim() !== '' ? name : null,
+    ...toOccurrence(row),
+  };
+};
+
+// Class date, then start time, then the name of the member; a row without a name
+// goes first. The sort is stable, so equal rows keep the order they were read in.
+const inClassOrder = (a, b) => (
+  a.classDate.localeCompare(b.classDate)
+  || a.startTime.localeCompare(b.startTime)
+  || (a.fullName ?? '').localeCompare(b.fullName ?? '', 'es')
+);
+
 export function createAttendanceAdapter(getClient) {
   // Runs `call(client)` and turns whatever it returns or throws into a result.
   // `call` returns `{ error, data }`-shaped values; `read` maps `data` on success.
@@ -63,6 +90,47 @@ export function createAttendanceAdapter(getClient) {
         .eq('member_id', userId)
         .gte('class_date', fromDate),
       (rows) => (rows ?? []).map(toOccurrence),
+    ),
+
+    // Everyone's confirmations from `fromDate` to `toDate`, for the administrator's
+    // attendee list. There is no filter on the member on purpose: the policy lets
+    // an administrator read every member's rows, which is what this list is for.
+    // Only the member's name comes from the profile; no email, period or status.
+    //
+    // The list is read in pages of ADMIN_PAGE_SIZE until one comes back short,
+    // because the API cuts a single answer at a fixed number of rows and a list cut
+    // short would pass for the whole one. The pages follow the primary key: each
+    // asks for the ids after the last one of the page before, so a row that is
+    // added or cancelled between two requests cannot move the rows of the next page
+    // and no row is read twice. A row added meanwhile may be missed until the list
+    // is read again. The collected rows are then put in class order here.
+    listUpcomingConfirmations: ({ fromDate, toDate }) => run(
+      async (client) => {
+        const rows = [];
+        let lastId = null;
+        for (;;) {
+          let query = client
+            .from('attendance_confirmations')
+            .select(ADMIN_COLUMNS)
+            .gte('class_date', fromDate)
+            .lte('class_date', toDate);
+          if (lastId !== null) {
+            query = query.gt('id', lastId);
+          }
+          // eslint-disable-next-line no-await-in-loop -- each page starts after the one before
+          const page = await query.order('id').limit(ADMIN_PAGE_SIZE);
+          if (page.error) {
+            return { data: null, error: page.error };
+          }
+          const received = page.data ?? [];
+          rows.push(...received);
+          if (received.length < ADMIN_PAGE_SIZE) {
+            return { data: rows, error: null };
+          }
+          lastId = received[received.length - 1].id;
+        }
+      },
+      (rows) => rows.map(toListedConfirmation).sort(inClassOrder),
     ),
 
     // Only the seven granted columns: `member_id` and `starts_at` are filled in by

@@ -322,6 +322,103 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    (`delete from auth.users where email = '...'`): their profile, payments and
    confirmations go with it.
 
+### Manual checklist (admin attendance)
+
+The admin attendance leg of `npm run test:e2e:auth` runs these steps against the
+real stack. Do it by hand after changing the attendee list
+(`src/pages/Admin/AdminAttendance.jsx`), `listUpcomingConfirmations` or the
+`attendance_confirmations` table, or to see it with your own eyes. Start the
+stack and the app as above, sign a member up through the app and make them an
+administrator (step 1 of "Manual checklist (admin area)"). Run the SQL in the SQL
+editor of Studio. The test member is the member and the administrator at once, so
+every row of the list is theirs: that an administrator reads the rows of every
+member is proven by the database tests (`npm run test:db`), not by this
+checklist.
+
+1. **Confirm a class.** Take the first class of a weekday that is not today (in
+   Lima) from `src/data/academy.json`: its start and end, its genre (id and name)
+   and its room. The room key is the slug of the room (`Sala 1` is `sala-1`).
+   Confirm it for the member on the date of that weekday within the next seven
+   days:
+
+   ```sql
+   insert into public.attendance_confirmations
+     (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+   select id, '<date>', '<start>', '<end>', '<genre id>', '<room key>', '<genre name>', '<room>'
+   from auth.users where email = '...';
+   ```
+
+2. **Open the list.** "Admin", then "Asistencia" in the sub-navigation. Under the
+   name of the class there is its date, times and room (for example "26 de
+   octubre de 2026 · 18:00 a 19:00 · Sala 1", with the times as HH:MM although the
+   database prints HH:MM:SS) and the name of the member, and no email anywhere.
+   In the network tab the page asks `attendance_confirmations` once, with
+   `class_date=gte.<today>` and `class_date=lte.<today + 7 days>`,
+   `order=id.asc`, `limit=500` and `profiles(full_name)` in `select`, and with no
+   filter on `member_id` and none on `id`.
+3. **A confirmation that matches no class.** Add one for the same genre and room
+   at a time the schedule does not have, two days ahead, and reload:
+
+   ```sql
+   insert into public.attendance_confirmations
+     (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+   select id, private.lima_today() + 2, '23:30', '23:45',
+     '<genre id>', '<room key>', '<genre name>', '<room>'
+   from auth.users where email = '...';
+   ```
+
+   The section "Ya no coincide con el horario" shows it with the name of the
+   member, the name of the class and its date, times and room. The class above
+   still lists the member.
+
+4. **More than a page.** Add 520 confirmations for a made-up genre and reload:
+
+   ```sql
+   insert into public.attendance_confirmations
+     (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+   select u.id, private.lima_today() + 3, time '00:00' + n * interval '1 minute',
+     time '00:01' + n * interval '1 minute', 'e2e-relleno', 'sala-1', 'Relleno E2E', 'Sala 1'
+   from auth.users u, generate_series(0, 519) as n
+   where u.email = '...';
+   ```
+
+   The network tab shows two requests to `attendance_confirmations`, both with
+   `order=id.asc` and `limit=500`. The first answers 500 rows. The second has
+   `id=gt.<the id of the last row of the first answer>` and answers the rest. The
+   section "Ya no coincide con el horario" lists all of them, and no alert shows.
+
+5. **Stop being an administrator** and load `/admin/attendance` again:
+
+   ```sql
+   update public.profiles set is_admin = false
+   where id = (select id from auth.users where email = '...');
+   ```
+
+   The page says "No encontramos esta página", the menu has no "Admin" and the
+   network tab shows no request to `attendance_confirmations`.
+
+6. **Clean up.** Delete the test member
+   (`delete from auth.users where email = '...'`): their profile, payments and
+   confirmations go with it.
+
+Only unit tests cover the rest of the page
+(`src/pages/Admin/AdminAttendance.test.jsx`,
+`src/features/attendance/ui/*.test.jsx`,
+`src/features/attendance/adapters/attendanceAdapter.test.js` and
+`src/App.test.jsx`):
+
+- the empty list ("Nadie ha confirmado todavía.");
+- a failed read ("No pudimos cargar las confirmaciones de asistencia." with
+  "Reintentar");
+- the degraded state ("No pudimos comparar las confirmaciones con el horario
+  actual.", with the list grouped by class and no mismatch section). A time with
+  seconds cannot be inserted with SQL (the whole-minute checks of the table refuse
+  it), so only a faked adapter reaches that state;
+- a confirmation that appears or goes between two pages;
+- the order of the names, the count of each class and "Miembro sin nombre" for a
+  member whose profile does not come with the confirmation;
+- the sub-navigation and the "Admin" entry of the menu being marked on this page.
+
 ## Production runbook
 
 Everything below is for when the owner is ready to run this feature
