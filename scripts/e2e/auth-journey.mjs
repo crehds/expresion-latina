@@ -33,8 +33,21 @@
  * deleted with SQL behind the page's back is then corrected, and another one
  * deleted, to see the real answer of no row matched (NOT_FOUND) twice; the last
  * payment is deleted with its two-step confirmation.
- * Last, the keep-alive notice: a heartbeat four days old shows it,
+ * Then the keep-alive notice: a heartbeat four days old shows it,
  * `public.keepalive()` takes it away, and no row at all shows the "no ping" one.
+ * Last of the admin area, the attendee list, while the member is still an
+ * administrator: a class of the schedule is confirmed with SQL, and "Asistencia"
+ * in the sub-navigation lists the member by name under it. The request is checked
+ * (the week from today, the name through the profiles embed, no filter on a
+ * member, the rows in pages of 500 by id) and so is the row (the database prints
+ * its times as HH:MM:SS and the page shows them as HH:MM). Then a confirmation for
+ * a time that is never in the schedule and 520 more are added, which makes the
+ * list need a second request: it must start after the last id of the first, and
+ * the two together must be exactly the rows of the database, with the
+ * confirmation that matches no class under "Ya no coincide con el horario". Back
+ * on the home page, the account is made a plain member again with SQL, and
+ * /admin/attendance is the not-found page, with no "Admin" in the menu and no
+ * request for the confirmations.
  * Then the account leg: the menu offers "Mi cuenta" and no "Ingresar", the
  * account page shows the name, the email and the consent on record, "Cerrar
  * sesión" brings "Ingresar" back, a new sign-in reaches the page again, and
@@ -49,13 +62,13 @@
  *
  * It needs the local stack (Docker) and, unlike the other checks, is not part
  * of `npm run test:e2e` or of CI. It creates one account, e2e-auth-<time>@
- * example.test, and removes it again, with its profile, its payments and its
- * email, whether the journey passes or not (the account leg deletes it itself;
- * the cleanup then finds nothing left to remove). The admin leg also changes
- * `public.ops_heartbeat`, which belongs to the project: its row is saved before
- * the first change and put back exactly by the cleanup (removed if there was
- * none). The build is pinned to VITE_KEEPALIVE_ALERT_DAYS=3, so a local env file
- * cannot change what the notice does.
+ * example.test, and removes it again, with its profile, its payments, its
+ * confirmations and its email, whether the journey passes or not (the account leg
+ * deletes it itself; the cleanup then finds nothing left to remove). The admin
+ * leg also changes `public.ops_heartbeat`, which belongs to the project: its row
+ * is saved before the first change and put back exactly by the cleanup (removed
+ * if there was none). The build is pinned to VITE_KEEPALIVE_ALERT_DAYS=3, so a
+ * local env file cannot change what the notice does.
  *
  * Usage: npm run test:e2e:auth
  */
@@ -717,23 +730,34 @@ async function adminNotice(page) {
     .waitFor();
 }
 
-// The member leg: the attendance controls of the public schedule, against the real
-// PostgREST. The class is the first one of Monday, or of Tuesday when today is
-// Monday, so that its next occurrence is never today whatever the time of day (a
-// class that started earlier today would be a different card state). The page
-// looks one week ahead, so it is always inside the window. The member is no
-// administrator yet: an administrator's policies read everyone's rows, and the
-// own-rows filters of the page would go unproven.
-async function memberAttendanceLeg(page) {
-  const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
-  assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de la asistencia');
+// The day of the classes the two attendance legs use: Monday, or Tuesday when today
+// is Monday, so that the next date of a class is never today, whatever the time of
+// day (a class that started earlier today would be a different card state). That
+// date is between tomorrow and a week ahead, so it is always inside the window the
+// pages look at. "Today" is the Lima calendar day, as the database counts it.
+function classDay() {
   const today = psql("select (now() at time zone 'America/Lima')::date::text");
+  assert.match(today, /^\d{4}-\d{2}-\d{2}$/, 'no pude leer la fecha de hoy de la base');
   const weekdayToday = Number(
     psql("select extract(dow from (now() at time zone 'America/Lima'))::int"),
   );
   const weekday = weekdayToday === 1 ? 2 : 1;
-  const dayName = weekday === 2 ? 'Martes' : 'Lunes';
-  const classDate = addDays(today, (weekday - weekdayToday + 7) % 7);
+  return {
+    today,
+    weekday,
+    dayName: weekday === 2 ? 'Martes' : 'Lunes',
+    classDate: addDays(today, (weekday - weekdayToday + 7) % 7),
+  };
+}
+
+// The member leg: the attendance controls of the public schedule, against the real
+// PostgREST. The class is the first one of the day `classDay` gives. The member is
+// no administrator yet: an administrator's policies read everyone's rows, and the
+// own-rows filters of the page would go unproven.
+async function memberAttendanceLeg(page) {
+  const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
+  assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de la asistencia');
+  const { today, dayName, classDate } = classDay();
 
   const card = page.getByRole('region', { name: dayName }).getByRole('article').first();
   const confirmButton = card.getByRole('button', { name: 'Confirmar asistencia' });
@@ -830,6 +854,362 @@ async function memberAttendanceLeg(page) {
   );
 }
 
+// The attendee list of the admin area, against the real PostgREST. The
+// confirmations are written with SQL, as the postgres role: they stand for what
+// members confirmed from the schedule, so what the leg proves is what the
+// administrator then reads and sees (the embed with the name of the member, the
+// reading in pages by the primary key, the times the database prints as HH:MM:SS,
+// and the confirmations that no longer match the schedule).
+const SCHEDULE_FILE = resolve(repoRoot, 'src/data/academy.json');
+
+// Rows per request of the administrator's list (ADMIN_PAGE_SIZE of
+// src/features/attendance/adapters/attendanceAdapter.js), and enough extra
+// confirmations to make the list need a second request.
+const ATTENDANCE_PAGE_SIZE = 500;
+const EXTRA_CONFIRMATIONS = ATTENDANCE_PAGE_SIZE + 20;
+
+// A class time that the schedule never holds, for a confirmation that matches no
+// class.
+const OFF_SCHEDULE_START = '23:30';
+const OFF_SCHEDULE_END = '23:45';
+
+const readSchedule = () => JSON.parse(readFileSync(SCHEDULE_FILE, 'utf8'));
+
+const startOf = (schedule, session) => schedule.timeSlots
+  .find((slot) => slot.id === session.slotId)?.start;
+
+// The room key of a class: the slug of its room, the way slugifyRoom of
+// src/features/attendance/domain/occurrences.js writes it. It is written again
+// here because that module is bundled by vite and node cannot load it. If the two
+// ever differ, the class confirmed below lands under "Ya no coincide con el
+// horario" and not under its class, and the leg says so.
+const roomKeyOf = (room) => room
+  .normalize('NFD')
+  .replace(/[̀-ͯ]/g, '')
+  .trim()
+  .toLowerCase()
+  .replace(/\s+/g, ' ')
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
+
+// The first class of a weekday, as the snapshot that a confirmation of it keeps.
+function firstClassOf(schedule, weekday) {
+  const dayIds = schedule.days.filter((day) => day.weekday === weekday).map((day) => day.id);
+  const [session] = schedule.sessions
+    .filter((candidate) => dayIds.includes(candidate.dayId))
+    .sort((a, b) => startOf(schedule, a).localeCompare(startOf(schedule, b)));
+  assert.ok(session, `el horario no tiene ninguna clase el día ${weekday} de la semana`);
+  const genre = schedule.genres.find((candidate) => candidate.id === session.genreId);
+  const slot = schedule.timeSlots.find((candidate) => candidate.id === session.slotId);
+  return {
+    startTime: slot.start,
+    endTime: slot.end,
+    genreId: genre.id,
+    genreName: genre.name,
+    roomKey: roomKeyOf(session.room),
+    roomLabel: session.room,
+  };
+}
+
+const sqlText = (value) => `'${value.replaceAll("'", "''")}'`;
+
+// Writes a confirmation of the test account; the database fills in starts_at.
+function confirmWithSql(userId, confirmation) {
+  psql(
+    'insert into public.attendance_confirmations '
+    + '(member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label) '
+    + `values ('${userId}', '${confirmation.classDate}', '${confirmation.startTime}', `
+    + `'${confirmation.endTime}', ${sqlText(confirmation.genreId)}, `
+    + `${sqlText(confirmation.roomKey)}, ${sqlText(confirmation.genreName)}, `
+    + `${sqlText(confirmation.roomLabel)})`,
+  );
+}
+
+// How the attendee list writes where and when a stored class was.
+const occurrenceLine = ({
+  classDate, startTime, endTime, roomLabel,
+}) => `${longDate(classDate)} · ${startTime} a ${endTime} · ${roomLabel}`;
+
+// The block of one class in the list: its name as the heading and its date, times
+// and room as the page writes them.
+const classCard = (page, confirmation) => page
+  .getByRole('listitem')
+  .filter({
+    has: page.getByRole('heading', { level: 3, name: confirmation.genreName, exact: true }),
+  })
+  .filter({ has: page.getByText(occurrenceLine(confirmation), { exact: true }) });
+
+// The answers that the page gets to a GET of a table from now until `stop()`.
+function watchReads(page, table) {
+  const answers = [];
+  const onResponse = (response) => {
+    if (response.url().includes(`/rest/v1/${table}`) && response.request().method() === 'GET') {
+      answers.push(response);
+    }
+  };
+  page.on('response', onResponse);
+  return { answers, stop: () => page.off('response', onResponse) };
+}
+
+// What the two steps of the attendee list share: the window of days the page
+// reads, the class confirmed (the first one of the day `classDay` gives) and the
+// confirmation that matches no class, and where each one shows on the page.
+function attendanceScene(page, userId) {
+  const { today, weekday, classDate } = classDay();
+  const schedule = readSchedule();
+  const confirmed = { classDate, ...firstClassOf(schedule, weekday) };
+  assert.ok(
+    !schedule.sessions.some((session) => startOf(schedule, session) === OFF_SCHEDULE_START),
+    `el horario ya tiene una clase a las ${OFF_SCHEDULE_START}: hace falta otra hora fuera del horario`,
+  );
+  const card = classCard(page, confirmed);
+
+  return {
+    userId,
+    today,
+    lastDay: addDays(today, 7),
+    confirmed,
+    // The same genre and room at a time that is never in the schedule, two days on.
+    offSchedule: {
+      ...confirmed,
+      classDate: addDays(today, 2),
+      startTime: OFF_SCHEDULE_START,
+      endTime: OFF_SCHEDULE_END,
+    },
+    card,
+    mismatch: page.getByRole('region', { name: 'Ya no coincide con el horario' }),
+    namesInCard: () => card
+      .getByRole('list', { name: confirmed.genreName })
+      .getByRole('listitem')
+      .allTextContents(),
+    // Nothing failed on the page, and nothing of the member but the name is shown.
+    expectNoFailure: async (step) => {
+      assert.equal(
+        await page.getByRole('alert').filter({ hasText: 'No pudimos' }).count(),
+        0,
+        `${step}: la página no pudo mostrar la asistencia${await visibleAlerts(page)}`,
+      );
+      assert.equal(
+        (await page.content()).includes(EMAIL),
+        false,
+        `${step}: la lista de asistencia muestra el correo de un miembro`,
+      );
+    },
+  };
+}
+
+// A confirmed class of the schedule: the page lists the member by name under it,
+// and asks the database for exactly what it needs.
+async function listConfirmedClass(page, scene) {
+  const {
+    userId, today, lastDay, confirmed, card, mismatch, namesInCard, expectNoFailure,
+  } = scene;
+
+  console.log('Confirmando una clase del horario con SQL y abriendo "Asistencia"...');
+  confirmWithSql(userId, confirmed);
+  assert.equal(
+    psql(
+      "select start_time::text || '|' || end_time::text from public.attendance_confirmations "
+      + `where member_id = '${userId}'`,
+    ),
+    `${confirmed.startTime}:00|${confirmed.endTime}:00`,
+    'la base no guardó las horas de la clase como HH:MM:SS con segundos en cero',
+  );
+  const firstReads = watchReads(page, 'attendance_confirmations');
+  await page
+    .getByRole('navigation', { name: 'Secciones de administración' })
+    .getByRole('link', { name: 'Asistencia' })
+    .click();
+  await page.waitForURL(`${SITE}/admin/attendance`);
+  await page.getByRole('heading', { level: 2, name: 'Asistencia' }).waitFor();
+  try {
+    await card.waitFor();
+  } catch {
+    throw new Error(
+      'la clase confirmada no apareció con su nombre y su fecha en la lista de asistencia '
+      + '(¿la clave de su sala difiere de la de la página, o la hora HH:MM:SS no se normalizó?)'
+      + `${await visibleAlerts(page)}`,
+    );
+  }
+  await page.waitForLoadState('networkidle');
+  firstReads.stop();
+
+  // What the real PostgREST was asked, and what it answered.
+  assert.equal(firstReads.answers.length, 1, 'la lista de asistencia no se leyó exactamente una vez');
+  const [firstRead] = firstReads.answers;
+  assert.equal(firstRead.status(), 200, 'la lectura de la asistencia no dio 200');
+  const firstUrl = new URL(firstRead.url());
+  assert.deepEqual(
+    firstUrl.searchParams.getAll('class_date'),
+    [`gte.${today}`, `lte.${lastDay}`],
+    'la lectura no pide desde hoy hasta dentro de siete días',
+  );
+  assert.equal(firstUrl.searchParams.get('order'), 'id.asc');
+  assert.equal(firstUrl.searchParams.get('limit'), String(ATTENDANCE_PAGE_SIZE));
+  assert.ok(
+    firstUrl.searchParams.get('select')?.includes('profiles(full_name)'),
+    'la lectura no pide el nombre del miembro con profiles(full_name)',
+  );
+  assert.equal(firstUrl.searchParams.has('id'), false, 'la primera página ya trae un cursor');
+  assert.equal(
+    firstUrl.searchParams.has('member_id'),
+    false,
+    'la lectura del administrador filtra por miembro',
+  );
+  // The database prints a time as HH:MM:SS and embeds the profile as an object.
+  const ownRow = (await firstRead.json()).find((row) => row.member_id === userId);
+  assert.ok(ownRow, 'la respuesta no trae la confirmación de la cuenta de prueba');
+  assert.equal(ownRow.start_time, `${confirmed.startTime}:00`, 'PostgREST no dio la hora como HH:MM:SS');
+  assert.equal(ownRow.profiles?.full_name, NAME, 'PostgREST no trajo el nombre con el embed profiles');
+
+  // What the administrator sees.
+  assert.ok(
+    (await namesInCard()).includes(NAME),
+    `la clase no lista a ${NAME} (¿la hora HH:MM:SS no se normalizó?)`,
+  );
+  assert.equal(
+    await mismatch.getByText(NAME, { exact: true }).count(),
+    0,
+    'una confirmación del horario aparece como "Ya no coincide con el horario"',
+  );
+  await expectNoFailure('con una clase confirmada');
+}
+
+// More confirmations than a page holds, one of them for a class that is not in the
+// schedule: the page reads them in pages by the primary key, none twice and none
+// missing, and shows the one that matches no class under its own title.
+async function listInTwoPages(page, scene) {
+  const {
+    userId, today, lastDay, offSchedule, mismatch, namesInCard, expectNoFailure,
+  } = scene;
+
+  console.log(
+    `Agregando con SQL una confirmación fuera del horario y ${EXTRA_CONFIRMATIONS} más `
+    + `(la lista pasa de las ${ATTENDANCE_PAGE_SIZE} filas de una página)...`,
+  );
+  confirmWithSql(userId, offSchedule);
+  psql(
+    'insert into public.attendance_confirmations '
+    + '(member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label) '
+    + `select '${userId}'::uuid, '${addDays(today, 3)}'::date, `
+    + "time '00:00' + n * interval '1 minute', time '00:01' + n * interval '1 minute', "
+    + "'e2e-relleno', 'sala-1', 'Relleno E2E', 'Sala 1' "
+    + `from generate_series(0, ${EXTRA_CONFIRMATIONS - 1}) as n`,
+  );
+  const inWindow = `class_date between '${today}' and '${lastDay}'`;
+  const rowsInWindow = Number(
+    psql(`select count(*) from public.attendance_confirmations where ${inWindow}`),
+  );
+  assert.ok(
+    rowsInWindow > ATTENDANCE_PAGE_SIZE,
+    'las filas insertadas no bastan para que la lista necesite una segunda página',
+  );
+
+  const pagedReads = watchReads(page, 'attendance_confirmations');
+  await page.reload();
+  await page.getByRole('heading', { level: 2, name: 'Asistencia' }).waitFor();
+  await mismatch.waitFor();
+  await page.waitForLoadState('networkidle');
+  pagedReads.stop();
+
+  // One request for each full page and one more for the rest, each one starting
+  // after the last id of the page before, and together exactly the rows of the
+  // database: none twice and none missing.
+  const pages = pagedReads.answers;
+  assert.equal(
+    pages.length,
+    Math.floor(rowsInWindow / ATTENDANCE_PAGE_SIZE) + 1,
+    'la lista no se leyó en las páginas que corresponden',
+  );
+  const bodies = await Promise.all(pages.map((answer) => answer.json()));
+  pages.forEach((answer, index) => {
+    assert.equal(answer.status(), 200, `la página ${index + 1} de la asistencia no dio 200`);
+    const { searchParams } = new URL(answer.url());
+    assert.equal(searchParams.get('order'), 'id.asc');
+    assert.equal(searchParams.get('limit'), String(ATTENDANCE_PAGE_SIZE));
+    assert.equal(
+      searchParams.get('id'),
+      index === 0 ? null : `gt.${bodies[index - 1].at(-1).id}`,
+      `la página ${index + 1} no empieza después del último id de la anterior`,
+    );
+  });
+  assert.deepEqual(
+    bodies.map((rows) => rows.length),
+    [...pages.slice(1).map(() => ATTENDANCE_PAGE_SIZE), rowsInWindow % ATTENDANCE_PAGE_SIZE],
+    'las páginas no tienen el tamaño esperado',
+  );
+  assert.equal(
+    bodies.flat().map((row) => row.id).join(','),
+    psql(
+      "select coalesce(string_agg(id::text, ',' order by id), '') "
+      + `from public.attendance_confirmations where ${inWindow}`,
+    ),
+    'las páginas no suman exactamente las filas de la base',
+  );
+
+  // What the administrator sees now: the class is where it was, and the
+  // confirmations that match no class are under their own title.
+  assert.ok((await namesInCard()).includes(NAME), `la clase dejó de listar a ${NAME}`);
+  const offRow = mismatch.getByRole('listitem').filter({ hasText: occurrenceLine(offSchedule) });
+  await offRow.waitFor();
+  assert.equal(await offRow.getByText(NAME, { exact: true }).count(), 1);
+  assert.equal(await offRow.getByText(offSchedule.genreName, { exact: true }).count(), 1);
+  const mismatched = await mismatch.getByRole('listitem').count();
+  assert.ok(
+    mismatched >= EXTRA_CONFIRMATIONS + 1,
+    `la sección de lo que ya no coincide muestra ${mismatched} filas y faltan algunas`,
+  );
+  await expectNoFailure('con la lista en dos páginas');
+}
+
+async function adminAttendance(page, userId) {
+  const scene = attendanceScene(page, userId);
+  await listConfirmedClass(page, scene);
+  await listInTwoPages(page, scene);
+}
+
+// An account that stops being an administrator: the attendance page is the
+// not-found page, the menu has no "Admin", and nothing is asked of the database.
+async function adminDemotion(page) {
+  console.log('Quitando el rol de administrador con SQL y abriendo "Asistencia" otra vez...');
+  const userIdSql = `(select id from auth.users where email = '${EMAIL}')`;
+  psql(`update public.profiles set is_admin = false where id = ${userIdSql}`);
+  assert.equal(
+    psql(`select is_admin::text from public.profiles where id = ${userIdSql}`),
+    'false',
+    'la base no quitó el rol de administrador a la cuenta de prueba',
+  );
+
+  const reads = watchReads(page, 'attendance_confirmations');
+  // A new load of the page: the profile loads once per session.
+  await page.goto(`${SITE}/admin/attendance`);
+  await page.getByRole('heading', { level: 1, name: 'No encontramos esta página' }).waitFor();
+  await mainMenu(page).getByRole('link', { name: 'Mi cuenta' }).waitFor();
+  await page.waitForLoadState('networkidle');
+  reads.stop();
+
+  assert.equal(
+    await page.getByRole('heading', { level: 1, name: 'Administración' }).count(),
+    0,
+    'la administración se mostró a quien dejó de ser administrador',
+  );
+  assert.equal(
+    await page.getByRole('heading', { level: 2, name: 'Asistencia' }).count(),
+    0,
+    'la lista de asistencia se mostró a quien dejó de ser administrador',
+  );
+  assert.equal(
+    await mainMenu(page).getByRole('link', { name: 'Admin', exact: true }).count(),
+    0,
+    'el menú sigue ofreciendo "Admin" a quien dejó de ser administrador',
+  );
+  assert.equal(
+    reads.answers.length,
+    0,
+    'la página pidió la asistencia a quien dejó de ser administrador',
+  );
+}
+
 async function adminLeg(page) {
   const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
   assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de la administración');
@@ -838,10 +1218,13 @@ async function adminLeg(page) {
   await adminMemberPage(page, userId);
   await adminPayments(page, userId);
   await adminNotice(page);
+  await adminAttendance(page, userId);
 
   console.log('Volviendo al inicio desde la administración...');
   await mainMenu(page).getByRole('link', { name: 'Inicio', exact: true }).click();
   await expectHome(page, 'la vuelta al inicio desde la administración');
+
+  await adminDemotion(page);
 }
 
 async function accountLeg(page) {
@@ -1065,7 +1448,9 @@ async function main() {
     '\nEl registro real funciona: cuenta creada, correo confirmado con el botón, consentimiento '
     + 'guardado, enlace usado rechazado, ingreso con la contraseña, contraseña restablecida con '
     + 'el correo de recuperación, asistencia en los horarios (inactiva, confirmada, cancelada, vencida), administración (directorio, pagos registrados, corregidos, '
-    + 'rechazados por cruce y encontrados borrados, aviso del latido y su restauración), página '
+    + 'rechazados por cruce y encontrados borrados, aviso del latido y su restauración, lista de '
+    + 'asistencia con una clase, en dos páginas y con lo que ya no coincide con el horario, y '
+    + 'sin ella para quien deja de ser administrador), página '
     + 'de la cuenta, cierre de sesión, cuenta eliminada y ninguna violación de la política de '
     + 'seguridad.',
   );
