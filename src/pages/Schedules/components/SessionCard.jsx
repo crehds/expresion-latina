@@ -10,9 +10,12 @@ import '../css/session-card.css';
  * The teacher's name links to their profile. That was the point of the whole
  * data model: a session already knows who teaches it, so reading the schedule
  * and finding out who that person is should not be two separate journeys.
+ *
+ * `action` is whatever a page wants under the class (the attendance controls of a
+ * signed-in member). It is rendered as the last child of the card, with no wrapper
+ * of its own, so a card without one is the same markup as before.
  */
-function SessionCard(props) {
-  const { session } = props;
+function SessionCard({ session, action = undefined }) {
   const {
     genre, slot, teacher, level, note,
   } = session;
@@ -40,6 +43,8 @@ function SessionCard(props) {
       )}
 
       {note && <p className="text-sm session-card__note">{note}</p>}
+
+      {action}
     </article>
   );
 }
@@ -58,6 +63,7 @@ SessionCard.propTypes = {
     level: PropTypes.string,
     note: PropTypes.string,
   }).isRequired,
+  action: PropTypes.node,
 };
 
 export default SessionCard;

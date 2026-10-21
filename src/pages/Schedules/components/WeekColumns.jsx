@@ -12,9 +12,9 @@ import '../css/week-columns.css';
  * class, so shared hour rows would mean two rows both labelled 19:00 and a
  * morning row empty on four days out of five.
  */
-function WeekColumns(props) {
-  const { days, sessionsByWeekday, currentWeekday } = props;
-
+function WeekColumns({
+  days, sessionsByWeekday, currentWeekday, renderSessionAction = undefined,
+}) {
   return (
     <div className="week-columns" style={{ '--week-column-count': days.length }}>
       {days.map((day) => {
@@ -30,7 +30,11 @@ function WeekColumns(props) {
                   ones who could not tell which column was today. */}
               {isToday && <span className="text-sm week-columns__today">hoy</span>}
             </h2>
-            <DayAgenda day={day} sessions={sessionsByWeekday(day.weekday)} />
+            <DayAgenda
+              day={day}
+              sessions={sessionsByWeekday(day.weekday)}
+              renderSessionAction={renderSessionAction}
+            />
           </div>
         );
       })}
@@ -46,6 +50,7 @@ WeekColumns.propTypes = {
   })).isRequired,
   sessionsByWeekday: PropTypes.func.isRequired,
   currentWeekday: PropTypes.number.isRequired,
+  renderSessionAction: PropTypes.func,
 };
 
 export default WeekColumns;
