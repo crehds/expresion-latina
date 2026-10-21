@@ -55,6 +55,14 @@
  * account can no longer sign in. A `securitypolicyviolation` anywhere in the
  * journey is a failure.
  *
+ * Every date the legs use comes from one reading of the Lima day, taken when the
+ * run starts. The legs that depend on it (the member attendance, the payments, the
+ * heartbeat notice and the attendee list) check, before they start, that the Lima
+ * day is still that one, and read it again if they fail. When it has changed, the
+ * run stops with a message that says it crossed Lima midnight, followed by the
+ * failure, and is run again, instead of failing on a date that is off by a day.
+ * A crossing outside those legs changes no date, and is not looked for.
+ *
  * The page is served on port 3000 and browsed as http://localhost:3000, never
  * 127.0.0.1: supabase/config.toml names that origin as the site URL and in the
  * redirect allowlist, and the PKCE verifier lives in the origin the callback
@@ -170,6 +178,14 @@ function psql(sql) {
     throw new Error(`psql falló: ${(result.stderr || result.error?.message || '').trim()}`);
   }
   return result.stdout.trim();
+}
+
+// The id of the test account in the database. `step` says what it is needed for,
+// so that a step that cannot find the account says which step it was.
+function testUserId(step) {
+  const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
+  assert.ok(userId, `no encontré la cuenta de prueba en la base ${step}`);
+  return userId;
 }
 
 async function mailpit(path, init) {
@@ -388,7 +404,8 @@ const mainMenu = (page) => page.getByRole('navigation', { name: 'Principal' });
 // strings worked out in UTC, never through new Date('YYYY-MM-DD') (midnight in
 // the zone of this machine) and never through SQL interval math, which clamps at
 // the end of a month in ways the app has its own rule for. Only "today" comes
-// from the database, on the Lima calendar, the way the app counts it.
+// from the database, on the Lima calendar, the way the app counts it (see
+// limaToday below).
 function addDays(isoDate, days) {
   const [year, month, day] = isoDate.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
@@ -403,6 +420,66 @@ function longDate(isoDate) {
 }
 
 const rangeText = (startsOn, endsOn) => `Del ${longDate(startsOn)} al ${longDate(endsOn)}`;
+
+// The Lima day this run works with, read ONCE and in ONE query, so that the date
+// and the weekday cannot come from two different days and every leg counts from
+// the same "today". The page works out its own today from the clock of the
+// browser, so a run that crosses Lima midnight would fail on a date that is off
+// by a day, with a mismatch that says nothing of the cause.
+let limaDay = null;
+function limaToday() {
+  if (limaDay === null) {
+    const [date, weekday] = psql(
+      "select (now() at time zone 'America/Lima')::date::text || '|' "
+      + "|| extract(dow from (now() at time zone 'America/Lima'))::int",
+    ).split('|');
+    assert.match(date, /^\d{4}-\d{2}-\d{2}$/, 'no pude leer la fecha de hoy de la base');
+    limaDay = { date, weekday: Number(weekday) };
+  }
+  return limaDay;
+}
+
+// The Lima day as the database counts it now.
+const limaNow = () => psql("select (now() at time zone 'America/Lima')::date::text");
+
+// What the run says when the Lima day is no longer the one it started with.
+const midnightMessage = (step, started, now) => (
+  `${step}: la prueba cruzó la medianoche de Lima (empezó el ${started} y ya es ${now}): `
+  + 'vuelve a correrla'
+);
+
+// What a leg does before the checks that depend on a date: it fails, saying why,
+// when the Lima day is no longer the one the run started with.
+function expectSameLimaDay(step) {
+  const { date } = limaToday();
+  const now = limaNow();
+  assert.equal(now, date, midnightMessage(step, date, now));
+}
+
+// Runs a leg that depends on the Lima day. It checks the day before the leg starts
+// and, if the leg fails, reads it once more before the failure goes on: a leg that
+// was running when Lima midnight went by fails on a date that is off by a day, and
+// that mismatch says nothing of the cause. If the day has changed, the failure is
+// replaced by the midnight message, with the failure as its cause; if it has not,
+// or if it cannot be read, the failure goes on exactly as it was.
+async function onLimaDay(step, leg) {
+  expectSameLimaDay(step);
+  try {
+    return await leg();
+  } catch (failure) {
+    let now = null;
+    try {
+      now = limaNow();
+    } catch {
+      // The day cannot be read, and the failure of the leg is what there is to report.
+    }
+    const { date } = limaToday();
+    if (now !== null && now !== date) {
+      throw new Error(midnightMessage(step, date, now), { cause: failure });
+    }
+    throw failure;
+  }
+}
 
 // The payments of a member as the database holds them: "start|end" for each,
 // oldest first, joined by commas.
@@ -479,6 +556,20 @@ const paymentGone = (page) => page
   .getByRole('alert')
   .filter({ hasText: 'Este pago ya no existe. Mostramos la lista al día.' });
 
+// How the page names what can be done to a payment: the button that edits it, the
+// button that deletes it, and the question that the second one opens.
+const editButton = (page, startsOn, endsOn) => page.getByRole('button', {
+  name: `Editar el pago: ${rangeText(startsOn, endsOn)}`,
+  exact: true,
+});
+const deleteButton = (page, startsOn, endsOn) => page.getByRole('button', {
+  name: `Eliminar el pago: ${rangeText(startsOn, endsOn)}`,
+  exact: true,
+});
+const deleteQuestion = (page) => page.getByRole('group', {
+  name: '¿Eliminar este pago? Esta acción no se puede deshacer.',
+});
+
 // What the member is told when the payment they act on has been deleted behind
 // the page's back: the page is still showing it, and the database answers that
 // no row matched. The notice stays, the list is read again without the row, and
@@ -513,10 +604,10 @@ async function adminAccess(page) {
   );
 
   console.log('Haciendo administrador a ese miembro con SQL y recargando la página...');
-  const userIdSql = `(select id from auth.users where email = '${EMAIL}')`;
-  psql(`update public.profiles set is_admin = true where id = ${userIdSql}`);
+  const userId = testUserId('antes de hacerla administradora');
+  psql(`update public.profiles set is_admin = true where id = '${userId}'`);
   assert.equal(
-    psql(`select is_admin::text from public.profiles where id = ${userIdSql}`),
+    psql(`select is_admin::text from public.profiles where id = '${userId}'`),
     'true',
     'la base no marcó a la cuenta de prueba como administradora',
   );
@@ -549,8 +640,7 @@ async function adminMemberPage(page, userId) {
 
 // Record, correct, refuse an overlap, find a payment gone twice, delete.
 async function adminPayments(page, userId) {
-  const today = psql("select (now() at time zone 'America/Lima')::date::text");
-  assert.match(today, /^\d{4}-\d{2}-\d{2}$/, 'no pude leer la fecha de hoy de la base');
+  const { date: today } = limaToday();
   const yesterday = addDays(today, -1);
 
   console.log('Registrando un pago que empieza hace cinco días y termina con "+1 mes"...');
@@ -571,9 +661,7 @@ async function adminPayments(page, userId) {
   );
 
   console.log('Corrigiendo el pago: el fin pasa a ser ayer y el miembro queda inactivo...');
-  await page
-    .getByRole('button', { name: `Editar el pago: ${rangeText(start, end)}`, exact: true })
-    .click();
+  await editButton(page, start, end).click();
   await page.getByRole('form', { name: 'Editar pago' }).waitFor();
   await endsOnField(page).fill(yesterday);
   await saveAndClose(page, 'Editar pago', 'la corrección del pago');
@@ -613,59 +701,47 @@ async function adminPayments(page, userId) {
     'la base no guardó el segundo pago',
   );
   psql(`delete from public.paid_periods where member_id = '${userId}' and starts_on = '${secondStart}'`);
-  await page
-    .getByRole('button', { name: `Editar el pago: ${rangeText(secondStart, secondEnd)}`, exact: true })
-    .click();
+  await editButton(page, secondStart, secondEnd).click();
   await page.getByRole('form', { name: 'Editar pago' }).waitFor();
   await endsOnField(page).fill(addDays(today, 8));
   const corrected = nextRequest(page, 'PATCH', 'paid_periods');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expectPaymentGone(
-    page,
-    corrected,
-    rangeText(secondStart, secondEnd),
-    'la corrección de un pago que ya no existe',
-  );
+  const staleEdit = 'la corrección de un pago que ya no existe';
+  await expectPaymentGone(page, corrected, rangeText(secondStart, secondEnd), staleEdit);
   await page.getByRole('form', { name: 'Editar pago' }).waitFor({ state: 'detached' });
-  await expectCount(paymentRows(page), 1, 'la lista no se leyó de nuevo sin el pago borrado');
+  await expectCount(
+    paymentRows(page),
+    1,
+    `${staleEdit}: la lista no se leyó de nuevo sin el pago borrado`,
+  );
 
   console.log('Borrando otro pago en la base a espaldas de la página y eliminándolo...');
   const thirdStart = addDays(today, 12);
   const thirdEnd = addDays(today, 20);
   await recordPayment(page, thirdStart, thirdEnd, 'el registro del tercer pago');
   psql(`delete from public.paid_periods where member_id = '${userId}' and starts_on = '${thirdStart}'`);
-  await page
-    .getByRole('button', {
-      name: `Eliminar el pago: ${rangeText(thirdStart, thirdEnd)}`,
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole('group', { name: '¿Eliminar este pago? Esta acción no se puede deshacer.' })
-    .waitFor();
+  await deleteButton(page, thirdStart, thirdEnd).click();
+  await deleteQuestion(page).waitFor();
   const erased = nextRequest(page, 'DELETE', 'paid_periods');
   await page.getByRole('button', { name: 'Sí, eliminar el pago', exact: true }).click();
-  await expectPaymentGone(
-    page,
-    erased,
-    rangeText(thirdStart, thirdEnd),
-    'la eliminación de un pago que ya no existe',
+  const staleDelete = 'la eliminación de un pago que ya no existe';
+  await expectPaymentGone(page, erased, rangeText(thirdStart, thirdEnd), staleDelete);
+  await expectCount(
+    paymentRows(page),
+    1,
+    `${staleDelete}: la lista no se leyó de nuevo sin el pago borrado`,
   );
-  await expectCount(paymentRows(page), 1, 'la lista no se leyó de nuevo sin el pago borrado');
   assert.equal(periodsOf(userId), `${start}|${yesterday}`, 'la base cambió el pago que quedaba');
 
   console.log('Eliminando el último pago: primero se cancela, después se confirma...');
-  const lastRange = rangeText(start, yesterday);
-  const question = page.getByRole('group', {
-    name: '¿Eliminar este pago? Esta acción no se puede deshacer.',
-  });
-  await page.getByRole('button', { name: `Eliminar el pago: ${lastRange}`, exact: true }).click();
+  const question = deleteQuestion(page);
+  await deleteButton(page, start, yesterday).click();
   await question.waitFor();
   await question.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await question.waitFor({ state: 'detached' });
   assert.equal(periodsOf(userId), `${start}|${yesterday}`, 'cancelar la pregunta eliminó el pago');
 
-  await page.getByRole('button', { name: `Eliminar el pago: ${lastRange}`, exact: true }).click();
+  await deleteButton(page, start, yesterday).click();
   await question.waitFor();
   await question.getByRole('button', { name: 'Sí, eliminar el pago', exact: true }).click();
   await page.getByText('Todavía no hay pagos registrados.', { exact: true }).waitFor();
@@ -685,15 +761,23 @@ const keepaliveNotice = (page) => page
 async function reloadAfterHeartbeat(page) {
   const answered = nextRequest(page, 'GET', 'ops_heartbeat');
   await page.reload();
+  let answer;
   try {
-    await answered;
+    answer = await answered;
   } catch {
     throw new Error('la página no pidió el latido (ops_heartbeat) al recargarse');
   }
   await page.getByRole('heading', { level: 2, name: NAME }).waitFor();
   await page.waitForLoadState('networkidle');
-  // The answer is drawn on the next tick of the page.
-  await sleep(300);
+  // The notice is drawn from that answer: the page reads the body, sets its state
+  // and React draws it in a task of its own, with no timer in between
+  // (KeepaliveBanner). So once the body has arrived and two animation frames have
+  // gone by, a notice that is going to appear has appeared, which a fixed pause
+  // could only guess at.
+  assert.equal(await answer.finished(), null, 'la respuesta del latido no llegó completa');
+  await page.evaluate(() => new Promise((settle) => {
+    requestAnimationFrame(() => requestAnimationFrame(settle));
+  }));
 }
 
 async function adminNotice(page) {
@@ -734,13 +818,9 @@ async function adminNotice(page) {
 // is Monday, so that the next date of a class is never today, whatever the time of
 // day (a class that started earlier today would be a different card state). That
 // date is between tomorrow and a week ahead, so it is always inside the window the
-// pages look at. "Today" is the Lima calendar day, as the database counts it.
+// pages look at. "Today" is the Lima day of the run (limaToday).
 function classDay() {
-  const today = psql("select (now() at time zone 'America/Lima')::date::text");
-  assert.match(today, /^\d{4}-\d{2}-\d{2}$/, 'no pude leer la fecha de hoy de la base');
-  const weekdayToday = Number(
-    psql("select extract(dow from (now() at time zone 'America/Lima'))::int"),
-  );
+  const { date: today, weekday: weekdayToday } = limaToday();
   const weekday = weekdayToday === 1 ? 2 : 1;
   return {
     today,
@@ -750,14 +830,60 @@ function classDay() {
   };
 }
 
+// The schedule the page shows (src/data/academy.json): the build of the site reads
+// the same file.
+const SCHEDULE_FILE = resolve(repoRoot, 'src/data/academy.json');
+
+const readSchedule = () => JSON.parse(readFileSync(SCHEDULE_FILE, 'utf8'));
+
+const startOf = (schedule, session) => schedule.timeSlots
+  .find((slot) => slot.id === session.slotId)?.start;
+
+// The room key of a class: the slug of its room, the way slugifyRoom of
+// src/features/attendance/domain/occurrences.js writes it. It is written again
+// here because that module is bundled by vite and node cannot load it. If the two
+// ever differ, the class confirmed below lands under "Ya no coincide con el
+// horario" and not under its class, and the leg says so. The diacritics are the
+// range U+0300-U+036F written as an escape, as COMBINING_MARKS_PATTERN does there,
+// so that this source stays ASCII and the two copies can be compared at a glance.
+const roomKeyOf = (room) => room
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase()
+  .replace(/\s+/g, ' ')
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
+
+// The first class of a weekday, as the snapshot that a confirmation of it keeps.
+function firstClassOf(schedule, weekday) {
+  const dayIds = schedule.days.filter((day) => day.weekday === weekday).map((day) => day.id);
+  const [session] = schedule.sessions
+    .filter((candidate) => dayIds.includes(candidate.dayId))
+    .sort((a, b) => startOf(schedule, a).localeCompare(startOf(schedule, b)));
+  assert.ok(session, `el horario no tiene ninguna clase el día ${weekday} de la semana`);
+  const genre = schedule.genres.find((candidate) => candidate.id === session.genreId);
+  const slot = schedule.timeSlots.find((candidate) => candidate.id === session.slotId);
+  return {
+    startTime: slot.start,
+    endTime: slot.end,
+    genreId: genre.id,
+    genreName: genre.name,
+    roomKey: roomKeyOf(session.room),
+    roomLabel: session.room,
+  };
+}
+
 // The member leg: the attendance controls of the public schedule, against the real
 // PostgREST. The class is the first one of the day `classDay` gives. The member is
 // no administrator yet: an administrator's policies read everyone's rows, and the
 // own-rows filters of the page would go unproven.
 async function memberAttendanceLeg(page) {
-  const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
-  assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de la asistencia');
-  const { today, dayName, classDate } = classDay();
+  const userId = testUserId('antes de la asistencia');
+  const {
+    today, weekday, dayName, classDate,
+  } = classDay();
+  const firstClass = firstClassOf(readSchedule(), weekday);
 
   const card = page.getByRole('region', { name: dayName }).getByRole('article').first();
   const confirmButton = card.getByRole('button', { name: 'Confirmar asistencia' });
@@ -777,6 +903,23 @@ async function memberAttendanceLeg(page) {
   console.log('Abriendo los horarios sin ningún pago: membresía inactiva y WhatsApp...');
   await page.goto(`${SITE}/schedules`);
   await page.getByRole('heading', { level: 1, name: 'Horarios' }).waitFor();
+  // The first card of the day's column is what the leg works with, so it must be
+  // the class that the schedule puts first. That is first by its start only, the
+  // way the page sorts (a stable sort on the start over the order of the data, in
+  // src/data/selectors.js): no sort uses the name, which is here to tell which
+  // class the card is, and the schedule has no two classes of a day at one start.
+  const start = await card.locator('time').first().getAttribute('datetime');
+  assert.match(start ?? '', /^\d{2}:\d{2}$/, 'la clase no muestra su hora de inicio');
+  assert.equal(
+    start,
+    firstClass.startTime,
+    'la primera tarjeta del día no empieza a la hora de la primera clase del horario',
+  );
+  assert.equal(
+    await card.getByRole('heading', { level: 3, name: firstClass.genreName, exact: true }).count(),
+    1,
+    `la primera tarjeta del día no es la clase "${firstClass.genreName}" que el horario pone primero`,
+  );
   await inactive.waitFor();
   assert.equal(
     await card.getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
@@ -789,8 +932,6 @@ async function memberAttendanceLeg(page) {
     'un miembro sin pagos ve "Confirmar asistencia"',
   );
   await expectNoLoadError('sin pagos');
-  const start = await card.locator('time').first().getAttribute('datetime');
-  assert.match(start ?? '', /^\d{2}:\d{2}$/, 'la clase no muestra su hora de inicio');
 
   console.log('Registrando un pago con SQL y recargando: la clase se puede confirmar...');
   psql(
@@ -816,10 +957,12 @@ async function memberAttendanceLeg(page) {
   await cancelButton.waitFor();
   assert.equal(await confirmationsOf(), '1', 'la confirmación no quedó en la base');
   // The database prints a time as HH:MM:SS, and the starts_at it computed is ahead.
+  // Only the row of this class: another leg's confirmations are not this check's.
   assert.match(
     psql(
       "select start_time::text || '|' || end_time::text || '|' || (starts_at > now())::text "
-      + `from public.attendance_confirmations where member_id = '${userId}'`,
+      + `from public.attendance_confirmations where member_id = '${userId}' `
+      + `and class_date = '${classDate}' and start_time = '${start}'`,
     ),
     new RegExp(`^${start}:00\\|\\d{2}:\\d{2}:00\\|true$`),
     'la fila guardada no tiene las horas HH:MM:SS con segundos en cero ni un starts_at futuro',
@@ -854,14 +997,6 @@ async function memberAttendanceLeg(page) {
   );
 }
 
-// The attendee list of the admin area, against the real PostgREST. The
-// confirmations are written with SQL, as the postgres role: they stand for what
-// members confirmed from the schedule, so what the leg proves is what the
-// administrator then reads and sees (the embed with the name of the member, the
-// reading in pages by the primary key, the times the database prints as HH:MM:SS,
-// and the confirmations that no longer match the schedule).
-const SCHEDULE_FILE = resolve(repoRoot, 'src/data/academy.json');
-
 // Rows per request of the administrator's list (ADMIN_PAGE_SIZE of
 // src/features/attendance/adapters/attendanceAdapter.js), and enough extra
 // confirmations to make the list need a second request.
@@ -872,44 +1007,6 @@ const EXTRA_CONFIRMATIONS = ATTENDANCE_PAGE_SIZE + 20;
 // class.
 const OFF_SCHEDULE_START = '23:30';
 const OFF_SCHEDULE_END = '23:45';
-
-const readSchedule = () => JSON.parse(readFileSync(SCHEDULE_FILE, 'utf8'));
-
-const startOf = (schedule, session) => schedule.timeSlots
-  .find((slot) => slot.id === session.slotId)?.start;
-
-// The room key of a class: the slug of its room, the way slugifyRoom of
-// src/features/attendance/domain/occurrences.js writes it. It is written again
-// here because that module is bundled by vite and node cannot load it. If the two
-// ever differ, the class confirmed below lands under "Ya no coincide con el
-// horario" and not under its class, and the leg says so.
-const roomKeyOf = (room) => room
-  .normalize('NFD')
-  .replace(/[̀-ͯ]/g, '')
-  .trim()
-  .toLowerCase()
-  .replace(/\s+/g, ' ')
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/^-+|-+$/g, '');
-
-// The first class of a weekday, as the snapshot that a confirmation of it keeps.
-function firstClassOf(schedule, weekday) {
-  const dayIds = schedule.days.filter((day) => day.weekday === weekday).map((day) => day.id);
-  const [session] = schedule.sessions
-    .filter((candidate) => dayIds.includes(candidate.dayId))
-    .sort((a, b) => startOf(schedule, a).localeCompare(startOf(schedule, b)));
-  assert.ok(session, `el horario no tiene ninguna clase el día ${weekday} de la semana`);
-  const genre = schedule.genres.find((candidate) => candidate.id === session.genreId);
-  const slot = schedule.timeSlots.find((candidate) => candidate.id === session.slotId);
-  return {
-    startTime: slot.start,
-    endTime: slot.end,
-    genreId: genre.id,
-    genreName: genre.name,
-    roomKey: roomKeyOf(session.room),
-    roomLabel: session.room,
-  };
-}
 
 const sqlText = (value) => `'${value.replaceAll("'", "''")}'`;
 
@@ -1007,10 +1104,12 @@ async function listConfirmedClass(page, scene) {
 
   console.log('Confirmando una clase del horario con SQL y abriendo "Asistencia"...');
   confirmWithSql(userId, confirmed);
+  // Only the row of this class: another leg's confirmations are not this check's.
   assert.equal(
     psql(
       "select start_time::text || '|' || end_time::text from public.attendance_confirmations "
-      + `where member_id = '${userId}'`,
+      + `where member_id = '${userId}' and class_date = '${confirmed.classDate}' `
+      + `and start_time = '${confirmed.startTime}'`,
     ),
     `${confirmed.startTime}:00|${confirmed.endTime}:00`,
     'la base no guardó las horas de la clase como HH:MM:SS con segundos en cero',
@@ -1162,6 +1261,12 @@ async function listInTwoPages(page, scene) {
   await expectNoFailure('con la lista en dos páginas');
 }
 
+// The attendee list of the admin area, against the real PostgREST. The
+// confirmations are written with SQL, as the postgres role: they stand for what
+// members confirmed from the schedule, so what the leg proves is what the
+// administrator then reads and sees (the embed with the name of the member, the
+// reading in pages by the primary key, the times the database prints as HH:MM:SS,
+// and the confirmations that no longer match the schedule).
 async function adminAttendance(page, userId) {
   const scene = attendanceScene(page, userId);
   await listConfirmedClass(page, scene);
@@ -1172,10 +1277,10 @@ async function adminAttendance(page, userId) {
 // not-found page, the menu has no "Admin", and nothing is asked of the database.
 async function adminDemotion(page) {
   console.log('Quitando el rol de administrador con SQL y abriendo "Asistencia" otra vez...');
-  const userIdSql = `(select id from auth.users where email = '${EMAIL}')`;
-  psql(`update public.profiles set is_admin = false where id = ${userIdSql}`);
+  const userId = testUserId('antes de quitarle el rol de administrador');
+  psql(`update public.profiles set is_admin = false where id = '${userId}'`);
   assert.equal(
-    psql(`select is_admin::text from public.profiles where id = ${userIdSql}`),
+    psql(`select is_admin::text from public.profiles where id = '${userId}'`),
     'false',
     'la base no quitó el rol de administrador a la cuenta de prueba',
   );
@@ -1211,14 +1316,13 @@ async function adminDemotion(page) {
 }
 
 async function adminLeg(page) {
-  const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
-  assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de la administración');
+  const userId = testUserId('antes de la administración');
 
   await adminAccess(page);
   await adminMemberPage(page, userId);
-  await adminPayments(page, userId);
-  await adminNotice(page);
-  await adminAttendance(page, userId);
+  await onLimaDay('los pagos', () => adminPayments(page, userId));
+  await onLimaDay('el aviso del latido', () => adminNotice(page));
+  await onLimaDay('la lista de asistencia', () => adminAttendance(page, userId));
 
   console.log('Volviendo al inicio desde la administración...');
   await mainMenu(page).getByRole('link', { name: 'Inicio', exact: true }).click();
@@ -1269,8 +1373,7 @@ async function accountLeg(page) {
   await mainMenu(page).getByRole('link', { name: 'Mi cuenta' }).click();
   await page.getByRole('heading', { level: 1, name: 'Mi cuenta' }).waitFor();
 
-  const userId = psql(`select id from auth.users where email = '${EMAIL}'`);
-  assert.ok(userId, 'no encontré la cuenta de prueba en la base antes de eliminarla');
+  const userId = testUserId('antes de eliminarla');
 
   console.log('Eliminando la cuenta con su confirmación...');
   await page.getByRole('button', { name: 'Eliminar mi cuenta' }).click();
@@ -1389,6 +1492,8 @@ async function main() {
   try {
     env.VITE_SUPABASE_PUBLISHABLE_KEY = readPublishableKey();
     assert.ok(NOTICE_VERSION, 'no encontré CURRENT_NOTICE_VERSION en noticeVersion.js');
+    // The Lima day that every leg works with, read before anything is built or browsed.
+    limaToday();
 
     // vite.config.js and the client bundle both read these from process.env,
     // where they win over any .env file, so the build is exactly this one.
@@ -1413,11 +1518,15 @@ async function main() {
     await confirmByEmail(page);
     await signInAgain(page);
     await resetPassword(page);
-    await memberAttendanceLeg(page);
+    await onLimaDay('la asistencia en los horarios', () => memberAttendanceLeg(page));
     await adminLeg(page);
     await accountLeg(page);
   } catch (cause) {
     problems.push(cause.message);
+    // The failure that the midnight message replaced is not lost: it follows it.
+    if (cause.cause instanceof Error) {
+      problems.push(`el fallo original: ${cause.cause.message}`);
+    }
   } finally {
     // Whatever the journey reached before it stopped, a violation counts.
     violations.forEach((violation) => problems.push(`violación de la política: ${violation}`));
@@ -1447,12 +1556,12 @@ async function main() {
   console.log(
     '\nEl registro real funciona: cuenta creada, correo confirmado con el botón, consentimiento '
     + 'guardado, enlace usado rechazado, ingreso con la contraseña, contraseña restablecida con '
-    + 'el correo de recuperación, asistencia en los horarios (inactiva, confirmada, cancelada, vencida), administración (directorio, pagos registrados, corregidos, '
-    + 'rechazados por cruce y encontrados borrados, aviso del latido y su restauración, lista de '
-    + 'asistencia con una clase, en dos páginas y con lo que ya no coincide con el horario, y '
-    + 'sin ella para quien deja de ser administrador), página '
-    + 'de la cuenta, cierre de sesión, cuenta eliminada y ninguna violación de la política de '
-    + 'seguridad.',
+    + 'el correo de recuperación, asistencia en los horarios (inactiva, confirmada, cancelada, '
+    + 'vencida), administración (directorio, pagos registrados, corregidos, rechazados por '
+    + 'cruce y encontrados borrados, aviso del latido y su restauración, lista de asistencia '
+    + 'con una clase, en dos páginas y con lo que ya no coincide con el horario, y sin ella '
+    + 'para quien deja de ser administrador), página de la cuenta, cierre de sesión, cuenta '
+    + 'eliminada y ninguna violación de la política de seguridad.',
   );
 }
 

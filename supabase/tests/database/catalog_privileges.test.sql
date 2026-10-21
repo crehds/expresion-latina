@@ -5,9 +5,10 @@
 -- SECURITY DEFINER functions this project owned yet); PR1b added real
 -- objects (`profiles`, `record_consent`, `private.is_admin`,
 -- `private.has_consent`), so checks 5, 6 and 8 now hold against a
--- non-empty allowlist (check 7 enforces a fixed rule -- owner
--- `postgres`, `search_path` pinned empty -- and carries no allowlist of
--- its own). Checks 5b, 6b, 7-pos, 7b, 8-pos and 8b fixture a
+-- non-empty allowlist (checks 7 and 9 enforce a fixed rule -- owner
+-- `postgres`, `search_path` pinned empty; no CHECK constraint calls a
+-- function of this project -- and carry no allowlist of their own).
+-- Checks 5b, 6b, 7-pos, 7b, 8-pos, 8b and 9b fixture a
 -- real case each, assert the guard's own queries classify it correctly,
 -- then drop the fixture explicitly (a SAVEPOINT/ROLLBACK here would also
 -- roll back pgTAP's own bookkeeping of the test that just ran, which is
@@ -16,19 +17,26 @@
 -- file creates survives it).
 begin;
 
-select plan(14);
+select plan(16);
 
 -- Shared guard queries, defined ONCE and reused by both the real checks
--- and their fixture checks below, so the two can never drift apart. The
--- ACL scans (tables/views, columns, functions) read straight from the
+-- and their fixture checks below, so a fixture runs the very scan its real
+-- check runs. Only the scans are shared: the allowlist anti-join around a
+-- scan (`where not exists (select 1 from allowlist ...)`) is written out
+-- again in every real check and every fixture check, so a fixture proves
+-- that its scan flags a violation, not that the anti-join of the real
+-- check above it is written right.
+--
+-- The ACL scans (tables/views, columns, functions) read straight from the
 -- catalogs (pg_class.relacl, pg_attribute.attacl, pg_proc.proacl via
 -- aclexplode) instead of information_schema, which only lists grants
 -- involving roles enabled for the current session and can miss grants
 -- made by other grantors. aclexplode's grantee 0 is the PUBLIC
 -- pseudo-role. Objects owned by an extension (pg_depend deptype = 'e')
--- are excluded from every scan here, ACL and definer-ownership alike:
--- this project's own tables/functions/columns are what the guard
--- polices, not whatever a future extension installs into these schemas.
+-- are excluded from every scan here, ACL, definer-ownership and CHECK
+-- dependency alike: this project's own tables/functions/columns are what
+-- the guard polices, not whatever a future extension installs into these
+-- schemas.
 create function pg_temp.__catalog_table_grants()
 returns table (schema_name text, table_name text, grantee text, privilege text)
 language sql
@@ -125,6 +133,37 @@ as $fn$
         from unnest(coalesce(p.proconfig, '{}'::text[])) as cfg
         where cfg = 'search_path=""'
       )
+    )
+$fn$;
+
+-- CHECK constraints that depend on a function this project owns in `public`
+-- or `private`. Postgres checks EXECUTE on every function a CHECK calls, for
+-- whichever role performs the INSERT or UPDATE, so one that a writer may not
+-- execute breaks every write by that role -- service_role included, which
+-- keeps the table's default privileges: the bug fixed in the profiles CHECK
+-- (PR1b3, see profiles_consent.test.sql), which is why the CHECKs of
+-- profiles and paid_periods hold a literal instead of a named function. The
+-- scan walks pg_depend from the constraint to the function. The functions
+-- Postgres ships are pinned and never appear in pg_depend at all, so a CHECK
+-- that only calls char_length() and the like is not seen here;
+-- extension-owned functions are skipped like everywhere else in this file.
+create function pg_temp.__catalog_check_function_dependencies()
+returns table (schema_name text, constraint_name text, function_name text)
+language sql
+stable
+as $fn$
+  select n.nspname::text, con.conname::text, p.proname::text
+  from pg_constraint con
+  join pg_depend d
+    on d.classid = 'pg_constraint'::regclass
+   and d.objid = con.oid
+   and d.refclassid = 'pg_proc'::regclass
+  join pg_proc p on p.oid = d.refobjid
+  join pg_namespace n on n.oid = p.pronamespace
+  where con.contype = 'c'
+    and n.nspname in ('public', 'private')
+    and not exists (
+      select 1 from pg_depend e where e.objid = p.oid and e.deptype = 'e'
     )
 $fn$;
 
@@ -447,6 +486,47 @@ select is(
 );
 
 drop table public.__catalog_guard_column_fixture_neg;
+
+-- 9. No CHECK constraint depends on a function this project owns in
+-- `public` or `private` (fixed rule, no allowlist: see the shared query
+-- above). The fixture of 9b comes after this check on purpose: the table
+-- and the function it creates would be flagged by checks 5 and 6 too.
+select is(
+  (select count(*)::int from pg_temp.__catalog_check_function_dependencies()),
+  0,
+  'no CHECK constraint depends on a function that this project defines in public or private'
+);
+
+-- 9b. Negative triangulation for check 9: an empty scan and zero violations
+-- look identical unless the scan can tell a real one apart. A CHECK that
+-- calls a function of this project is created and scanned, filtered to the
+-- fixture's own function so it proves what its label says, then both are
+-- dropped explicitly (the table first: its constraint depends on the
+-- function).
+create function public.__catalog_guard_check_fn(p text)
+returns boolean
+language sql
+immutable
+as $fn$
+  select p is not null;
+$fn$;
+create table public.__catalog_guard_check_fixture (
+  name text,
+  constraint __catalog_guard_check_fixture_name_check check (public.__catalog_guard_check_fn (name))
+);
+
+select is(
+  (
+    select count(*)::int
+    from pg_temp.__catalog_check_function_dependencies()
+    where function_name = '__catalog_guard_check_fn'
+  ) > 0,
+  true,
+  'the guard flags a CHECK constraint that calls a function of this project'
+);
+
+drop table public.__catalog_guard_check_fixture;
+drop function public.__catalog_guard_check_fn (text);
 
 select * from finish();
 
