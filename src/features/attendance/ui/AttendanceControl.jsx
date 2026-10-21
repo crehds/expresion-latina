@@ -83,7 +83,9 @@ function AttendanceControl({
     );
   }
 
-  if (body === null) {
+  // An error needs no body to be worth saying: a class that has started has no
+  // control, and the member still gets told why.
+  if (body === null && !errorCode) {
     return null;
   }
 

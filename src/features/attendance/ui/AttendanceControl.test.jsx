@@ -165,6 +165,14 @@ describe('AttendanceControl', () => {
     });
   });
 
+  it('shows the error alone for a state with no body, so a started class says so', () => {
+    renderControl({ state: 'started', errorCode: 'STARTED' });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Esta clase ya empezó.');
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
   it.each(['hidden', 'started', 'nonsense', undefined])('renders nothing for the state %s', (state) => {
     const { container } = renderControl({ state });
 

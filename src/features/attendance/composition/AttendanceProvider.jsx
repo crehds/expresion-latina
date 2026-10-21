@@ -123,11 +123,21 @@ export default function AttendanceProvider({ children }) {
   }, [read]);
 
   // After a refusal: the data shown was out of date. A read that fails here leaves
-  // what is shown, and the failure of the action stays the one reported.
-  const settle = useCallback(async () => {
+  // what is shown, and the failure of the action stays the one reported. The one
+  // exception: a cancel the database answered with no row (STARTED) means either
+  // that the class started or that the confirmation was already gone. The read
+  // tells them apart, and when the confirmation is gone nothing is wrong, so that
+  // failure (and only that one) is cleared.
+  const settle = useCallback(async (code, key) => {
     const result = await read();
-    if (result?.ok) {
-      setData(result.data);
+    if (!result?.ok) {
+      return;
+    }
+    setData(result.data);
+    if (code === RESULT_CODES.STARTED && !result.data.confirmedKeys.has(key)) {
+      setFailure((previous) => (
+        previous.code === code && previous.key === key ? { code: null, key: null } : previous
+      ));
     }
   }, [read]);
 
@@ -188,7 +198,7 @@ export default function AttendanceProvider({ children }) {
     }
     setFailure({ code: result.code, key });
     if (result.code === RESULT_CODES.STARTED || result.code === RESULT_CODES.FORBIDDEN) {
-      await settle();
+      await settle(result.code, key);
     }
   }, [active, settle]);
 

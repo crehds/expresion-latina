@@ -399,7 +399,7 @@ describe('AttendanceProvider', () => {
       expect(services.attendance.listOwnConfirmations).toHaveBeenCalledTimes(1);
     });
 
-    it('on STARTED shows the code and reads again, which settles what the database holds', async () => {
+    it('on STARTED reads again, and clears the failure when the confirmation is already gone', async () => {
       const services = fakeServices({ confirmations: ok([MONDAY]) });
       services.attendance.cancel.mockResolvedValue(fail('STARTED'));
       const { result } = await mount({ services });
@@ -407,10 +407,53 @@ describe('AttendanceProvider', () => {
 
       await act(async () => { await result.current.cancel(MONDAY); });
 
-      expect(result.current.errorCode).toBe('STARTED');
-      expect(result.current.errorKey).toBe(occurrenceKey(MONDAY));
       expect(services.attendance.listOwnConfirmations).toHaveBeenCalledTimes(2);
       expect(result.current.confirmedKeys.has(occurrenceKey(MONDAY))).toBe(false);
+      // It was cancelled elsewhere, so the class did not start: nothing to report.
+      expect(result.current.errorCode).toBeNull();
+      expect(result.current.errorKey).toBeNull();
+    });
+
+    it('on STARTED keeps the failure when the confirmation is still there (the class started)', async () => {
+      const services = fakeServices({ confirmations: ok([MONDAY]) });
+      services.attendance.cancel.mockResolvedValue(fail('STARTED'));
+      const { result } = await mount({ services });
+
+      await act(async () => { await result.current.cancel(MONDAY); });
+
+      expect(services.attendance.listOwnConfirmations).toHaveBeenCalledTimes(2);
+      expect(result.current.confirmedKeys.has(occurrenceKey(MONDAY))).toBe(true);
+      expect(result.current.errorCode).toBe('STARTED');
+      expect(result.current.errorKey).toBe(occurrenceKey(MONDAY));
+    });
+
+    it('on STARTED keeps the failure when the read after it fails', async () => {
+      const services = fakeServices({ confirmations: ok([MONDAY]) });
+      services.attendance.cancel.mockResolvedValue(fail('STARTED'));
+      const { result } = await mount({ services });
+      services.attendance.listOwnConfirmations.mockResolvedValue(fail('NETWORK'));
+
+      await act(async () => { await result.current.cancel(MONDAY); });
+
+      expect(result.current.errorCode).toBe('STARTED');
+    });
+
+    it('does not clear a failure of another class when it settles a STARTED', async () => {
+      const services = fakeServices({ confirmations: ok([MONDAY, TUESDAY]) });
+      services.attendance.cancel.mockResolvedValue(fail('STARTED'));
+      const { result } = await mount({ services });
+      const held = deferred();
+      services.attendance.listOwnConfirmations.mockReturnValue(held.promise);
+
+      let pending;
+      act(() => { pending = result.current.cancel(MONDAY); });
+      await act(async () => {});
+      services.attendance.cancel.mockResolvedValue(fail('NETWORK'));
+      await act(async () => { await result.current.cancel(TUESDAY); });
+      await act(async () => { held.resolve(ok([TUESDAY])); await pending; });
+
+      expect(result.current.errorCode).toBe('NETWORK');
+      expect(result.current.errorKey).toBe(occurrenceKey(TUESDAY));
     });
 
     it('on another failure keeps the key and does not read again', async () => {
