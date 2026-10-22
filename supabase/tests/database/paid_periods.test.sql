@@ -13,7 +13,7 @@
 -- guarantees nothing this file creates survives it.
 begin;
 
-select plan(56);
+select plan(60);
 
 -- Admin (flipped after insert, same as profiles_consent.test.sql), plus six
 -- members: member_x carries the CRUD and self-write-rejected scenarios;
@@ -237,6 +237,23 @@ select lives_ok(
   'a back-to-back period for member_y (no shared day) does not overlap'
 );
 
+-- The rule holds when an admin CORRECTS a period too, not only when one is
+-- recorded: moving the start of member_y's February period back one day makes
+-- it share January 31st with the January one. A rejected correction must also
+-- leave the stored row as it was.
+select throws_ok(
+  $$update public.paid_periods set starts_on = '2026-01-31' where member_id = 'a0000000-0000-0000-0000-000000000003' and ends_on = '2026-02-28'$$,
+  '23P01',
+  null,
+  'correcting a period so that it overlaps another one of the same member is rejected'
+);
+
+select is(
+  (select starts_on from public.paid_periods where member_id = 'a0000000-0000-0000-0000-000000000003' and ends_on = '2026-02-28'),
+  '2026-02-01'::date,
+  'the overlapping correction leaves starts_on unchanged'
+);
+
 reset role;
 
 -- ============================================================
@@ -286,6 +303,22 @@ select is(
   'the rejected correction leaves ends_on unchanged'
 );
 
+-- And a correction cannot stretch a period past 5 years either. member_w's
+-- first period is exactly 5 years (2026-01-01 to 2031-01-01), so one more day
+-- is the smallest step over; it is the only rule this correction breaks.
+select throws_ok(
+  $$update public.paid_periods set ends_on = '2031-01-02' where member_id = 'a0000000-0000-0000-0000-000000000005' and starts_on = '2026-01-01'$$,
+  '23514',
+  null,
+  'correcting a period to run one day over 5 years is rejected'
+);
+
+select is(
+  (select ends_on from public.paid_periods where member_id = 'a0000000-0000-0000-0000-000000000005' and starts_on = '2026-01-01'),
+  '2031-01-01'::date,
+  'the 5-year correction leaves ends_on unchanged'
+);
+
 reset role;
 
 -- ============================================================
@@ -296,11 +329,13 @@ reset role;
 -- construction (today-5 .. today+30), erik's sits entirely in the past
 -- (today-90 .. today-60). Both hold regardless of which day the suite
 -- runs. The inserts below call private.lima_today() directly, which only
--- works because they still run as postgres here (before the first `set
--- local role authenticated`) -- that function is granted to nobody
--- (Design: only ever called from inside other SECURITY DEFINER bodies,
--- which run as postgres), so no impersonated scenario elsewhere in this
--- file could call it the same way.
+-- works because they run as postgres: the file starts as postgres, and the
+-- `reset role` that closes Group 4 puts the session back there after the
+-- impersonated groups above (the first `set local role authenticated` is in
+-- Group 1). Keep that `reset role`: as `authenticated` these inserts fail,
+-- since that function is granted to nobody (Design: only ever called from
+-- inside other SECURITY DEFINER bodies, which run as postgres), so no
+-- impersonated scenario elsewhere in this file could call it the same way.
 insert into public.paid_periods (member_id, starts_on, ends_on, recorded_by) values (
   'a0000000-0000-0000-0000-000000000006',
   private.lima_today () - 5,

@@ -9,12 +9,14 @@ on:
   pull_request:
     paths:
       - scripts/ci/**
+      - package.json
       - .github/workflows/keepalive.yml
       - .github/workflows/keepalive-tests.yml
   push:
     branches: [develop, main]
     paths:
       - scripts/ci/**
+      - package.json
       - .github/workflows/keepalive.yml
       - .github/workflows/keepalive-tests.yml
 
@@ -48,5 +50,8 @@ jobs:
         with:
           node-version: '24'
 
+      # The same npm script a contributor runs locally, so the list of test
+      # files is written once, in package.json (which is why a change to it
+      # triggers this workflow too).
       - name: Run the keep-alive script tests
-        run: node --test scripts/ci/__tests__/*.test.mjs
+        run: npm run test:ci-scripts

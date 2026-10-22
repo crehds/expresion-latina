@@ -1,9 +1,10 @@
 # Supabase CLI configuration for the local development and test stack.
 #
 # Only the settings this project depends on are listed. Everything else uses
-# the defaults of the pinned CLI (scripts/db/test-db.mjs and
-# .github/workflows/db-tests.yml), so a deliberate change shows up here as a
-# visible diff instead of being lost among ~400 lines of generated defaults.
+# the defaults of the pinned CLI (the SUPABASE_CLI constant in
+# scripts/db/test-db-lib.mjs, and .github/workflows/db-tests.yml), so a
+# deliberate change shows up here as a visible diff instead of being lost
+# among ~400 lines of generated defaults.
 # Reference: https://supabase.com/docs/guides/local-development/cli/config
 project_id = "expresion-latina"
 
@@ -37,7 +38,9 @@ port = 34323
 
 [local_smtp]
 # Mailpit's inbox.
-# CLI 2.x table (older CLIs: [inbucket]); verified against the pinned 2.117.0 template.
+# CLI 2.x table (older CLIs: [inbucket]); verified against the pinned 2.117.0
+# template. When SUPABASE_CLI is bumped, check this table against the new
+# template before changing the version here.
 port = 34324
 
 [analytics]
