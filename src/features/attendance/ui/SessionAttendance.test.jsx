@@ -67,6 +67,7 @@ function fakeServices({ periods = OPEN_MONTH, confirmed = [] } = {}) {
 }
 
 const SIGNED_IN = { status: 'signed-in', session: { userId: USER }, profile: { id: USER } };
+const SIGNED_IN_ADMIN = { ...SIGNED_IN, profile: { id: USER, isAdmin: true } };
 const SIGNED_OUT = { status: 'signed-out', session: null, profile: null };
 
 async function renderCards(sessions, {
@@ -237,6 +238,67 @@ describe('SessionAttendance', () => {
 
       expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeInTheDocument();
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
+  // Administrators have free access to classes: the same button as a member,
+  // with or without a paid period. The database still bounds the window.
+  describe('for an administrator', () => {
+    it.each([
+      ['no paid period at all', []],
+      ['periods that all ended', [{ startsOn: '2026-09-01', endsOn: '2026-09-30' }]],
+      ['a period that ends before the class', [{ startsOn: '2026-10-01', endsOn: '2026-10-22' }]],
+    ])('offers to confirm with %s, and no message about the membership', async (_label, periods) => {
+      await renderCards([MONDAY], {
+        services: fakeServices({ periods }), session: SIGNED_IN_ADMIN,
+      });
+
+      expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeEnabled();
+      expect(screen.queryByText('Tu membresía no está activa.')).toBeNull();
+      expect(screen.queryByText(/Tu membresía/)).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Escríbenos por WhatsApp' })).toBeNull();
+    });
+
+    it('confirms with the same call a member makes, and then offers to cancel', async () => {
+      const { services } = await renderCards([MONDAY], {
+        services: fakeServices({ periods: [] }), session: SIGNED_IN_ADMIN,
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
+      await act(async () => {});
+
+      expect(services.attendance.confirm).toHaveBeenCalledTimes(1);
+      expect(services.attendance.confirm.mock.calls[0][0]).toMatchObject(MONDAY_OCCURRENCE);
+      expect(screen.getByRole('button', { name: 'Cancelar asistencia' })).toBeInTheDocument();
+    });
+
+    it('cancels a confirmation, and then offers to confirm again', async () => {
+      const services = fakeServices({ periods: [], confirmed: [MONDAY_OCCURRENCE] });
+      await renderCards([MONDAY], { services, session: SIGNED_IN_ADMIN });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar asistencia' }));
+      await act(async () => {});
+
+      expect(services.attendance.cancel).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeInTheDocument();
+    });
+
+    it('shows a refusal of the database like it does for a member', async () => {
+      const services = fakeServices({ periods: [] });
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      await renderCards([MONDAY], { services, session: SIGNED_IN_ADMIN });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
+      await act(async () => {});
+
+      expect(card('lun-1900').querySelector('[role="alert"]')).toBeInTheDocument();
+    });
+
+    it('does not give a member the same: no period, no button', async () => {
+      await renderCards([MONDAY], { services: fakeServices({ periods: [] }) });
+
+      expect(screen.queryByRole('button')).toBeNull();
+      expect(screen.getByText('Tu membresía no está activa.')).toBeInTheDocument();
     });
   });
 

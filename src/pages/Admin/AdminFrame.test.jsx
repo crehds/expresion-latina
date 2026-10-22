@@ -86,7 +86,11 @@ describe('AdminFrame', () => {
 
   describe('the keep-alive notice', () => {
     const TEN_DAYS = 10 * 24 * 60 * 60 * 1000;
-    const withStalePing = (data = new Date(Date.now() - TEN_DAYS).toISOString()) => ({
+    const staleInstant = () => new Date(Date.now() - TEN_DAYS).toISOString();
+
+    // Services whose heartbeat read answers with `data`: an instant, or null when
+    // no ping is recorded.
+    const withLastPing = (data) => ({
       membership: { getLastPing: vi.fn(async () => ({ ok: true, data })) },
     });
 
@@ -100,7 +104,7 @@ describe('AdminFrame', () => {
     });
 
     it('sits right after the sub-navigation and right before the page', async () => {
-      renderFrame('/admin/members', withStalePing());
+      renderFrame('/admin/members', withLastPing(staleInstant()));
 
       const notice = await screen.findByRole('status');
       const page = screen.getByRole('heading', { level: 2, name: 'members page' });
@@ -112,7 +116,7 @@ describe('AdminFrame', () => {
     });
 
     it('stays while the administrator moves between admin pages, and reads only once', async () => {
-      const services = withStalePing();
+      const services = withLastPing(staleInstant());
       renderFrame('/admin/members', services);
       await screen.findByRole('status');
 
@@ -124,7 +128,7 @@ describe('AdminFrame', () => {
     });
 
     it('says nothing when no ping is recorded', async () => {
-      const services = withStalePing(null);
+      const services = withLastPing(null);
       renderFrame('/admin/members', services);
 
       await waitFor(() => expect(services.membership.getLastPing).toHaveBeenCalledTimes(1));

@@ -1,4 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import {
+  act, render, screen, waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import SessionContext from '../../features/accounts/composition/SessionProvider';
@@ -54,6 +56,13 @@ function renderLogin({
 const CONSENT = { name: /Leí y acepto el Aviso de privacidad/ };
 const consent = () => screen.getByRole('checkbox', CONSENT);
 const googleOn = () => fakeAuth({ getProviders: vi.fn(async () => ok({ google: true })) });
+
+// Lets the answer about the providers reach the screen, so that something that is
+// not there is not simply something that has not come yet.
+async function providersAnswered(auth) {
+  await waitFor(() => expect(auth.getProviders).toHaveBeenCalledTimes(1));
+  await act(async () => {});
+}
 const switchButton = (name) => screen.getByRole('button', { name });
 
 // Whether `first` comes before `second` in the document.
@@ -81,9 +90,11 @@ describe('Login', () => {
     });
 
     it('shows no consent checkbox on the sign-in view when Google is off: it would gate nothing', async () => {
-      renderLogin();
+      const { auth } = renderLogin();
 
-      await screen.findByLabelText('Correo');
+      await providersAnswered(auth);
+
+      expect(screen.getByLabelText('Correo')).toBeInTheDocument();
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
@@ -242,9 +253,10 @@ describe('Login', () => {
 
   describe('Google', () => {
     it('is not offered while the backend has Google off', async () => {
-      renderLogin();
+      const { auth } = renderLogin();
 
-      await screen.findByLabelText('Correo');
+      await providersAnswered(auth);
+
       expect(screen.queryByRole('button', { name: 'Continuar con Google' })).not.toBeInTheDocument();
     });
 
@@ -262,9 +274,13 @@ describe('Login', () => {
     });
 
     it('shows the consent box on the sign-in view only together with the button', async () => {
-      renderLogin({ auth: fakeAuth({ getProviders: vi.fn(() => new Promise(() => {})) }) });
+      const { auth } = renderLogin({
+        auth: fakeAuth({ getProviders: vi.fn(() => new Promise(() => {})) }),
+      });
 
-      await screen.findByLabelText('Correo');
+      await waitFor(() => expect(auth.getProviders).toHaveBeenCalledTimes(1));
+      await act(async () => {});
+
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Continuar con Google' })).not.toBeInTheDocument();
     });

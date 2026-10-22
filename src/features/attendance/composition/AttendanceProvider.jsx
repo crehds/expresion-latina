@@ -14,6 +14,9 @@
  * - `ready`: both reads worked; until then `membership` is null, so no control
  *   shows (nothing flashes as "inactive" while the data loads);
  * - `membership`: `{ periods }`, or null; `confirmedKeys`: a Set of occurrence keys;
+ * - `isAdmin`: whether the session's profile is an administrator's, who has free
+ *   access to classes (no paid period needed). It only decides which control a
+ *   card offers; the database stays the authority;
  * - `now`: a Date that ticks every 30 seconds, so a control does not outlive the
  *   start of its class on a tab left open;
  * - `busyKey`: the occurrence key of the action in flight, if any;
@@ -46,6 +49,7 @@ const NO_KEYS = new Set();
 const INERT = Object.freeze({
   ready: false,
   membership: null,
+  isAdmin: false,
   confirmedKeys: NO_KEYS,
   now: new Date(0),
   busyKey: null,
@@ -62,11 +66,12 @@ export const useAttendance = () => useContext(AttendanceContext);
 
 export default function AttendanceProvider({ children }) {
   const { enabled, services } = useContext(BackendContext);
-  const { status, session } = useContext(SessionContext);
+  const { status, session, profile } = useContext(SessionContext);
   const attendance = enabled ? services?.attendance ?? null : null;
   const membership = enabled ? services?.membership ?? null : null;
   const userId = status === 'signed-in' ? session?.userId ?? null : null;
   const active = Boolean(attendance && membership && userId);
+  const isAdmin = profile?.isAdmin === true;
 
   const [data, setData] = useState(null);
   const [now, setNow] = useState(() => new Date());
@@ -233,6 +238,7 @@ export default function AttendanceProvider({ children }) {
     return {
       ready: data !== null,
       membership: data ? { periods: data.periods } : null,
+      isAdmin,
       confirmedKeys: data ? data.confirmedKeys : NO_KEYS,
       now,
       busyKey,
@@ -242,7 +248,7 @@ export default function AttendanceProvider({ children }) {
       cancel,
       retry,
     };
-  }, [active, data, now, busyKey, failure, confirm, cancel, retry]);
+  }, [active, data, isAdmin, now, busyKey, failure, confirm, cancel, retry]);
 
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>;
 }

@@ -201,3 +201,75 @@ describe('controlState', () => {
     })).toBe('hidden');
   });
 });
+
+// Administrators have free access to classes (migration 20261022120000): the
+// same button as a member, without a paid period. Every other rule stays.
+describe('controlState for an administrator', () => {
+  const asAdmin = (overrides = {}) => controlState({
+    occurrence: occurrence(),
+    now: NOW,
+    membership: { periods: [] },
+    confirmedKeys: new Set(),
+    isAdmin: true,
+    ...overrides,
+  });
+
+  it('is confirm with no paid period at all', () => {
+    expect(asAdmin()).toBe('confirm');
+  });
+
+  it('is confirm when the periods end before the class, where a member is uncovered', () => {
+    const periods = [period('2026-09-01', '2026-09-30')];
+
+    expect(asAdmin({ membership: { periods } })).toBe('confirm');
+    expect(asAdmin({ membership: { periods }, isAdmin: false })).toBe('uncovered');
+  });
+
+  it('is confirm when the only period has not started, where a member is inactive', () => {
+    const periods = [period('2026-10-01', '2026-10-31')];
+
+    expect(asAdmin({ membership: { periods } })).toBe('confirm');
+    expect(asAdmin({ membership: { periods }, isAdmin: false })).toBe('inactive');
+  });
+
+  it('reads a missing flag as not an administrator', () => {
+    expect(asAdmin({ isAdmin: undefined })).toBe('inactive');
+  });
+
+  it('keeps the 7-day window: a class further ahead is hidden', () => {
+    const target = occurrence({
+      classDate: '2026-10-08',
+      startsAt: new Date(NOW.getTime() + SEVEN_DAYS_MS + 1),
+    });
+
+    expect(asAdmin({ occurrence: target })).toBe('hidden');
+  });
+
+  it('is confirm at exactly the 7-day boundary, like the database bound', () => {
+    const target = occurrence({
+      classDate: '2026-10-05',
+      startsAt: new Date(NOW.getTime() + SEVEN_DAYS_MS),
+    });
+
+    expect(asAdmin({ occurrence: target })).toBe('confirm');
+  });
+
+  it('keeps a class that has started closed', () => {
+    const target = occurrence({ startsAt: new Date(NOW.getTime()) });
+
+    expect(asAdmin({ occurrence: target })).toBe('started');
+  });
+
+  it('is cancel for a class the administrator already confirmed', () => {
+    const target = occurrence();
+
+    expect(asAdmin({
+      occurrence: target,
+      confirmedKeys: new Set([occurrenceKey(target)]),
+    })).toBe('cancel');
+  });
+
+  it('is hidden while the membership data is not there yet, as for any viewer', () => {
+    expect(asAdmin({ membership: null })).toBe('hidden');
+  });
+});

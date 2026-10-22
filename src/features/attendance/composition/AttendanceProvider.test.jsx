@@ -145,7 +145,12 @@ describe('AttendanceProvider', () => {
       const { result } = await mount({ enabled: false });
 
       expect(result.current).toMatchObject({
-        ready: false, membership: null, busyKey: null, errorCode: null, errorKey: null,
+        ready: false,
+        membership: null,
+        isAdmin: false,
+        busyKey: null,
+        errorCode: null,
+        errorKey: null,
       });
       expect(result.current.confirmedKeys).toEqual(new Set());
       expect(result.current.now).toBeInstanceOf(Date);
@@ -268,6 +273,53 @@ describe('AttendanceProvider', () => {
         userId: OTHER_USER, fromDate: '2026-10-20',
       });
       expect(view.result.current.confirmedKeys).toEqual(new Set());
+    });
+  });
+
+  // The administrator has free access to classes, so the schedule needs to know
+  // who one is. The flag comes from the session profile, and the database stays
+  // the authority: it only decides which control a card offers.
+  describe('the administrator flag', () => {
+    const withProfile = (profile) => ({
+      status: 'signed-in', session: { userId: USER, email: 'a@example.test' }, profile,
+    });
+
+    it('is true for an administrator, from the session profile', async () => {
+      const { result } = await mount({ session: withProfile({ id: USER, isAdmin: true }) });
+
+      expect(result.current.isAdmin).toBe(true);
+    });
+
+    it.each([
+      ['a member', { id: USER, isAdmin: false }],
+      ['a profile that says nothing about it', { id: USER }],
+      ['a flag that is not a boolean', { id: USER, isAdmin: 'true' }],
+      ['no profile at all', null],
+    ])('is false for %s', async (_label, profile) => {
+      const { result } = await mount({ session: withProfile(profile) });
+
+      expect(result.current.isAdmin).toBe(false);
+    });
+
+    it('stays false while the provider is inert, whatever the profile says', async () => {
+      const { result } = await mount({
+        enabled: false, session: withProfile({ id: USER, isAdmin: true }),
+      });
+
+      expect(result.current.isAdmin).toBe(false);
+    });
+
+    it('does not change what is read: an administrator reads their own rows only', async () => {
+      const services = fakeServices();
+
+      await mount({ services, session: withProfile({ id: USER, isAdmin: true }) });
+
+      expect(services.membership.listOwnPeriods).toHaveBeenCalledWith({
+        userId: USER, fromDate: '2026-10-20',
+      });
+      expect(services.attendance.listOwnConfirmations).toHaveBeenCalledWith({
+        userId: USER, fromDate: '2026-10-20',
+      });
     });
   });
 

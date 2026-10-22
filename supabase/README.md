@@ -146,7 +146,10 @@ update public.profiles set is_admin = true where id = (
   confirmation. It also checks the keep-alive notice against the heartbeat:
   one that is four days old shows it, `public.keepalive()` takes it away, and
   an empty table shows nothing. The build is pinned to
-  `VITE_KEEPALIVE_ALERT_DAYS=3`, so a local env file cannot change that. Last
+  `VITE_KEEPALIVE_ALERT_DAYS=3`, so a local env file cannot change that. As
+  an administrator with no payment at all, it then confirms and cancels the
+  first class of a day on the public schedule (administrators have free
+  access to classes). Last
   it drives the account page: the menu shows "Mi cuenta" and no "Ingresar",
   the page shows the name, the email and the consent on record, "Cerrar
   sesión" brings "Ingresar" back, a new sign-in reaches the page again, and
@@ -273,14 +276,15 @@ of Studio (`http://127.0.0.1:34323`).
 
 ### Manual checklist (attendance on the schedule)
 
-The member leg of `npm run test:e2e:auth` runs these steps against the real
-stack, except two that only unit tests cover
+The member leg of `npm run test:e2e:auth` runs steps 1 to 7 against the real
+stack (step 8 is its admin leg), except two that only unit tests cover
 (`src/pages/Schedules/Schedules.attendance.test.jsx`): the signed-out page in
 step 1 and the rehearsal in step 2. Do it by hand after changing the attendance
 controls, the schedule page
 or the `attendance_confirmations` table. Start the stack and the app as above and
-sign a member up through the app, and do not make them an administrator (an
-administrator's policies read everyone's rows, which hides a missing filter).
+sign a member up through the app, and do not make them an administrator before
+step 8 (an administrator's policies read everyone's rows, which hides a missing
+filter).
 Open `/schedules` on a wide window and look at the first class of a weekday that
 is not today (in Lima). Run the SQL in the SQL editor of Studio.
 
@@ -322,7 +326,16 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    no button.
 
 7. **Delete the payment** and reload: "Tu membresía no está activa." again.
-8. **Clean up.** Delete the test member
+8. **Administrator.** Make the member an administrator (step 1 of "Manual
+   checklist (admin area)") and reload `/schedules` with still no payment: the
+   class shows "Confirmar asistencia" and no message about the membership.
+   Confirming and cancelling work as in steps 3 to 5, because administrators
+   have free access to classes (the `confirm_own` policy lets `private.is_admin()`
+   through its last clause). The window of seven days, the start of the class
+   and the recorded consent still apply to them. Take the role away
+   (`update public.profiles set is_admin = false ...`) and reload: the message
+   is back and there is no button.
+9. **Clean up.** Delete the test member
    (`delete from auth.users where email = '...'`): their profile, payments and
    confirmations go with it.
 

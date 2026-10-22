@@ -22,11 +22,14 @@ const REHEARSAL = 'rehearsal';
  * membership. The buttons call the provider with this card's occurrence and never
  * receive the click event.
  *
+ * An administrator has free access to classes, so their card never says that the
+ * membership is not active (the provider tells whether the viewer is one).
+ *
  * A failure is shown only on the card whose occurrence it belongs to.
  */
 function SessionAttendance({ session, whatsappLink = null }) {
   const {
-    membership, confirmedKeys, now, busyKey, errorCode, errorKey, confirm, cancel,
+    membership, isAdmin, confirmedKeys, now, busyKey, errorCode, errorKey, confirm, cancel,
   } = useAttendance();
 
   if (!membership || session.genre.kind === REHEARSAL) {
@@ -43,7 +46,7 @@ function SessionAttendance({ session, whatsappLink = null }) {
 
   const key = occurrenceKey(occurrence);
   const state = controlState({
-    occurrence, now, membership, confirmedKeys,
+    occurrence, now, membership, confirmedKeys, isAdmin,
   });
 
   return (
