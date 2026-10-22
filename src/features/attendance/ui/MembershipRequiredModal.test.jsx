@@ -1,5 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import PropTypes from 'prop-types';
 
 import SessionContext from '../../accounts/composition/SessionProvider';
 import BackendContext from '../../../shared/backend/BackendContext';
@@ -26,17 +27,26 @@ const services = () => ({
 const session = { status: 'signed-in', session: { userId: USER }, profile: { id: USER, isAdmin: false } };
 
 // A card's check: it opens the prompt and hands over itself, to get the focus back.
-function Opener() {
+function Opener({ second = false }) {
   const { openPrompt } = useAttendance();
-  return <button type="button" onClick={(event) => openPrompt(event.currentTarget)}>Abrir</button>;
+  return (
+    <>
+      <button type="button" onClick={(event) => openPrompt(event.currentTarget)}>Abrir</button>
+      {second && (
+        <button type="button" onClick={(event) => openPrompt(event.currentTarget)}>Abrir otra</button>
+      )}
+    </>
+  );
 }
 
-async function renderModal({ whatsappLink = WHATSAPP, backend = services() } = {}) {
+Opener.propTypes = { second: PropTypes.bool };
+
+async function renderModal({ whatsappLink = WHATSAPP, backend = services(), second = false } = {}) {
   const view = render(
     <BackendContext.Provider value={{ enabled: true, services: backend }}>
       <SessionContext.Provider value={session}>
         <AttendanceProvider>
-          <Opener />
+          <Opener second={second} />
           <MembershipRequiredModal whatsappLink={whatsappLink} />
         </AttendanceProvider>
       </SessionContext.Provider>
@@ -117,6 +127,79 @@ describe('MembershipRequiredModal', () => {
       expect(screen.getByRole('link', { name: 'Escríbenos por WhatsApp' })).toHaveFocus();
     });
 
+    // The trap holds from any point, not only from the first and the last stop: a
+    // click on the text leaves the focus on the page behind, and Tab must not escape.
+    describe('keeps the focus inside from anywhere', () => {
+      it('goes to the close button on Tab after a click on the text of the dialog', async () => {
+        const user = userEvent.setup();
+        await renderModal();
+        await open(user);
+
+        await user.click(screen.getByText(TEXT));
+        // The click left the focus on the dialog itself, which is not one of its stops.
+        expect(document.activeElement).toBe(dialog());
+        await user.tab();
+
+        expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+      });
+
+      it('goes to the last stop on Shift+Tab after a click on the text of the dialog', async () => {
+        const user = userEvent.setup();
+        await renderModal();
+        await open(user);
+
+        await user.click(screen.getByText(TEXT));
+        await user.tab({ shift: true });
+
+        expect(screen.getByRole('link', { name: 'Escríbenos por WhatsApp' })).toHaveFocus();
+      });
+
+      it('goes in from a control outside the dialog, in both directions', async () => {
+        const user = userEvent.setup();
+        await renderModal();
+        await open(user);
+        const outside = document.createElement('button');
+        document.body.appendChild(outside);
+
+        outside.focus();
+        await user.tab();
+        expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+
+        outside.focus();
+        await user.tab({ shift: true });
+        expect(screen.getByRole('link', { name: 'Escríbenos por WhatsApp' })).toHaveFocus();
+        outside.remove();
+      });
+
+      it('goes in from the dialog container itself', async () => {
+        const user = userEvent.setup();
+        await renderModal();
+        await open(user);
+
+        dialog().focus();
+        await user.tab();
+        expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+
+        dialog().focus();
+        await user.tab({ shift: true });
+        expect(screen.getByRole('link', { name: 'Escríbenos por WhatsApp' })).toHaveFocus();
+      });
+
+      it('keeps going round when there is no link, with the close button as the only stop', async () => {
+        const user = userEvent.setup();
+        await renderModal({ whatsappLink: null });
+        await open(user);
+
+        await user.click(screen.getByText(TEXT));
+        await user.tab();
+        expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+        await user.tab();
+        expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+        await user.tab({ shift: true });
+        expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+      });
+    });
+
     it('calls no adapter, because it only asks the member to enrol', async () => {
       const user = userEvent.setup();
       const { backend } = await renderModal();
@@ -169,6 +252,21 @@ describe('MembershipRequiredModal', () => {
 
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(screen.getByRole('button', { name: 'Abrir' })).toHaveFocus();
+    });
+
+    it('gives the focus back to the latest opener when it was opened again meanwhile', async () => {
+      const user = userEvent.setup();
+      await renderModal({ second: true });
+      await user.click(screen.getByRole('button', { name: 'Abrir' }));
+      const second = screen.getByRole('button', { name: 'Abrir otra' });
+      // A second tap, from another check, while the dialog is open (a script, or a
+      // refusal that arrives late): the focus goes back to the last one.
+      act(() => second.click());
+
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(second).toHaveFocus();
     });
 
     it('opens again after it was closed', async () => {

@@ -462,12 +462,47 @@ describe('AttendanceProvider', () => {
       expect(result.current.errorCode).toBe('FORBIDDEN');
     });
 
-    it('is closed again for the next user, and is never open while inert', async () => {
-      const { result, unmount } = await mount();
-      act(() => result.current.openPrompt());
-      expect(result.current.promptOpen).toBe(true);
-      unmount();
+    it('carries the latest opener when it is opened again while it is open', async () => {
+      const { result } = await mount();
+      const first = document.createElement('button');
+      const second = document.createElement('button');
 
+      act(() => result.current.openPrompt(first));
+      act(() => result.current.openPrompt(second));
+
+      expect(result.current.promptOpen).toBe(true);
+      expect(result.current.promptOpener).toBe(second);
+    });
+
+    // A live provider whose session changes while the prompt is open: the next user
+    // must not meet the prompt of the one before.
+    it('is closed for the next user when the session changes under an open prompt', async () => {
+      let current = signedIn(USER);
+      const { result, rerender } = await mount({ getSession: () => current });
+      act(() => result.current.openPrompt(document.createElement('button')));
+      expect(result.current.promptOpen).toBe(true);
+
+      current = signedIn(OTHER_USER);
+      rerender();
+      await act(async () => {});
+
+      expect(result.current.promptOpen).toBe(false);
+      expect(result.current.promptOpener).toBeNull();
+    });
+
+    it('is closed when the member signs out under an open prompt', async () => {
+      let current = signedIn(USER);
+      const { result, rerender } = await mount({ getSession: () => current });
+      act(() => result.current.openPrompt());
+
+      current = { status: 'signed-out', session: null, profile: null };
+      rerender();
+      await act(async () => {});
+
+      expect(result.current.promptOpen).toBe(false);
+    });
+
+    it('is never open while inert', async () => {
       const inert = await mount({ enabled: false });
       act(() => inert.result.current.openPrompt());
       expect(inert.result.current.promptOpen).toBe(false);

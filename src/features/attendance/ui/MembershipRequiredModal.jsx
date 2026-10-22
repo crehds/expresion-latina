@@ -27,6 +27,10 @@ function Dialog({ whatsappLink = null, opener = null, onClose }) {
   // What had the focus when it opened, for a tap that left it nowhere (a browser
   // that does not focus a button on click) or an opener that is gone.
   const previousRef = useRef(null);
+  // The latest opener, read when the dialog closes: opening it again while it is open
+  // (from another check) changes where the focus goes back to, not the dialog.
+  const openerRef = useRef(opener);
+  openerRef.current = opener;
 
   useEffect(() => {
     previousRef.current = document.activeElement;
@@ -40,11 +44,19 @@ function Dialog({ whatsappLink = null, opener = null, onClose }) {
       if (event.key !== 'Tab' || !dialogRef.current) {
         return;
       }
-      // Keep the focus inside: two stops, so Tab and Shift+Tab go round them.
+      // Keep the focus inside, from anywhere: the stops are few, so Tab and Shift+Tab
+      // go round them, and a focus that is not on one of them (on the page behind,
+      // after a click on the text, or on the dialog itself) goes in at the first stop
+      // for Tab and at the last for Shift+Tab. No helper of the site does this: the
+      // teacher panel only closes on Escape.
       const stops = Array.from(dialogRef.current.querySelectorAll(FOCUSABLE));
       const first = stops[0];
       const last = stops[stops.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const onAStop = stops.includes(document.activeElement);
+      if (!onAStop) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -56,11 +68,11 @@ function Dialog({ whatsappLink = null, opener = null, onClose }) {
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      const target = opener?.isConnected ? opener : previousRef.current;
+      const latest = openerRef.current;
+      const target = latest?.isConnected ? latest : previousRef.current;
       target?.focus?.();
     };
-    // The dialog is mounted for one opening: a new opener or handler is a new one.
-  }, [onClose, opener]);
+  }, [onClose]);
 
   return (
     <Modal>
@@ -74,6 +86,7 @@ function Dialog({ whatsappLink = null, opener = null, onClose }) {
       <div
         ref={dialogRef}
         className="membership-modal"
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

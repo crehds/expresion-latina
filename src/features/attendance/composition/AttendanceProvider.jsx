@@ -75,6 +75,8 @@ const INERT = Object.freeze({
 
 const AttendanceContext = createContext(INERT);
 
+const CLOSED_PROMPT = Object.freeze({ open: false, opener: null });
+
 export const useAttendance = () => useContext(AttendanceContext);
 
 export default function AttendanceProvider({ children }) {
@@ -90,9 +92,10 @@ export default function AttendanceProvider({ children }) {
   const [now, setNow] = useState(() => new Date());
   const [busyKey, setBusyKey] = useState(null);
   const [failure, setFailure] = useState({ code: null, key: null });
-  const [promptOpen, setPromptOpen] = useState(false);
-  // The element to give the focus back to when the prompt closes.
-  const openerRef = useRef(null);
+  // Whether the prompt to enrol is open, and the element to give the focus back to when
+  // it closes. They are one state, so the memoized value always carries the opener of
+  // the opening it describes, and opening it again changes both together.
+  const [prompt, setPrompt] = useState(CLOSED_PROMPT);
 
   // Retires work started for a user or a mount that is gone, and keeps a second
   // action from starting while one is in flight.
@@ -164,12 +167,11 @@ export default function AttendanceProvider({ children }) {
   }, [read]);
 
   const openPrompt = useCallback((opener = null) => {
-    openerRef.current = opener;
-    setPromptOpen(true);
+    setPrompt({ open: true, opener });
   }, []);
 
   const closePrompt = useCallback(() => {
-    setPromptOpen(false);
+    setPrompt(CLOSED_PROMPT);
   }, []);
 
   useEffect(() => {
@@ -185,7 +187,7 @@ export default function AttendanceProvider({ children }) {
       setData(null);
       setBusyKey(null);
       setFailure({ code: null, key: null });
-      setPromptOpen(false);
+      setPrompt(CLOSED_PROMPT);
     };
   }, [active, load]);
 
@@ -198,7 +200,10 @@ export default function AttendanceProvider({ children }) {
     return () => clearInterval(timer);
   }, [active]);
 
-  const act = useCallback(async (occurrence, run, applyOk, onLapse = null) => {
+  // `promptOnLapse` is an options object, not a callback: `{ opener }` for a confirm,
+  // whose refusal may turn into the prompt to enrol (the opener is the element to give
+  // the focus back to), and null for a cancel, which never needed a membership.
+  const act = useCallback(async (occurrence, run, applyOk, promptOnLapse = null) => {
     if (busyRef.current || !active) {
       return;
     }
@@ -234,12 +239,15 @@ export default function AttendanceProvider({ children }) {
       // A confirm that the database refuses, for a member whose membership the fresh
       // read shows has lapsed (the page was loaded while the payment existed): the
       // prompt to enrol says it, so the refusal is not also shown as an error.
-      if (onLapse && fresh && result.code === RESULT_CODES.FORBIDDEN
+      // `new Date()` and not the ticking `now`: the periods were read an instant ago, so
+      // they are judged against this very instant, and `now` can be up to 30 seconds old
+      // (it ticks every TICK_MS), which at Lima midnight is the wrong day.
+      if (promptOnLapse && fresh && result.code === RESULT_CODES.FORBIDDEN
         && isMembershipInactive({
           membership: { periods: fresh.periods }, now: new Date(), isAdmin,
         })) {
         setFailure({ code: null, key: null });
-        openPrompt(onLapse.opener);
+        openPrompt(promptOnLapse.opener);
       }
     }
   }, [active, settle, isAdmin, openPrompt]);
@@ -283,8 +291,8 @@ export default function AttendanceProvider({ children }) {
       busyKey,
       errorCode: failure.code,
       errorKey: failure.key,
-      promptOpen,
-      promptOpener: openerRef.current,
+      promptOpen: prompt.open,
+      promptOpener: prompt.opener,
       openPrompt,
       closePrompt,
       confirm,
@@ -292,7 +300,7 @@ export default function AttendanceProvider({ children }) {
       retry,
     };
   }, [
-    active, data, isAdmin, now, busyKey, failure, promptOpen, openPrompt, closePrompt,
+    active, data, isAdmin, now, busyKey, failure, prompt, openPrompt, closePrompt,
     confirm, cancel, retry,
   ]);
 
