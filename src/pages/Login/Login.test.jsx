@@ -136,13 +136,55 @@ describe('Login', () => {
       expect(consent()).toBeChecked();
     });
 
-    it('puts the consent checkbox, unchecked, above the form on the sign-up view', async () => {
+    // Owner: "el acepto debe estar al final y antes de crear cuenta".
+    it('puts the consent checkbox, unchecked, at the end of the sign-up form, right before "Crear cuenta"', async () => {
       const user = userEvent.setup();
       renderLogin();
       await user.click(switchButton('Crear cuenta'));
 
+      const submit = screen.getByRole('button', { name: 'Crear cuenta' });
       expect(consent()).not.toBeChecked();
-      expect(isBefore(consent(), screen.getByLabelText('Correo'))).toBe(true);
+      expect(isBefore(screen.getByLabelText('Contraseña'), consent())).toBe(true);
+      expect(isBefore(consent(), submit)).toBe(true);
+      expect(consent().closest('form')).toContainElement(submit);
+      expect(consent().closest('label').nextElementSibling).toBe(submit);
+    });
+
+    it('goes through the sign-up form with the keyboard: the box, its link and then the button', async () => {
+      const user = userEvent.setup();
+      renderLogin();
+      await user.click(switchButton('Crear cuenta'));
+
+      await user.click(screen.getByLabelText('Nombre completo'));
+      await user.tab();
+      await user.tab();
+      expect(screen.getByLabelText('Contraseña')).toHaveFocus();
+      await user.tab();
+      expect(consent()).toHaveFocus();
+      await user.keyboard(' ');
+      expect(consent()).toBeChecked();
+      // The words "Aviso de privacidad" are a link, so it takes a stop of its own.
+      await user.tab();
+      expect(screen.getByRole('link', { name: 'Aviso de privacidad' })).toHaveFocus();
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Crear cuenta' })).toHaveFocus();
+    });
+
+    it('still gates "Continuar con Google" on the sign-up view, which stays below the form', async () => {
+      const user = userEvent.setup();
+      renderLogin({ auth: googleOn() });
+      await screen.findByRole('button', { name: 'Continuar con Google' });
+      await user.click(switchButton('Crear cuenta'));
+
+      const google = screen.getByRole('button', { name: 'Continuar con Google' });
+      expect(isBefore(screen.getByRole('button', { name: 'Crear cuenta' }), google)).toBe(true);
+      expect(google).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Crear cuenta' })).toBeDisabled();
+
+      await user.click(consent());
+
+      expect(google).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Crear cuenta' })).toBeEnabled();
     });
 
     it('shows the consent checkbox once on the sign-up view, Google on or off', async () => {

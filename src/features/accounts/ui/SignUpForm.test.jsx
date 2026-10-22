@@ -14,18 +14,20 @@ function fakeAuth(overrides = {}) {
   return { signUp: vi.fn(async () => ok()), ...overrides };
 }
 
-function tree({ consentAccepted, services }) {
+function tree({ consentAccepted, services, consentField }) {
   return (
     <MemoryRouter>
       <BackendContext.Provider value={{ enabled: true, services }}>
-        <SignUpForm consentAccepted={consentAccepted} />
+        <SignUpForm consentAccepted={consentAccepted} consentField={consentField} />
       </BackendContext.Provider>
     </MemoryRouter>
   );
 }
 
-function renderForm({ auth = fakeAuth(), consentAccepted = true, services = { auth } } = {}) {
-  const view = render(tree({ consentAccepted, services }));
+function renderForm({
+  auth = fakeAuth(), consentAccepted = true, services = { auth }, consentField,
+} = {}) {
+  const view = render(tree({ consentAccepted, services, consentField }));
   return { auth, ...view };
 }
 
@@ -67,6 +69,45 @@ describe('SignUpForm', () => {
     const { container } = renderForm({ services: null });
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // The page hands over the consent checkbox, and the form puts it at its end, right
+  // before the button it gates: the last thing the member decides before sending.
+  describe('the consent field the page hands over', () => {
+    const field = <input type="checkbox" aria-label="Acepto" />;
+
+    it('draws it inside the form, after the password and right before the button', () => {
+      renderForm({ consentField: field });
+
+      const box = screen.getByRole('checkbox', { name: 'Acepto' });
+      expect(box.closest('form')).toContainElement(submit());
+      expect(box.compareDocumentPosition(submit())).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(password().compareDocumentPosition(box)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(submit().previousElementSibling).toBe(box);
+    });
+
+    it('is reached by the keyboard after the password and before the button', async () => {
+      const user = userEvent.setup();
+      renderForm({ consentField: field });
+
+      await user.click(fullName());
+      await user.tab();
+      await user.tab();
+      expect(password()).toHaveFocus();
+      await user.tab();
+      expect(screen.getByRole('checkbox', { name: 'Acepto' })).toHaveFocus();
+      await user.tab();
+      expect(submit()).toHaveFocus();
+    });
+
+    it('draws nothing of its own when the page hands over none', () => {
+      renderForm();
+
+      expect(screen.queryByRole('checkbox')).toBeNull();
+      expect(submit().previousElementSibling).toBe(
+        screen.getByLabelText('Contraseña').closest('.auth-field'),
+      );
+    });
   });
 
   describe('consent', () => {

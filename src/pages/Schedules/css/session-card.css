@@ -9,8 +9,15 @@
   box-shadow: var(--shadow-raised);
 }
 
+/*
+ * The time is what the schedule is read for, so it is the one line of the card in
+ * the primary colour and a heavier weight, at the size of body text (the lines of
+ * detail under it stay smaller and grey). 600 is the heavy weight the site loads
+ * for its body font: a 700 would only be a synthetic bold.
+ */
 .session-card__time {
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 

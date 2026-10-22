@@ -173,7 +173,8 @@ settings in `config.toml` or the account pages. Start the stack and the app
 pointing at it), and keep Mailpit open (`http://127.0.0.1:34324`).
 
 1. **Sign-up confirmation.** On `/login` press "Crear cuenta", fill the form,
-   tick the privacy checkbox and submit. Expect: the message "Te enviamos un
+   tick the privacy checkbox (the last field, right above the button) and
+   submit. Expect: the message "Te enviamos un
    correo para confirmar tu cuenta." In Mailpit, one email with the subject
    "Confirma tu cuenta de Expresión Latina" whose link starts with
    `http://localhost:3000/auth/confirm?token_hash=`. Open it: the page shows

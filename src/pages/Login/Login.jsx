@@ -22,12 +22,13 @@ const TITLES = {
  * (Design: D5, D10).
  *
  * The consent checkbox shows only where it gates something. On "Crear cuenta" it
- * sits above the form, and creating an account and Google wait for it. On
- * "Ingresar" it does not gate the form, because that account already exists and
- * its consent is on record; it shows only right above "Continuar con Google", and
- * only when that button shows (the button knows whether Google is on, so the box
- * is handed to it). The accepted state is the page's, so it survives the switch
- * between the two views. The page starts the session on
+ * is the last field of the form, right before the "Crear cuenta" button (the form
+ * is handed the box), and creating an account and Google, which stays below the
+ * form, wait for it. On "Ingresar" it does not gate the form, because that account
+ * already exists and its consent is on record; it shows only right above "Continuar
+ * con Google", and only when that button shows (the button knows whether Google is
+ * on, so the box is handed to it). The accepted state is the page's, so it survives
+ * the switch between the two views. The page starts the session on
  * mount: a stored session is found by the provider on its own, but a visitor
  * who has none must not be left waiting for something that never starts. A
  * member who is already signed in is sent to the home page. Whatever consent is
@@ -60,8 +61,9 @@ export default function Login() {
       <div className="login__panel">
         {resetting ? <PasswordResetForm /> : (
           <>
-            {signingUp && consentBox}
-            {signingUp ? <SignUpForm consentAccepted={consentAccepted} /> : <SignInForm />}
+            {signingUp
+              ? <SignUpForm consentAccepted={consentAccepted} consentField={consentBox} />
+              : <SignInForm />}
             {!signingUp && (
               <p className="login__forgot">
                 <button
