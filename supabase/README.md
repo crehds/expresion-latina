@@ -145,7 +145,7 @@ update public.profiles set is_admin = true where id = (
   of no row matched), and deletes the last one with its two-step
   confirmation. It also checks the keep-alive notice against the heartbeat:
   one that is four days old shows it, `public.keepalive()` takes it away, and
-  an empty table shows the "no ping" message. The build is pinned to
+  an empty table shows nothing. The build is pinned to
   `VITE_KEEPALIVE_ALERT_DAYS=3`, so a local env file cannot change that. Last
   it drives the account page: the menu shows "Mi cuenta" and no "Ingresar",
   the page shows the name, the email and the consent on record, "Cerrar
@@ -257,7 +257,7 @@ of Studio (`http://127.0.0.1:34323`).
    -- no notice
    select public.keepalive();
 
-   -- "Todavía no hay ningún ping de mantenimiento registrado. ..."
+   -- no notice either: a project with no ping recorded is not told apart from a new one
    delete from public.ops_heartbeat;
    ```
 

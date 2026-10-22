@@ -283,6 +283,11 @@ async function signUp(page) {
     0,
     'el botón de Google no debería verse: el stack local tiene Google apagado',
   );
+  assert.equal(
+    await page.getByRole('checkbox').count(),
+    0,
+    'la vista de ingreso no debería pedir el consentimiento: sin Google no condiciona nada',
+  );
 
   console.log(`Creando la cuenta ${EMAIL}...`);
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
@@ -806,12 +811,10 @@ async function adminNotice(page) {
   await reloadAfterHeartbeat(page);
   assert.equal(await keepaliveNotice(page).count(), 0, 'el aviso sigue después de un ping reciente');
 
-  console.log('...y con el aviso de que no hay ningún ping si la tabla está vacía...');
+  console.log('...y sin aviso tampoco si la tabla está vacía (nunca hubo un ping)...');
   psql('delete from public.ops_heartbeat');
   await reloadAfterHeartbeat(page);
-  await keepaliveNotice(page)
-    .filter({ hasText: 'Todavía no hay ningún ping de mantenimiento registrado.' })
-    .waitFor();
+  assert.equal(await keepaliveNotice(page).count(), 0, 'hay un aviso con la tabla del latido vacía');
 }
 
 // The day of the classes the two attendance legs use: Monday, or Tuesday when today
