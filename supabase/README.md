@@ -145,8 +145,14 @@ update public.profiles set is_admin = true where id = (
   of no row matched), and deletes the last one with its two-step
   confirmation. It also checks the keep-alive notice against the heartbeat:
   one that is four days old shows it, `public.keepalive()` takes it away, and
-  an empty table shows the "no ping" message. The build is pinned to
-  `VITE_KEEPALIVE_ALERT_DAYS=3`, so a local env file cannot change that. Last
+  an empty table shows nothing. The build is pinned to
+  `VITE_KEEPALIVE_ALERT_DAYS=3`, so a local env file cannot change that. As
+  an administrator with no payment at all, it then confirms and cancels the
+  first class of a day on the public schedule (administrators have free
+  access to classes). Before that, as a member, it taps the check with no
+  payment (a dialog asks to enrol and nothing is written), with a payment that
+  starts later (the dialog says the day), and again on a page that was loaded while
+  the payment existed and lost it. Last
   it drives the account page: the menu shows "Mi cuenta" and no "Ingresar",
   the page shows the name, the email and the consent on record, "Cerrar
   sesión" brings "Ingresar" back, a new sign-in reaches the page again, and
@@ -170,7 +176,8 @@ settings in `config.toml` or the account pages. Start the stack and the app
 pointing at it), and keep Mailpit open (`http://127.0.0.1:34324`).
 
 1. **Sign-up confirmation.** On `/login` press "Crear cuenta", fill the form,
-   tick the privacy checkbox and submit. Expect: the message "Te enviamos un
+   tick the privacy checkbox (the last field, right above the button) and
+   submit. Expect: the message "Te enviamos un
    correo para confirmar tu cuenta." In Mailpit, one email with the subject
    "Confirma tu cuenta de Expresión Latina" whose link starts with
    `http://localhost:3000/auth/confirm?token_hash=`. Open it: the page shows
@@ -257,7 +264,7 @@ of Studio (`http://127.0.0.1:34323`).
    -- no notice
    select public.keepalive();
 
-   -- "Todavía no hay ningún ping de mantenimiento registrado. ..."
+   -- no notice either: a project with no ping recorded is not told apart from a new one
    delete from public.ops_heartbeat;
    ```
 
@@ -273,20 +280,27 @@ of Studio (`http://127.0.0.1:34323`).
 
 ### Manual checklist (attendance on the schedule)
 
-The member leg of `npm run test:e2e:auth` runs these steps against the real
-stack, except two that only unit tests cover
+The member leg of `npm run test:e2e:auth` runs steps 1 to 9 against the real
+stack (step 10 is its admin leg), except two that only unit tests cover
 (`src/pages/Schedules/Schedules.attendance.test.jsx`): the signed-out page in
 step 1 and the rehearsal in step 2. Do it by hand after changing the attendance
 controls, the schedule page
 or the `attendance_confirmations` table. Start the stack and the app as above and
-sign a member up through the app, and do not make them an administrator (an
-administrator's policies read everyone's rows, which hides a missing filter).
+sign a member up through the app, and do not make them an administrator before
+step 10 (an administrator's policies read everyone's rows, which hides a missing
+filter).
 Open `/schedules` on a wide window and look at the first class of a weekday that
 is not today (in Lima). Run the SQL in the SQL editor of Studio.
 
-1. **No payment.** The class says "Tu membresía no está activa." with the link
-   "Escríbenos por WhatsApp", and no class has a "Confirmar asistencia" button.
-   Signed out, the page is the same as ever: no message and no button.
+1. **No payment.** The page has no notice about the membership. A legend above
+   the schedule says "Toca ✓ para confirmar tu asistencia y ✕ para cancelarla." with
+   the two icons drawn. Every class has the same round button with a check as
+   anyone's, and the cards have no message of their own. Press one: a dialog opens,
+   "Necesitas una membresía activa" with the text "Para confirmar tu asistencia,
+   primero matricúlate. Escríbenos por WhatsApp." and the button "Escríbenos por
+   WhatsApp", and nothing is written to the database. Escape, "Cerrar" and a click
+   outside close it, and the focus goes back to the button. Signed out, the page is
+   the same as ever: no legend and no button.
 2. **Record a payment** that covers today and the next month, and reload:
 
    ```sql
@@ -295,23 +309,41 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    from auth.users where email = '...';
    ```
 
-   The class shows "Próxima clase: ..." with its date and "Confirmar asistencia".
-   A rehearsal ("Ensayo Elenco") shows neither a button nor a message.
+   The legend stays. The class shows "Próxima clase: ..."
+   with its date and, at the right of the card, a light round button with a check
+   whose name is "Confirmar asistencia" (it has no visible text; hover it or use a
+   screen reader to read it). A rehearsal ("Ensayo Elenco") shows neither a button
+   nor a message.
 
-3. **Confirm.** Press "Confirmar asistencia": "Confirmaste tu asistencia." and
-   "Cancelar asistencia". In the database there is one row, its times are written
-   with seconds and its `starts_at` is in the future:
+3. **Confirm.** Press the button: it turns into a filled circle with an X, named
+   "Cancelar asistencia", and the card says "Vas a esta clase" with a small check.
+   In the database there is one row, its times are written with seconds and its
+   `starts_at` is in the future:
 
    ```sql
    select start_time::text, end_time::text, starts_at > now()
    from public.attendance_confirmations;
    ```
 
-4. **Reload.** The class still says "Cancelar asistencia". If it offers
-   "Confirmar asistencia" again, the page did not read the 'HH:MM:SS' times back.
-5. **Cancel.** Press "Cancelar asistencia": the button goes back to "Confirmar
-   asistencia" and the table has no row.
-6. **Shorten the payment** to end today and reload:
+4. **Reload.** The class still says "Vas a esta clase", with the X. If it
+   offers "Confirmar asistencia" again, the page did not read the 'HH:MM:SS'
+   times back.
+5. **Cancel.** Press the X: the button goes back to the outline with the check
+   ("Confirmar asistencia"), the caption is gone and the table has no row.
+6. **A payment deleted behind an open page.** With the page still open on the
+   class of step 5, delete the payment in Studio:
+
+   ```sql
+   delete from public.paid_periods
+   where member_id = (select id from auth.users where email = '...');
+   ```
+
+   Press the check without reloading. The database refuses the confirm, and the
+   dialog "Necesitas una membresía activa" opens: the checks stay on every card and
+   no error is shown. Close the dialog and record the payment again (step 2) to go
+   on.
+
+7. **Shorten the payment** to end today and reload:
 
    ```sql
    update public.paid_periods set ends_on = private.lima_today()
@@ -319,12 +351,41 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    ```
 
    A class of another day says "Tu membresía vence el ..." with today, and has
-   no button.
+   no button. The member is active today, so nothing else says anything about
+   the membership.
 
-7. **Delete the payment** and reload: "Tu membresía no está activa." again.
-8. **Clean up.** Delete the test member
-   (`delete from auth.users where email = '...'`): their profile, payments and
-   confirmations go with it.
+8. **Delete the payment** and reload: the checks are back on the cards, and
+   pressing one opens the dialog of step 1 (a class that was already confirmed keeps
+   its X, which still cancels).
+9. **A payment that starts later.** With no payment that covers today, record one
+   that starts in ten days:
+
+   ```sql
+   insert into public.paid_periods (member_id, starts_on, ends_on)
+   select id, private.lima_today() + 10, private.lima_today() + 40
+   from auth.users where email = '...';
+   ```
+
+   Reload and press a check: the dialog says "Tu membresía empieza el ..." with that
+   day (for example "3 de noviembre de 2026") and "Si quieres empezar antes,
+   escríbenos por WhatsApp.", with the same button. An earlier start is something
+   the member asks for and the administrator does, by editing the dates of the
+   payment on the member's page. Several later payments give the earliest start.
+   Delete the payment to go on.
+
+10. **Administrator.** Make the member an administrator (step 1 of "Manual
+    checklist (admin area)") and reload `/schedules` with still no payment: the
+    class shows the "Confirmar asistencia" button, with the legend, and there is no
+    dialog when the button is pressed.
+    Confirming and cancelling work as in steps 3 to 5, because administrators
+    have free access to classes (the `confirm_own` policy lets `private.is_admin()`
+    through its last clause). The window of seven days, the start of the class
+    and the recorded consent still apply to them. Take the role away
+    (`update public.profiles set is_admin = false ...`) and reload: the buttons
+    open the dialog again.
+11. **Clean up.** Delete the test member
+    (`delete from auth.users where email = '...'`): their profile, payments and
+    confirmations go with it.
 
 ### Manual checklist (admin attendance)
 

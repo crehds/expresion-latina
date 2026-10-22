@@ -21,9 +21,14 @@ const TITLES = {
  * Where a visitor signs in, creates an account or continues with Google
  * (Design: D5, D10).
  *
- * The consent checkbox sits above the forms and the Google button. Creating an
- * account and Google wait for it; signing in does not, because that account
- * already exists and its consent is on record. The page starts the session on
+ * The consent checkbox shows only where it gates something. On "Crear cuenta" it
+ * is the last field of the form, right before the "Crear cuenta" button (the form
+ * is handed the box), and creating an account and Google, which stays below the
+ * form, wait for it. On "Ingresar" it does not gate the form, because that account
+ * already exists and its consent is on record; it shows only right above "Continuar
+ * con Google", and only when that button shows (the button knows whether Google is
+ * on, so the box is handed to it). The accepted state is the page's, so it survives
+ * the switch between the two views. The page starts the session on
  * mount: a stored session is found by the provider on its own, but a visitor
  * who has none must not be left waiting for something that never starts. A
  * member who is already signed in is sent to the home page. Whatever consent is
@@ -49,14 +54,16 @@ export default function Login() {
 
   const signingUp = view === 'signUp';
   const resetting = view === 'reset';
+  const consentBox = <ConsentCheckbox checked={consentAccepted} onChange={setConsentAccepted} />;
 
   return (
     <Page title={TITLES[view]} className="login">
       <div className="login__panel">
         {resetting ? <PasswordResetForm /> : (
           <>
-            <ConsentCheckbox checked={consentAccepted} onChange={setConsentAccepted} />
-            {signingUp ? <SignUpForm consentAccepted={consentAccepted} /> : <SignInForm />}
+            {signingUp
+              ? <SignUpForm consentAccepted={consentAccepted} consentField={consentBox} />
+              : <SignInForm />}
             {!signingUp && (
               <p className="login__forgot">
                 <button
@@ -68,7 +75,10 @@ export default function Login() {
                 </button>
               </p>
             )}
-            <GoogleButton consentAccepted={consentAccepted} />
+            <GoogleButton
+              consentAccepted={consentAccepted}
+              consentField={signingUp ? null : consentBox}
+            />
           </>
         )}
         <p className="login__switch">

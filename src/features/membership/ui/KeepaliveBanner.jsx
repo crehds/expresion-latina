@@ -3,9 +3,10 @@
  * project lately (Spec: Keep-Alive Failure Detection).
  *
  * It reads the instant of the last ping (`ops_heartbeat.last_ping_at`, which only
- * an administrator can read) once, when it appears, and says one of two things:
- * that no ping is recorded, or when the last one was and how many days ago. A
- * ping that is recent enough says nothing. It never claims that the workflow
+ * an administrator can read) once, when it appears, and says when the last one
+ * was and how many days ago if it is too old. A ping that is recent enough says
+ * nothing, and neither does a project with no ping recorded (owner decision: it
+ * is not told apart from a new one). It never claims that the workflow
  * failed, because that timestamp can be refreshed by anyone holding the
  * publishable key: it only reports what is recorded and points to the run
  * history of the workflow, the real signal.
@@ -28,7 +29,7 @@ import { useEffect, useState } from 'react';
 
 import useMembership from '../composition/useMembership';
 import { keepaliveStatus, resolveAlertDays } from '../domain/keepaliveAlert';
-import { KEEPALIVE_NEVER, keepaliveStaleText } from './membershipCopy';
+import { keepaliveStaleText } from './membershipCopy';
 
 import './css/keepalive-banner.css';
 
@@ -60,12 +61,9 @@ export default function KeepaliveBanner() {
     };
   }, [membership, days]);
 
-  let text = null;
-  if (check?.status === 'never') {
-    text = KEEPALIVE_NEVER;
-  } else if (check?.status === 'stale') {
-    text = keepaliveStaleText(check.lastPingAt, check.daysAgo);
-  }
+  const text = check?.status === 'stale'
+    ? keepaliveStaleText(check.lastPingAt, check.daysAgo)
+    : null;
 
   return text && <p className="text-md keepalive-banner" role="status">{text}</p>;
 }

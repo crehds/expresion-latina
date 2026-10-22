@@ -13,7 +13,6 @@ const fail = (code, extra = {}) => ({ ok: false, code, ...extra });
 const instantAgo = (ms) => new Date(NOW.getTime() - ms).toISOString();
 
 const RUNS = 'Revisa el historial del flujo «Keep-alive ping» en GitHub Actions.';
-const NEVER = `Todavía no hay ningún ping de mantenimiento registrado. ${RUNS}`;
 const staleText = (day, days) => (
   `El último ping de mantenimiento registrado fue el ${day}, hace ${days}. ${RUNS}`
 );
@@ -74,11 +73,15 @@ describe('KeepaliveBanner', () => {
   });
 
   describe('when no ping is recorded', () => {
-    it('says so, in a polite live region, and points to the run history', async () => {
-      renderBanner('', { getLastPing: vi.fn(async () => ok(null)) });
+    it('shows nothing, because a project that never ran the workflow is not told apart from a new one', async () => {
+      const { container, getLastPing } = renderBanner('', {
+        getLastPing: vi.fn(async () => ok(null)),
+      });
 
-      expect(await screen.findByRole('status')).toHaveTextContent(NEVER);
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await settle();
+
+      expect(getLastPing).toHaveBeenCalledTimes(1);
+      expect(container).toBeEmptyDOMElement();
     });
   });
 
@@ -106,6 +109,13 @@ describe('KeepaliveBanner', () => {
 
       expect(await screen.findByRole('status'))
         .toHaveTextContent(staleText('19 de octubre de 2026', '1 día'));
+    });
+
+    it('is a polite live region, not an alert', async () => {
+      renderBanner('', { getLastPing: vi.fn(async () => ok(instantAgo(10 * DAY))) });
+
+      expect(await screen.findByRole('status')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('never claims that the workflow failed', async () => {
@@ -274,9 +284,10 @@ describe('KeepaliveBanner', () => {
       await settle();
       expect(container).toBeEmptyDOMElement();
 
-      await act(async () => { pending.resolve(ok(null)); });
+      await act(async () => { pending.resolve(ok(instantAgo(10 * DAY))); });
 
-      expect(screen.getByRole('status')).toHaveTextContent(NEVER);
+      expect(screen.getByRole('status'))
+        .toHaveTextContent(staleText('10 de octubre de 2026', '10 días'));
     });
 
     it('reads once, however many times it is drawn again', async () => {
@@ -334,7 +345,10 @@ describe('KeepaliveBanner', () => {
     });
 
     it('shows one notice, not two, where development reads twice', async () => {
-      renderBanner('', { getLastPing: vi.fn(async () => ok(null)), strict: true });
+      renderBanner('', {
+        getLastPing: vi.fn(async () => ok(instantAgo(10 * DAY))),
+        strict: true,
+      });
 
       await settle();
 

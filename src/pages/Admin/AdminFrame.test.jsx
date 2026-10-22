@@ -1,5 +1,5 @@
 import {
-  fireEvent, render, screen, within,
+  act, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import {
   Link, MemoryRouter, Route, Routes,
@@ -85,8 +85,13 @@ describe('AdminFrame', () => {
   });
 
   describe('the keep-alive notice', () => {
-    const withNoPing = () => ({
-      membership: { getLastPing: vi.fn(async () => ({ ok: true, data: null })) },
+    const TEN_DAYS = 10 * 24 * 60 * 60 * 1000;
+    const staleInstant = () => new Date(Date.now() - TEN_DAYS).toISOString();
+
+    // Services whose heartbeat read answers with `data`: an instant, or null when
+    // no ping is recorded.
+    const withLastPing = (data) => ({
+      membership: { getLastPing: vi.fn(async () => ({ ok: true, data })) },
     });
 
     // The threshold comes from a build-time variable that a local env file may set.
@@ -99,19 +104,19 @@ describe('AdminFrame', () => {
     });
 
     it('sits right after the sub-navigation and right before the page', async () => {
-      renderFrame('/admin/members', withNoPing());
+      renderFrame('/admin/members', withLastPing(staleInstant()));
 
       const notice = await screen.findByRole('status');
       const page = screen.getByRole('heading', { level: 2, name: 'members page' });
       const parts = Array.from(screen.getByRole('main').children);
 
-      expect(notice).toHaveTextContent('Todavía no hay ningún ping de mantenimiento registrado.');
+      expect(notice).toHaveTextContent('El último ping de mantenimiento registrado fue el');
       expect(parts.indexOf(notice)).toBe(parts.indexOf(subNavigation()) + 1);
       expect(parts.indexOf(page)).toBe(parts.indexOf(notice) + 1);
     });
 
     it('stays while the administrator moves between admin pages, and reads only once', async () => {
-      const services = withNoPing();
+      const services = withLastPing(staleInstant());
       renderFrame('/admin/members', services);
       await screen.findByRole('status');
 
@@ -120,6 +125,16 @@ describe('AdminFrame', () => {
       expect(screen.getByRole('heading', { level: 2, name: 'member page' })).toBeInTheDocument();
       expect(screen.getByRole('status')).toBeInTheDocument();
       expect(services.membership.getLastPing).toHaveBeenCalledTimes(1);
+    });
+
+    it('says nothing when no ping is recorded', async () => {
+      const services = withLastPing(null);
+      renderFrame('/admin/members', services);
+
+      await waitFor(() => expect(services.membership.getLastPing).toHaveBeenCalledTimes(1));
+      await act(async () => {});
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
     it('leaves the frame as it was when there is nothing to say', () => {

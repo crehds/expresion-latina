@@ -6,9 +6,15 @@ import {
   CONFIRMED,
   CONFIRM_ATTENDANCE,
   DATE_UNAVAILABLE,
+  LEGEND_CANCEL_WORDS,
+  LEGEND_CHECK_NAME,
+  LEGEND_CROSS_NAME,
+  LEGEND_CONFIRM_WORDS,
+  LEGEND_TOUCH,
   LOADING_ATTENDEES,
+  MEMBERSHIP_MODAL_CLOSE,
+  MEMBERSHIP_MODAL_TITLE,
   MISMATCH_TITLE,
-  NOT_ACTIVE,
   NOT_COVERED,
   NO_ATTENDEES,
   READ_ERROR,
@@ -20,6 +26,7 @@ import {
   attendeeCount,
   classDateText,
   expiresText,
+  membershipModalCopy,
   occurrenceLine,
 } from './attendanceCopy';
 
@@ -27,13 +34,77 @@ describe('attendanceCopy', () => {
   it('has the fixed texts of the controls', () => {
     expect(CONFIRM_ATTENDANCE).toBe('Confirmar asistencia');
     expect(CANCEL_ATTENDANCE).toBe('Cancelar asistencia');
-    expect(CONFIRMED).toBe('Confirmaste tu asistencia.');
-    expect(NOT_ACTIVE).toBe('Tu membresía no está activa.');
+    expect(CONFIRMED).toBe('Vas a esta clase');
     expect(NOT_COVERED).toBe('Tu membresía no cubre esta clase.');
     expect(WHATSAPP_LINK_TEXT).toBe('Escríbenos por WhatsApp');
     expect(ALREADY_STARTED).toBe('Esta clase ya empezó.');
     expect(READ_ERROR).toBe('No pudimos cargar tu asistencia.');
     expect(RETRY).toBe('Reintentar');
+  });
+
+  // The prompt that a check opens for a member with no active membership, and the
+  // legend above the schedule (drafts for the owner's review).
+  it('has the texts of the prompt to enrol', () => {
+    expect(MEMBERSHIP_MODAL_TITLE).toBe('Necesitas una membresía activa');
+    expect(MEMBERSHIP_MODAL_CLOSE).toBe('Cerrar');
+  });
+
+  // The owner settled this copy (2026-10-22): "y te ayudamos con el pago" is gone, and the
+  // sentence about WhatsApp goes when the studio has no WhatsApp.
+  describe('membershipModalCopy', () => {
+    it('asks a member with no membership to enrol, and points to WhatsApp when there is a link', () => {
+      expect(membershipModalCopy({ kind: 'enrol' }, true)).toEqual({
+        title: 'Necesitas una membresía activa',
+        text: 'Para confirmar tu asistencia, primero matricúlate. Escríbenos por WhatsApp.',
+      });
+    });
+
+    it('drops the sentence about WhatsApp when there is no link', () => {
+      expect(membershipModalCopy({ kind: 'enrol' }, false)).toEqual({
+        title: 'Necesitas una membresía activa',
+        text: 'Para confirmar tu asistencia, primero matricúlate.',
+      });
+    });
+
+    // Option A (owner): an early start is something the member asks for and the admin does.
+    it('tells a member whose membership starts later the day it starts, and how to ask for an earlier one', () => {
+      expect(membershipModalCopy({ kind: 'starts-later', startsOn: '2026-11-03' }, true)).toEqual({
+        title: 'Tu membresía empieza el 3 de noviembre de 2026',
+        text: 'Si quieres empezar antes, escríbenos por WhatsApp.',
+      });
+    });
+
+    it('sends them to the academy when there is no WhatsApp link', () => {
+      expect(membershipModalCopy({ kind: 'starts-later', startsOn: '2026-11-03' }, false)).toEqual({
+        title: 'Tu membresía empieza el 3 de noviembre de 2026',
+        text: 'Si quieres empezar antes, acércate a la academia.',
+      });
+    });
+
+    it('writes the day as the same day in every zone, with no leading zero', () => {
+      expect(membershipModalCopy({ kind: 'starts-later', startsOn: '2027-01-01' }, true).title)
+        .toBe('Tu membresía empieza el 1 de enero de 2027');
+    });
+
+    it.each(['soon', '', null, undefined, '2026-02-30'])(
+      'falls back to the plain invitation when the day %j cannot be written',
+      (startsOn) => {
+        expect(membershipModalCopy({ kind: 'starts-later', startsOn }, true))
+          .toEqual(membershipModalCopy({ kind: 'enrol' }, true));
+      },
+    );
+
+    it.each([null, undefined])('is the plain invitation for no prompt (%s)', (prompt) => {
+      expect(membershipModalCopy(prompt, true).title).toBe('Necesitas una membresía activa');
+    });
+  });
+
+  it('has the words of the legend, which the two icons are drawn between', () => {
+    expect(LEGEND_TOUCH).toBe('Toca');
+    expect(LEGEND_CONFIRM_WORDS).toBe('para confirmar tu asistencia y');
+    expect(LEGEND_CANCEL_WORDS).toBe('para cancelarla.');
+    expect(LEGEND_CHECK_NAME).toBe('el check');
+    expect(LEGEND_CROSS_NAME).toBe('la equis');
   });
 
   it('has the fixed texts of the administrator\'s list', () => {

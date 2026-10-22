@@ -14,12 +14,23 @@
  * - `ready`: both reads worked; until then `membership` is null, so no control
  *   shows (nothing flashes as "inactive" while the data loads);
  * - `membership`: `{ periods }`, or null; `confirmedKeys`: a Set of occurrence keys;
+ * - `isAdmin`: whether the session's profile is an administrator's, who has free
+ *   access to classes (no paid period needed). It only decides which control a
+ *   card offers; the database stays the authority;
  * - `now`: a Date that ticks every 30 seconds, so a control does not outlive the
  *   start of its class on a tab left open;
  * - `busyKey`: the occurrence key of the action in flight, if any;
+ * - `promptOpen`, `promptOpener`, `openPrompt(opener)` and `closePrompt()`: whether
+ *   the prompt to enrol is open and the element to give the focus back to. A member
+ *   with no active membership sees the same checks as everyone, and tapping one opens
+ *   it instead of calling the server. A confirm that the database refuses opens it
+ *   too, when the fresh read that follows shows the membership has lapsed (the page
+ *   was loaded while the payment still existed): the checks do not vanish and the
+ *   refusal is not shown as an error;
  * - `errorCode` and `errorKey`: the result code of the last failure and, for a
  *   failed action, the occurrence key it belongs to (null for a failed read);
- * - `confirm(occurrence)`, `cancel(occurrence)` and `retry()`.
+ * - `confirm(occurrence, opener)`, `cancel(occurrence)` and `retry()`; `opener` is
+ *   the element that was tapped, for the focus to return to if the prompt opens.
  *
  * The database stays the authority. A cancel it refuses to carry out (STARTED) and
  * a confirm it refuses (FORBIDDEN) both mean this page was out of date, so they
@@ -38,6 +49,7 @@ import { RESULT_CODES, fail } from '../../../shared/backend/resultCodes';
 import { todayInLima } from '../../../shared/limaCalendar';
 import SessionContext from '../../accounts/composition/SessionProvider';
 import { occurrenceKey } from '../domain/occurrences';
+import { membershipPrompt } from '../domain/rules';
 
 export const TICK_MS = 30 * 1000;
 
@@ -46,11 +58,16 @@ const NO_KEYS = new Set();
 const INERT = Object.freeze({
   ready: false,
   membership: null,
+  isAdmin: false,
   confirmedKeys: NO_KEYS,
   now: new Date(0),
   busyKey: null,
   errorCode: null,
   errorKey: null,
+  promptOpen: false,
+  promptOpener: null,
+  openPrompt: () => {},
+  closePrompt: () => {},
   confirm: async () => {},
   cancel: async () => {},
   retry: async () => {},
@@ -58,20 +75,27 @@ const INERT = Object.freeze({
 
 const AttendanceContext = createContext(INERT);
 
+const CLOSED_PROMPT = Object.freeze({ open: false, opener: null });
+
 export const useAttendance = () => useContext(AttendanceContext);
 
 export default function AttendanceProvider({ children }) {
   const { enabled, services } = useContext(BackendContext);
-  const { status, session } = useContext(SessionContext);
+  const { status, session, profile } = useContext(SessionContext);
   const attendance = enabled ? services?.attendance ?? null : null;
   const membership = enabled ? services?.membership ?? null : null;
   const userId = status === 'signed-in' ? session?.userId ?? null : null;
   const active = Boolean(attendance && membership && userId);
+  const isAdmin = profile?.isAdmin === true;
 
   const [data, setData] = useState(null);
   const [now, setNow] = useState(() => new Date());
   const [busyKey, setBusyKey] = useState(null);
   const [failure, setFailure] = useState({ code: null, key: null });
+  // Whether the prompt to enrol is open, and the element to give the focus back to when
+  // it closes. They are one state, so the memoized value always carries the opener of
+  // the opening it describes, and opening it again changes both together.
+  const [prompt, setPrompt] = useState(CLOSED_PROMPT);
 
   // Retires work started for a user or a mount that is gone, and keeps a second
   // action from starting while one is in flight.
@@ -127,11 +151,11 @@ export default function AttendanceProvider({ children }) {
   // exception: a cancel the database answered with no row (STARTED) means either
   // that the class started or that the confirmation was already gone. The read
   // tells them apart, and when the confirmation is gone nothing is wrong, so that
-  // failure (and only that one) is cleared.
+  // failure (and only that one) is cleared. It resolves to what it read, or null.
   const settle = useCallback(async (code, key) => {
     const result = await read();
     if (!result?.ok) {
-      return;
+      return null;
     }
     setData(result.data);
     if (code === RESULT_CODES.STARTED && !result.data.confirmedKeys.has(key)) {
@@ -139,7 +163,16 @@ export default function AttendanceProvider({ children }) {
         previous.code === code && previous.key === key ? { code: null, key: null } : previous
       ));
     }
+    return result.data;
   }, [read]);
+
+  const openPrompt = useCallback((opener = null) => {
+    setPrompt({ open: true, opener });
+  }, []);
+
+  const closePrompt = useCallback(() => {
+    setPrompt(CLOSED_PROMPT);
+  }, []);
 
   useEffect(() => {
     if (!active) {
@@ -154,6 +187,7 @@ export default function AttendanceProvider({ children }) {
       setData(null);
       setBusyKey(null);
       setFailure({ code: null, key: null });
+      setPrompt(CLOSED_PROMPT);
     };
   }, [active, load]);
 
@@ -166,7 +200,10 @@ export default function AttendanceProvider({ children }) {
     return () => clearInterval(timer);
   }, [active]);
 
-  const act = useCallback(async (occurrence, run, applyOk) => {
+  // `promptOnLapse` is an options object, not a callback: `{ opener }` for a confirm,
+  // whose refusal may turn into the prompt to enrol (the opener is the element to give
+  // the focus back to), and null for a cancel, which never needed a membership.
+  const act = useCallback(async (occurrence, run, applyOk, promptOnLapse = null) => {
     if (busyRef.current || !active) {
       return;
     }
@@ -198,14 +235,29 @@ export default function AttendanceProvider({ children }) {
     }
     setFailure({ code: result.code, key });
     if (result.code === RESULT_CODES.STARTED || result.code === RESULT_CODES.FORBIDDEN) {
-      await settle(result.code, key);
+      const fresh = await settle(result.code, key);
+      // A confirm that the database refuses, for a member whose membership the fresh
+      // read shows has lapsed (the page was loaded while the payment existed): the
+      // prompt to enrol says it, so the refusal is not also shown as an error.
+      // `new Date()` and not the ticking `now`: the periods were read an instant ago, so
+      // they are judged against this very instant, and `now` can be up to 30 seconds old
+      // (it ticks every TICK_MS), which at Lima midnight is the wrong day.
+      if (promptOnLapse && fresh && result.code === RESULT_CODES.FORBIDDEN
+        && membershipPrompt({
+          membership: { periods: fresh.periods }, now: new Date(), isAdmin,
+        }) !== null) {
+        setFailure({ code: null, key: null });
+        openPrompt(promptOnLapse.opener);
+      }
     }
-  }, [active, settle]);
+  }, [active, settle, isAdmin, openPrompt]);
 
-  const confirm = useCallback((occurrence) => act(
+  // Only a confirm can lapse into the prompt: cancelling never needed a membership.
+  const confirm = useCallback((occurrence, opener = null) => act(
     occurrence,
     (value) => attendance.confirm(value),
     (keys, key) => new Set(keys).add(key),
+    { opener },
   ), [act, attendance]);
 
   const cancel = useCallback((occurrence) => act(
@@ -233,16 +285,24 @@ export default function AttendanceProvider({ children }) {
     return {
       ready: data !== null,
       membership: data ? { periods: data.periods } : null,
+      isAdmin,
       confirmedKeys: data ? data.confirmedKeys : NO_KEYS,
       now,
       busyKey,
       errorCode: failure.code,
       errorKey: failure.key,
+      promptOpen: prompt.open,
+      promptOpener: prompt.opener,
+      openPrompt,
+      closePrompt,
       confirm,
       cancel,
       retry,
     };
-  }, [active, data, now, busyKey, failure, confirm, cancel, retry]);
+  }, [
+    active, data, isAdmin, now, busyKey, failure, prompt, openPrompt, closePrompt,
+    confirm, cancel, retry,
+  ]);
 
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>;
 }

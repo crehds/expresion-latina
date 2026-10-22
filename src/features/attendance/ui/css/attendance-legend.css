@@ -1,0 +1,32 @@
+/*
+ * The line above the schedule that explains the two icons. The icons are small
+ * copies of the toggles of the cards: an accent outline with the check for "confirm",
+ * a filled accent circle with the X for "cancel". No inline style, because the CSP
+ * has no 'unsafe-inline' for styles.
+ */
+.attendance-legend {
+  margin: 0 0 var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.attendance-legend__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.attendance-legend__badge--cross {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.attendance-legend__badge .attendance-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}

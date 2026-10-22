@@ -6,7 +6,6 @@ import {
   DEFAULT_MEMBER_ERROR,
   DEFAULT_SAVE_PERIOD_ERROR,
   DEFAULT_SEARCH_ERROR,
-  KEEPALIVE_NEVER,
   LOADING_MEMBER,
   MEMBER_NOT_FOUND,
   MEMBER_NOT_FOUND_TITLE,
@@ -29,6 +28,7 @@ import {
   savePeriodErrorMessage,
   searchErrorMessage,
 } from './membershipCopy';
+import * as copy from './membershipCopy';
 
 describe('searchErrorMessage', () => {
   it('tells a lost connection apart', () => {
@@ -335,10 +335,8 @@ describe('memberErrorMessage', () => {
 describe('the keep-alive notice', () => {
   const RUNS = 'Revisa el historial del flujo «Keep-alive ping» en GitHub Actions.';
 
-  it('says that no ping is recorded, and sends the administrator to the run history', () => {
-    expect(KEEPALIVE_NEVER).toBe(
-      `Todavía no hay ningún ping de mantenimiento registrado. ${RUNS}`,
-    );
+  it('has no message for a project that has no ping recorded', () => {
+    expect(copy).not.toHaveProperty('KEEPALIVE_NEVER');
   });
 
   it('gives the day of the last ping and how many days ago it was', () => {
@@ -365,8 +363,7 @@ describe('the keep-alive notice', () => {
   // `last_ping_at` can be refreshed by anyone holding the publishable key, and the
   // run history is the real signal, so the notice only reports what is recorded.
   it('never says that the workflow failed', () => {
-    [KEEPALIVE_NEVER, keepaliveStaleText(new Date('2026-10-16T17:00:00Z'), 4)].forEach((text) => {
-      expect(text).not.toMatch(/fall|error|caíd|roto|no funciona/i);
-    });
+    expect(keepaliveStaleText(new Date('2026-10-16T17:00:00Z'), 4))
+      .not.toMatch(/fall|error|caíd|roto|no funciona/i);
   });
 });

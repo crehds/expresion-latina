@@ -11,6 +11,10 @@ import '../css/session-card.css';
  * data model: a session already knows who teaches it, so reading the schedule
  * and finding out who that person is should not be two separate journeys.
  *
+ * The time is the first line and is set apart from the lines of detail below it (a
+ * step larger, heavier and in the primary colour; the stylesheet does the last two),
+ * because it is what a visitor scans the schedule for.
+ *
  * `action` is whatever a page wants under the class (the attendance controls of a
  * signed-in member). It is rendered as the last child of the card, with no wrapper
  * of its own, so a card without one is the same markup as before.
@@ -22,7 +26,7 @@ function SessionCard({ session, action = undefined }) {
 
   return (
     <article className="session-card">
-      <p className="text-sm session-card__time">
+      <p className="text-md session-card__time">
         <time dateTime={slot.start}>{slot.start}</time>
         {' – '}
         <time dateTime={slot.end}>{slot.end}</time>

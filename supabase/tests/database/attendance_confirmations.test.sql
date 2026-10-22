@@ -21,7 +21,7 @@
 -- 'America/Lima')::date`, instead (Gotcha, PR2a corrective re-run).
 begin;
 
-select plan(44);
+select plan(55);
 
 insert into auth.users (
   id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -650,6 +650,134 @@ select is(
   '19:00:00 20:00:00',
   'the stored times read back as HH:MM:SS with zero seconds, which is what the adapter normalizes'
 );
+
+-- ============================================================
+-- Group 17: administrators have free access to classes (migration
+-- 20261022120000, owner decision F3). The admin of this file holds no paid
+-- period at all, and confirms with the same insert a member uses. Every other
+-- rule of confirm_own still holds for them: recorded consent (private.is_admin
+-- itself requires it), the 7-day window and a class that has not started.
+-- Cancelling needs no change: cancel_own_before_start never looked at a period.
+-- ============================================================
+select is(
+  (select count(*)::int from public.paid_periods where member_id = 'b0000000-0000-0000-0000-000000000001'),
+  0,
+  'the admin holds no paid period, so the fixture proves the free access'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"b0000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select lives_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date + 3, '19:00', '20:00', 'salsa', 'studio-admin-1', 'Salsa', 'Studio Admin 1')$$,
+  'an admin with no paid period can confirm a class in the window'
+);
+
+select is(
+  (select count(*)::int from public.attendance_confirmations where room_key = 'studio-admin-1'),
+  1,
+  'the admin''s confirmation is recorded'
+);
+
+delete from public.attendance_confirmations where room_key = 'studio-admin-1';
+
+select is(
+  (select count(*)::int from public.attendance_confirmations where room_key = 'studio-admin-1'),
+  0,
+  'the admin can cancel their confirmation before the class starts'
+);
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date + 10, '19:00', '20:00', 'bachata', 'studio-admin-2', 'Bachata', 'Studio Admin 2')$$,
+  '42501',
+  null,
+  'an admin still cannot confirm a class beyond the 7-day window'
+);
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date - 1, '19:00', '20:00', 'salsa', 'studio-admin-3', 'Salsa', 'Studio Admin 3')$$,
+  '42501',
+  null,
+  'an admin still cannot confirm a class that already started'
+);
+
+select throws_ok(
+  format(
+    $$insert into public.attendance_confirmations (member_id, class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+      values (%L, (now() at time zone 'America/Lima')::date + 3, '19:00', '20:00', 'salsa', 'studio-admin-4', 'Salsa', 'Studio Admin 4')$$,
+    'b0000000-0000-0000-0000-000000000004'
+  ),
+  '42501',
+  null,
+  'an admin cannot confirm on behalf of another member: member_id is not grantable'
+);
+
+reset role;
+
+-- An admin flag without recorded consent opens nothing: is_admin() requires the
+-- consent, so the free access never skips it.
+insert into auth.users (
+  id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  'b0000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'ac-pending-admin@example.com',
+  '{"provider":"google","providers":["google"]}',
+  '{"full_name":"Pending Admin"}', now(), now()
+);
+update public.profiles set is_admin = true where id = 'b0000000-0000-0000-0000-00000000000a';
+
+select is(
+  (select consent_at from public.profiles where id = 'b0000000-0000-0000-0000-00000000000a'),
+  null::timestamptz,
+  'the pending admin is a genuinely unconsented account that carries the admin flag'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"b0000000-0000-0000-0000-00000000000a","role":"authenticated"}';
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date + 3, '19:00', '20:00', 'salsa', 'studio-admin-5', 'Salsa', 'Studio Admin 5')$$,
+  '42501',
+  null,
+  'an admin without recorded consent cannot confirm'
+);
+
+reset role;
+
+-- The same class the admin confirmed, by a member with no period at all, is
+-- still refused: only the admin flag opens the gate.
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"b0000000-0000-0000-0000-000000000004","role":"authenticated"}';
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date + 3, '19:00', '20:00', 'salsa', 'studio-admin-6', 'Salsa', 'Studio Admin 6')$$,
+  '42501',
+  null,
+  'a non-admin member with no paid period is still refused the same class'
+);
+
+reset role;
+
+-- Taking the flag away takes the free access away.
+update public.profiles set is_admin = false where id = 'b0000000-0000-0000-0000-000000000001';
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"b0000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select throws_ok(
+  $$insert into public.attendance_confirmations (class_date, start_time, end_time, genre_id, room_key, genre_name, room_label)
+    values ((now() at time zone 'America/Lima')::date + 3, '19:00', '20:00', 'salsa', 'studio-admin-7', 'Salsa', 'Studio Admin 7')$$,
+  '42501',
+  null,
+  'a former admin with no paid period is refused again'
+);
+
+reset role;
 
 select * from finish();
 

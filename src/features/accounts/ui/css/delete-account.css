@@ -1,20 +1,26 @@
 /*
  * The deletion section of the account page. The buttons are the shared
- * .auth-button ones; this sets the column, the measure and the alert, marked
- * like the messages of the sign-in forms.
+ * .auth-button ones; this sets the column, the measure of the text and the alert,
+ * marked like the messages of the sign-in forms. How wide the section is, and the
+ * card around it, belong to the page that places it (account.css).
  */
 .delete-account {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-sm);
-  max-width: 44rem;
 }
 
 .delete-account__title,
 .delete-account__text,
 .delete-account__question {
   margin: 0;
+}
+
+/* Wide as the section may be, a paragraph still reads at a comfortable measure. */
+.delete-account__text,
+.delete-account__question {
+  max-width: 60ch;
 }
 
 .delete-account__alert {

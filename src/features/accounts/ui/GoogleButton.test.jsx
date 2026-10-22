@@ -21,16 +21,18 @@ function fakeAuth(overrides = {}) {
   };
 }
 
-function tree({ consentAccepted, services }) {
+function tree({ consentAccepted, services, consentField }) {
   return (
     <BackendContext.Provider value={{ enabled: true, services }}>
-      <GoogleButton consentAccepted={consentAccepted} />
+      <GoogleButton consentAccepted={consentAccepted} consentField={consentField} />
     </BackendContext.Provider>
   );
 }
 
-function renderButton({ auth = fakeAuth(), consentAccepted = true, services = { auth } } = {}) {
-  const view = render(tree({ consentAccepted, services }));
+function renderButton({
+  auth = fakeAuth(), consentAccepted = true, services = { auth }, consentField,
+} = {}) {
+  const view = render(tree({ consentAccepted, services, consentField }));
   return { auth, ...view };
 }
 
@@ -269,6 +271,35 @@ describe('GoogleButton consent', () => {
 
     rerender(tree({ consentAccepted: true, services: { auth } }));
     expect(button()).toBeEnabled();
+  });
+});
+
+describe('GoogleButton consent field', () => {
+  const field = <input type="checkbox" aria-label="Acepto" />;
+
+  it('draws the field the page gives it above the button, once the button shows', async () => {
+    renderButton({ consentField: field });
+
+    const box = await screen.findByRole('checkbox', { name: 'Acepto' });
+    const order = [...document.querySelectorAll('*')];
+    expect(order.indexOf(box)).toBeLessThan(order.indexOf(button()));
+  });
+
+  it.each([
+    ['has Google off', fakeAuth({ getProviders: vi.fn(async () => ok({ google: false })) })],
+    ['cannot be read', fakeAuth({ getProviders: vi.fn(async () => fail('FORBIDDEN')) })],
+  ])('draws no field while the backend %s', async (_label, auth) => {
+    const { container } = renderButton({ auth, consentField: field });
+
+    await waitFor(() => expect(auth.getProviders).toHaveBeenCalledTimes(1));
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('draws no field while the answer is still on its way', () => {
+    const getProviders = vi.fn(() => new Promise(() => {}));
+    const { container } = renderButton({ auth: fakeAuth({ getProviders }), consentField: field });
+
+    expect(container).toBeEmptyDOMElement();
   });
 });
 

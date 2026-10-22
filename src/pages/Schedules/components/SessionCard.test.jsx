@@ -93,6 +93,40 @@ describe('two classes with the same teacher', () => {
   });
 });
 
+/*
+ * The time is what a visitor scans the schedule for (owner: "resaltar un poco la
+ * hora de las cards de horario"), so it is set apart from the lines of detail: it
+ * has the size of body text, one step above them, and the stylesheet gives it the
+ * primary colour and a heavier weight. The markup stays what it was: one line with
+ * the two times as real time elements.
+ */
+describe('the time of a class', () => {
+  const timeLine = () => screen.getByText('–', { exact: false }).closest('p');
+
+  it('is set apart from the details: a step larger, in its own class', () => {
+    renderCard({ level: 'Básico' });
+
+    expect(timeLine()).toHaveClass('session-card__time', 'text-md');
+    expect(timeLine()).not.toHaveClass('text-sm');
+    expect(screen.getByText(/Básico/).closest('p')).toHaveClass('text-sm');
+  });
+
+  it('is still one line with both times as time elements', () => {
+    renderCard();
+
+    const times = Array.from(timeLine().querySelectorAll('time'));
+    expect(times.map((time) => [time.textContent, time.getAttribute('datetime')]))
+      .toEqual([['19:00', '19:00'], ['20:30', '20:30']]);
+    expect(timeLine()).toHaveTextContent('19:00 – 20:30');
+  });
+
+  it('is drawn with no style attribute, because the CSP allows none', () => {
+    const { container } = renderCard({ level: 'Básico', note: 'Nuevo curso' });
+
+    expect(container.querySelector('[style]')).toBeNull();
+  });
+});
+
 describe('a class card with an action', () => {
   it('renders the action as the last child of the card, with no wrapper', () => {
     render(

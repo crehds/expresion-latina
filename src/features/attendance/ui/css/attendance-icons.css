@@ -1,0 +1,24 @@
+/*
+ * The check and the X of the attendance controls. They take the colour of the text
+ * around them (currentcolor), so the toggle, the caption and the legend only decide
+ * where they sit and how big they are. No inline style, because the CSP has no
+ * 'unsafe-inline' for styles.
+ */
+.attendance-icon {
+  flex: none;
+  width: 2.6rem;
+  height: 2.6rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Next to a line of small text: the caption of a confirmed class. */
+.attendance-icon--inline {
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-right: var(--space-3xs);
+  vertical-align: -0.2rem;
+}

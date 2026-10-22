@@ -107,8 +107,8 @@ describe('keepaliveStatus', () => {
   const instantAgo = (ms) => new Date(NOW.getTime() - ms).toISOString();
   const check = (lastPingAt, days = 3) => keepaliveStatus({ lastPingAt, now: NOW, days });
 
-  it('is never when no ping is recorded', () => {
-    expect(check(null)).toEqual({ status: 'never' });
+  it('is unknown when no ping is recorded, so that there is nothing to say', () => {
+    expect(check(null)).toEqual({ status: 'unknown' });
   });
 
   it('is fresh for a ping that has just happened', () => {
@@ -174,7 +174,7 @@ describe('keepaliveStatus', () => {
     ['a date', new Date('2026-10-10T12:00:00Z')],
     ['an object', {}],
     ['true', true],
-  ])('is unknown, not never, for an instant that is %s', (_label, value) => {
+  ])('is unknown for an instant that is %s', (_label, value) => {
     expect(check(value)).toEqual({ status: 'unknown' });
   });
 

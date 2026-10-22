@@ -13,6 +13,9 @@
  * when a session may still be held, but the account is gone and the page says
  * so: there is nothing left the member could do about a session of an account
  * that no longer exists.
+ *
+ * The page that places the section decides how it sits (a card, how wide): it
+ * hands over its own classes in `className`, which are added to the section's.
  */
 import PropTypes from 'prop-types';
 import {
@@ -25,7 +28,7 @@ import useAuthRequest from './useAuthRequest';
 import './css/auth-forms.css';
 import './css/delete-account.css';
 
-export default function DeleteAccount({ onDeleted }) {
+export default function DeleteAccount({ onDeleted, className = undefined }) {
   const { services } = useContext(BackendContext);
   const session = useSession();
   const {
@@ -72,7 +75,10 @@ export default function DeleteAccount({ onDeleted }) {
   };
 
   return (
-    <section className="delete-account" aria-labelledby="delete-account-title">
+    <section
+      className={className ? `delete-account ${className}` : 'delete-account'}
+      aria-labelledby="delete-account-title"
+    >
       <h2 className="heading-sm delete-account__title" id="delete-account-title">
         Eliminar mi cuenta
       </h2>
@@ -129,4 +135,5 @@ export default function DeleteAccount({ onDeleted }) {
 
 DeleteAccount.propTypes = {
   onDeleted: PropTypes.func.isRequired,
+  className: PropTypes.string,
 };

@@ -4,7 +4,11 @@
  * The consent travels with the request: the `auth.users` trigger refuses an
  * email account without the accepted notice version and a name. So the button
  * waits for the consent checkbox of the page (`consentAccepted`), and a submit
- * that gets around the disabled button is refused here as well. The fields are
+ * that gets around the disabled button is refused here as well. The page owns the
+ * state of the checkbox and hands the checkbox over (`consentField`); the form puts
+ * it at its end, right before the button it gates, so that it is the last thing the
+ * member decides before sending and is reached by the keyboard just before it. The
+ * fields are
  * checked first (`validateSignUp`), a message per field with the focus on the
  * first one that is wrong, and the name that is sent is the trimmed one the
  * check judged.
@@ -30,7 +34,7 @@ import {
 import useAuthRequest from './useAuthRequest';
 import './css/auth-forms.css';
 
-export default function SignUpForm({ consentAccepted }) {
+export default function SignUpForm({ consentAccepted, consentField = null }) {
   const { services } = useContext(BackendContext);
   const {
     busy, errorCode, run, clear,
@@ -135,6 +139,7 @@ export default function SignUpForm({ consentAccepted }) {
         error={messageFor('password')}
         inputRef={passwordRef}
       />
+      {consentField}
       <button
         type="submit"
         className="auth-button auth-button--primary"
@@ -148,4 +153,5 @@ export default function SignUpForm({ consentAccepted }) {
 
 SignUpForm.propTypes = {
   consentAccepted: PropTypes.bool.isRequired,
+  consentField: PropTypes.node,
 };
