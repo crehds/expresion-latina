@@ -22,8 +22,10 @@ const REHEARSAL = 'rehearsal';
  * membership. The buttons call the provider with this card's occurrence and never
  * receive the click event.
  *
- * An administrator has free access to classes, so their card never says that the
- * membership is not active (the provider tells whether the viewer is one).
+ * A membership that is not active is said once, above the schedule
+ * (InactiveMembershipNotice), so the card of an inactive member has nothing under
+ * it. An administrator has free access to classes, so their card is the same as a
+ * member's with a paid period (the provider tells whether the viewer is one).
  *
  * A failure is shown only on the card whose occurrence it belongs to.
  */

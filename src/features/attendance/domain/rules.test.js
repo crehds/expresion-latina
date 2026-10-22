@@ -1,4 +1,4 @@
-import { controlState } from './rules';
+import { controlState, isMembershipInactive } from './rules';
 import { occurrenceKey } from './occurrences';
 
 const NOW = new Date('2026-09-28T12:00:00Z'); // Lima today: 2026-09-28
@@ -271,5 +271,65 @@ describe('controlState for an administrator', () => {
 
   it('is hidden while the membership data is not there yet, as for any viewer', () => {
     expect(asAdmin({ membership: null })).toBe('hidden');
+  });
+});
+
+// The notice above the schedule (one place, instead of a message on every card):
+// who it is for is decided here, in Lima time like the card states.
+describe('isMembershipInactive', () => {
+  const inactive = (overrides = {}) => isMembershipInactive({
+    membership: { periods: [] },
+    now: NOW,
+    isAdmin: false,
+    ...overrides,
+  });
+
+  it('is true for a member with no paid period at all', () => {
+    expect(inactive()).toBe(true);
+  });
+
+  it('is true when every period ended before today in Lima', () => {
+    expect(inactive({ membership: { periods: [period('2026-08-01', '2026-09-27')] } })).toBe(true);
+  });
+
+  it('is true when the only period has not started yet', () => {
+    expect(inactive({ membership: { periods: [period('2026-09-29', '2026-10-31')] } })).toBe(true);
+  });
+
+  it('is false when a period covers today, at both ends of it', () => {
+    expect(inactive({ membership: { periods: [period('2026-09-01', '2026-10-31')] } })).toBe(false);
+    expect(inactive({ membership: { periods: [period('2026-09-28', '2026-09-28')] } })).toBe(false);
+  });
+
+  // The notice is about the membership today, not about one class: a member whose
+  // period ends before a later class still gets that card's own message.
+  it('is false for a member who is active today, however soon the period ends', () => {
+    expect(inactive({ membership: { periods: [period('2026-09-01', '2026-09-28')] } })).toBe(false);
+  });
+
+  it('counts today on the Lima calendar, not the UTC one', () => {
+    // 2026-09-29T03:00Z is still the evening of the 28th in Lima.
+    const lateEvening = new Date('2026-09-29T03:00:00Z');
+    const periods = [period('2026-09-28', '2026-09-28')];
+
+    expect(inactive({ now: lateEvening, membership: { periods } })).toBe(false);
+    // One day later in Lima the same period is over.
+    expect(inactive({ now: new Date('2026-09-29T06:00:00Z'), membership: { periods } })).toBe(true);
+  });
+
+  it('is false for an administrator, with or without periods', () => {
+    expect(inactive({ isAdmin: true })).toBe(false);
+    expect(inactive({
+      isAdmin: true, membership: { periods: [period('2026-08-01', '2026-09-01')] },
+    })).toBe(false);
+  });
+
+  it('reads only the exact true as an administrator', () => {
+    expect(inactive({ isAdmin: 'true' })).toBe(true);
+    expect(inactive({ isAdmin: undefined })).toBe(true);
+  });
+
+  it.each([null, undefined])('is false without membership data (%s): a visitor, or data not read yet', (membership) => {
+    expect(inactive({ membership })).toBe(false);
   });
 });

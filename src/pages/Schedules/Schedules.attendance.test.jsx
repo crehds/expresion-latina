@@ -30,10 +30,10 @@ function fakeServices({ periods = ok(COVERING), confirmations = ok([]) } = {}) {
   };
 }
 
-const sessionContext = (status, start = vi.fn()) => ({
+const sessionContext = (status, start = vi.fn(), isAdmin = false) => ({
   status,
   session: status === 'signed-in' ? { userId: USER, email: 'a@example.test' } : null,
-  profile: status === 'signed-in' ? { id: USER } : null,
+  profile: status === 'signed-in' ? { id: USER, isAdmin } : null,
   errorCode: null,
   start,
   refresh: vi.fn(),
@@ -126,10 +126,19 @@ describe.each([
   });
 
   describe('for a signed-in member', () => {
-    const contextsFor = (services, start = vi.fn()) => ({
+    const contextsFor = (services, start = vi.fn(), isAdmin = false) => ({
       backend: { enabled: true, services },
-      session: sessionContext('signed-in', start),
+      session: sessionContext('signed-in', start, isAdmin),
     });
+
+    // The wording is a draft for the owner's review, and the link is the studio's
+    // WhatsApp from the content of the site.
+    const INACTIVE = 'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.';
+    const scheduleOf = (view) => view.container.querySelector(isWide ? '.week-columns' : '.day-agenda');
+    const isBefore = (first, second) => Boolean(
+      // eslint-disable-next-line no-bitwise
+      first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+    );
 
     // The classes on screen: the whole week on a wide screen, Tuesday on a narrow one.
     const visibleSessions = () => (isWide
@@ -170,12 +179,44 @@ describe.each([
       expect(start).not.toHaveBeenCalled();
     });
 
-    it('says the membership is not active on every class, with the WhatsApp link', async () => {
-      await renderPage(contextsFor(fakeServices({ periods: ok([]) })));
+    it('says once, above the schedule, that the membership is not active and invites to enrol', async () => {
+      const view = await renderPage(contextsFor(fakeServices({ periods: ok([]) })));
+
+      const notice = screen.getByRole('status');
+      expect(notice).toHaveTextContent(INACTIVE);
+      expect(screen.getAllByText(/Tu membresía no está activa/)).toHaveLength(1);
+      expect(within(notice).getByRole('link', { name: 'Escríbenos por WhatsApp' }))
+        .toHaveAttribute('href', 'https://wa.me/51960507583');
+      expect(isBefore(notice, scheduleOf(view))).toBe(true);
+    });
+
+    it('puts nothing on the cards of an inactive member: no message, no link and no button', async () => {
+      const view = await renderPage(contextsFor(fakeServices({ periods: ok([]) })));
+
+      expect(view.container.querySelector('.attendance-control')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Confirmar asistencia' })).toBeNull();
+      screen.getAllByRole('article').forEach((card) => {
+        expect(within(card).queryByRole('link', { name: 'Escríbenos por WhatsApp' })).toBeNull();
+      });
+    });
+
+    it('says nothing above the schedule to a member who is active today', async () => {
+      await renderPage(contextsFor(fakeServices()));
+
+      expect(screen.queryByRole('status')).toBeNull();
+      expect(screen.queryByText(/Tu membresía no está activa/)).toBeNull();
+    });
+
+    it('never says it to an administrator, who confirms with no paid period', async () => {
+      const view = await renderPage(contextsFor(fakeServices({ periods: ok([]) }), vi.fn(), true));
 
       const attended = visibleSessions().filter((session) => session.genre.kind !== 'rehearsal');
-      expect(screen.getAllByText('Tu membresía no está activa.')).toHaveLength(attended.length);
-      expect(screen.queryByRole('button', { name: 'Confirmar asistencia' })).toBeNull();
+      expect(screen.queryByRole('status')).toBeNull();
+      expect(screen.queryByText(/Tu membresía/)).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Escríbenos por WhatsApp' })).toBeNull();
+      expect(screen.getAllByRole('button', { name: 'Confirmar asistencia' }))
+        .toHaveLength(attended.length);
+      expect(scheduleOf(view)).toBeInTheDocument();
     });
 
     it('shows nothing under the cards while the data is loading', async () => {
@@ -186,6 +227,8 @@ describe.each([
 
       expect(view.container.querySelector('.attendance-control')).toBeNull();
       expect(screen.queryByRole('alert')).toBeNull();
+      // Nothing flashes as inactive before the periods are known.
+      expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('shows the retry notice above the schedule when the first read fails', async () => {
@@ -199,6 +242,9 @@ describe.each([
       // eslint-disable-next-line no-bitwise
       expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(view.container.querySelector('.attendance-control')).toBeNull();
+      // The retry notice speaks alone: the periods are unknown, so nobody is told
+      // that their membership is not active.
+      expect(screen.queryByText(/Tu membresía no está activa/)).toBeNull();
     });
   });
 });

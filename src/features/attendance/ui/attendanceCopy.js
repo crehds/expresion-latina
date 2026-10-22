@@ -11,11 +11,17 @@
 import { RESULT_CODES } from '../../../shared/backend/resultCodes';
 import { formatDateOnlyOrNull } from '../../../shared/dateOnly';
 
+// The names of the toggle of a class (its aria-label): the action it performs.
 export const CONFIRM_ATTENDANCE = 'Confirmar asistencia';
 export const CANCEL_ATTENDANCE = 'Cancelar asistencia';
-export const CONFIRMED = 'Confirmaste tu asistencia.';
+// The caption next to the toggle of a class the member has confirmed.
+export const CONFIRMED = 'Vas a esta clase';
 
-export const NOT_ACTIVE = 'Tu membresía no está activa.';
+// The one notice above the schedule for a signed-in member whose membership is not
+// active today. It says so and invites to enrol; the link to WhatsApp that goes with
+// it is WHATSAPP_LINK_TEXT. The wording is a draft for the owner's review.
+export const INACTIVE_NOTICE = 'Tu membresía no está activa. '
+  + 'Matricúlate para confirmar tu asistencia a las clases.';
 // A member who is active today but whose periods stop before this class, when the
 // day they stop cannot be written.
 export const NOT_COVERED = 'Tu membresía no cubre esta clase.';

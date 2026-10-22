@@ -6,9 +6,9 @@ import {
   CONFIRMED,
   CONFIRM_ATTENDANCE,
   DATE_UNAVAILABLE,
+  INACTIVE_NOTICE,
   LOADING_ATTENDEES,
   MISMATCH_TITLE,
-  NOT_ACTIVE,
   NOT_COVERED,
   NO_ATTENDEES,
   READ_ERROR,
@@ -27,13 +27,21 @@ describe('attendanceCopy', () => {
   it('has the fixed texts of the controls', () => {
     expect(CONFIRM_ATTENDANCE).toBe('Confirmar asistencia');
     expect(CANCEL_ATTENDANCE).toBe('Cancelar asistencia');
-    expect(CONFIRMED).toBe('Confirmaste tu asistencia.');
-    expect(NOT_ACTIVE).toBe('Tu membresía no está activa.');
+    expect(CONFIRMED).toBe('Vas a esta clase');
     expect(NOT_COVERED).toBe('Tu membresía no cubre esta clase.');
     expect(WHATSAPP_LINK_TEXT).toBe('Escríbenos por WhatsApp');
     expect(ALREADY_STARTED).toBe('Esta clase ya empezó.');
     expect(READ_ERROR).toBe('No pudimos cargar tu asistencia.');
     expect(RETRY).toBe('Reintentar');
+  });
+
+  // The one notice above the schedule for a member whose membership is not active
+  // (a draft for the owner's review): it says so and invites to enrol, and the
+  // link to WhatsApp sits next to it.
+  it('has the notice for a member whose membership is not active', () => {
+    expect(INACTIVE_NOTICE).toBe(
+      'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.',
+    );
   });
 
   it('has the fixed texts of the administrator\'s list', () => {

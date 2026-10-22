@@ -1,9 +1,12 @@
 /*
- * The attendance control under a class of the public schedule: a message, the
- * date it is about, and one button or link. It sits at the end of the session
- * card's column, so it adds spacing above itself and no layout of its own. The
- * button follows the other accent buttons of the site (member-search.css); there
- * is no inline style, because the CSP has no 'unsafe-inline' for styles.
+ * The attendance control under a class of the public schedule: the date it is
+ * about (and, once confirmed, that the member goes), with a light round toggle at
+ * the right of the card. The toggle is an outline with a calendar when the class
+ * is not confirmed and a filled accent circle with a check when it is; it follows
+ * aria-pressed, so the look cannot drift from the state. The control sits at the
+ * end of the session card's column, so it adds spacing above itself and no layout
+ * of its own. There is no inline style, because the CSP has no 'unsafe-inline' for
+ * styles.
  */
 .attendance-control {
   display: flex;
@@ -15,6 +18,22 @@
   border-top: 1px solid var(--surface-border);
 }
 
+/* The date and the caption on the left, the toggle on the right. */
+.attendance-control__row {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
+.attendance-control__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
 .attendance-control__message {
   color: var(--text-primary);
 }
@@ -23,25 +42,79 @@
   color: var(--text-secondary);
 }
 
-.attendance-control__button {
-  min-height: 4.4rem;
-  padding: 1rem 1.6rem;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: var(--text-on-accent);
+/*
+ * 4.4rem is the size of a tap target everywhere on the site, so the icon can stay
+ * small inside it. Not confirmed: an accent outline, transparent inside.
+ */
+.attendance-control__toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  padding: 0;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-primary);
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.attendance-control__button:focus-visible,
+.attendance-control__toggle:hover {
+  border-color: var(--accent-strong);
+  background: var(--surface-overlay);
+}
+
+/* Confirmed: filled with the accent. */
+.attendance-control__toggle[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.attendance-control__toggle[aria-pressed="true"]:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.attendance-control__toggle:focus-visible,
 .attendance-control__link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.attendance-control__button:disabled {
+.attendance-control__toggle:disabled {
   cursor: progress;
   opacity: 0.6;
+}
+
+/*
+ * The icon font sizes every icon at 3.5rem (index.css); here the calendar is a
+ * glyph inside a 4.4rem circle. The compound selector wins over that rule whatever
+ * the order of the stylesheets.
+ */
+.attendance-control__toggle .attendance-control__icon {
+  font-size: 2rem;
+}
+
+/* The check is an inline SVG, so its look is set here and not on the markup. */
+.attendance-control__check {
+  width: 2.6rem;
+  height: 2.6rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attendance-control__toggle {
+    transition: none;
+  }
 }
 
 .attendance-control__link {

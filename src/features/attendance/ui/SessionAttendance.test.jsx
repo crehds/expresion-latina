@@ -93,9 +93,10 @@ async function renderCards(sessions, {
 
 const card = (id) => screen.getByTestId(id);
 
-// The button of one card, found by its text.
+// The button of one card, found by its label: the toggle is an icon with no text.
 const buttonOf = (id, name) => (
-  Array.from(card(id).querySelectorAll('button')).find((button) => button.textContent === name)
+  Array.from(card(id).querySelectorAll('button'))
+    .find((button) => button.getAttribute('aria-label') === name)
 );
 
 describe('SessionAttendance', () => {
@@ -175,14 +176,14 @@ describe('SessionAttendance', () => {
       expect(call).toHaveLength(1);
       expect(call[0]).toMatchObject(MONDAY_OCCURRENCE);
       expect(call[0].startsAt).toBeInstanceOf(Date);
-      expect(screen.getByText('Confirmaste tu asistencia.')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancelar asistencia' })).toBeInTheDocument();
+      expect(screen.getByText('Vas a esta clase')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancelar asistencia' })).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('cancels that occurrence, and then offers to confirm again', async () => {
       const services = fakeServices({ confirmed: [MONDAY_OCCURRENCE] });
       await renderCards([MONDAY], { services });
-      expect(screen.getByText('Confirmaste tu asistencia.')).toBeInTheDocument();
+      expect(screen.getByText('Vas a esta clase')).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Cancelar asistencia' }));
       await act(async () => {});
@@ -190,7 +191,8 @@ describe('SessionAttendance', () => {
       const [call] = services.attendance.cancel.mock.calls;
       expect(call).toHaveLength(1);
       expect(call[0]).toMatchObject(MONDAY_OCCURRENCE);
-      expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.queryByText('Vas a esta clase')).toBeNull();
     });
 
     it('tells each card its own occurrence apart', async () => {
@@ -298,28 +300,36 @@ describe('SessionAttendance', () => {
       await renderCards([MONDAY], { services: fakeServices({ periods: [] }) });
 
       expect(screen.queryByRole('button')).toBeNull();
-      expect(screen.getByText('Tu membresía no está activa.')).toBeInTheDocument();
     });
   });
 
+  // The message about the membership is said once, above the schedule
+  // (InactiveMembershipNotice), so a card of an inactive member has nothing under it.
   describe('for a member whose membership is not active', () => {
-    it('says so on every card, with the WhatsApp link and no button', async () => {
+    it('puts nothing on any card: no message, no link and no button', async () => {
       await renderCards([MONDAY, TUESDAY], { services: fakeServices({ periods: [] }) });
 
-      expect(screen.getAllByText('Tu membresía no está activa.')).toHaveLength(2);
-      expect(screen.getAllByRole('link', { name: 'Escríbenos por WhatsApp' })[0])
-        .toHaveAttribute('href', WHATSAPP);
+      expect(card('lun-1900')).toBeEmptyDOMElement();
+      expect(card('mar-1800')).toBeEmptyDOMElement();
+      expect(screen.queryByText(/Tu membresía/)).toBeNull();
+      expect(screen.queryByRole('link')).toBeNull();
       expect(screen.queryByRole('button')).toBeNull();
     });
 
-    it('shows the message alone when there is no WhatsApp link', async () => {
-      const { container } = await renderCards([MONDAY], {
-        services: fakeServices({ periods: [] }),
-        whatsappLink: null,
-      });
+    it('still shows the refusal of a confirm on the card that was clicked', async () => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      await renderCards([MONDAY], { services });
+      // The refusal makes the page read again, and the membership has run out since.
+      services.membership.listOwnPeriods.mockResolvedValue(ok([]));
 
-      expect(screen.getByText('Tu membresía no está activa.')).toBeInTheDocument();
-      expect(container.querySelector('a')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
+      await act(async () => {});
+
+      expect(card('lun-1900').querySelector('[role="alert"]')).toHaveTextContent(
+        'No pudimos confirmar tu asistencia. Revisa que tu membresía cubra esa fecha.',
+      );
+      expect(screen.queryByRole('button')).toBeNull();
     });
   });
 
@@ -330,6 +340,8 @@ describe('SessionAttendance', () => {
       await renderCards([MONDAY], { services });
 
       expect(screen.getByText('Tu membresía vence el 24 de octubre de 2026.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Escríbenos por WhatsApp' }))
+        .toHaveAttribute('href', WHATSAPP);
       expect(screen.queryByRole('button')).toBeNull();
     });
 

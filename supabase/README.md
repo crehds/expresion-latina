@@ -288,9 +288,11 @@ filter).
 Open `/schedules` on a wide window and look at the first class of a weekday that
 is not today (in Lima). Run the SQL in the SQL editor of Studio.
 
-1. **No payment.** The class says "Tu membresía no está activa." with the link
-   "Escríbenos por WhatsApp", and no class has a "Confirmar asistencia" button.
-   Signed out, the page is the same as ever: no message and no button.
+1. **No payment.** One notice above the schedule says "Tu membresía no está
+   activa. Matricúlate para confirmar tu asistencia a las clases." with the link
+   "Escríbenos por WhatsApp". The cards say nothing, and no class has a
+   "Confirmar asistencia" button. Signed out, the page is the same as ever: no
+   notice and no button.
 2. **Record a payment** that covers today and the next month, and reload:
 
    ```sql
@@ -299,22 +301,28 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    from auth.users where email = '...';
    ```
 
-   The class shows "Próxima clase: ..." with its date and "Confirmar asistencia".
-   A rehearsal ("Ensayo Elenco") shows neither a button nor a message.
+   The notice is gone. The class shows "Próxima clase: ..." with its date and,
+   at the right of the card, a light round button with a calendar icon whose name
+   is "Confirmar asistencia" (it has no visible text; hover it or use a screen
+   reader to read it). A rehearsal ("Ensayo Elenco") shows neither a button nor a
+   message.
 
-3. **Confirm.** Press "Confirmar asistencia": "Confirmaste tu asistencia." and
-   "Cancelar asistencia". In the database there is one row, its times are written
-   with seconds and its `starts_at` is in the future:
+3. **Confirm.** Press the button: it turns into a filled circle with a check,
+   named "Cancelar asistencia", and the card says "Vas a esta clase". In the
+   database there is one row, its times are written with seconds and its
+   `starts_at` is in the future:
 
    ```sql
    select start_time::text, end_time::text, starts_at > now()
    from public.attendance_confirmations;
    ```
 
-4. **Reload.** The class still says "Cancelar asistencia". If it offers
-   "Confirmar asistencia" again, the page did not read the 'HH:MM:SS' times back.
-5. **Cancel.** Press "Cancelar asistencia": the button goes back to "Confirmar
-   asistencia" and the table has no row.
+4. **Reload.** The class still says "Vas a esta clase", with the check. If it
+   offers "Confirmar asistencia" again, the page did not read the 'HH:MM:SS'
+   times back.
+5. **Cancel.** Press the check: the button goes back to the outline with the
+   calendar ("Confirmar asistencia"), the caption is gone and the table has no
+   row.
 6. **Shorten the payment** to end today and reload:
 
    ```sql
@@ -323,17 +331,18 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    ```
 
    A class of another day says "Tu membresía vence el ..." with today, and has
-   no button.
+   no button. The notice above the schedule is not shown: the member is active
+   today.
 
-7. **Delete the payment** and reload: "Tu membresía no está activa." again.
+7. **Delete the payment** and reload: the notice above the schedule is back.
 8. **Administrator.** Make the member an administrator (step 1 of "Manual
    checklist (admin area)") and reload `/schedules` with still no payment: the
-   class shows "Confirmar asistencia" and no message about the membership.
-   Confirming and cancelling work as in steps 3 to 5, because administrators
+   class shows the "Confirmar asistencia" button and there is no notice about the
+   membership. Confirming and cancelling work as in steps 3 to 5, because administrators
    have free access to classes (the `confirm_own` policy lets `private.is_admin()`
    through its last clause). The window of seven days, the start of the class
    and the recorded consent still apply to them. Take the role away
-   (`update public.profiles set is_admin = false ...`) and reload: the message
+   (`update public.profiles set is_admin = false ...`) and reload: the notice
    is back and there is no button.
 9. **Clean up.** Delete the test member
    (`delete from auth.users where email = '...'`): their profile, payments and

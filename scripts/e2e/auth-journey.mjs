@@ -15,13 +15,16 @@
  * asks for a reset from the login page, opens the link of the recovery email,
  * presses "Continuar", sets a new password, and checks that the new password
  * signs in and the old one does not. Then the member leg, while the member is
- * still no administrator: the public schedule shows the inactive message and the
- * WhatsApp link with no payment; with one recorded with SQL a class offers
- * "Confirmar asistencia" and, once confirmed, "Cancelar asistencia" (the row holds
- * the times as HH:MM:SS and a future starts_at, and a reload still shows
+ * still no administrator: with no payment the public schedule shows one notice
+ * above it that the membership is not active, with the WhatsApp link, and nothing
+ * on the cards; with one recorded with SQL a class offers the round toggle
+ * "Confirmar asistencia" (at least 4.4rem wide, with no style attribute) and, once
+ * confirmed, "Cancelar asistencia" with the caption "Vas a esta clase" (the row
+ * holds the times as HH:MM:SS and a future starts_at, and a reload still shows
  * "Cancelar", which proves the page reads those times back as HH:MM); cancelling
  * leaves no row; a payment that ends today makes a class of another day say
- * "Tu membresía vence el"; deleting it brings the inactive message back. Then the
+ * "Tu membresía vence el" on its card and the notice goes away; deleting it brings
+ * the notice back. Then the
  * admin leg, before the account is deleted: while the member is no administrator
  * the menu has no "Admin" and /admin/members is the not-found page; the account
  * is promoted with SQL, the page is reloaded (the profile loads once per
@@ -895,15 +898,44 @@ function firstClassOf(schedule, weekday) {
 }
 
 // The first card of the column of a weekday on the public schedule, and what the
-// attendance control of that card can show.
+// attendance control of that card can show: the round toggle (named by the action it
+// performs) and, once the class is confirmed, the caption next to it.
 function firstCardOf(page, dayName) {
   const card = page.getByRole('region', { name: dayName }).getByRole('article').first();
   return {
     card,
     confirmButton: card.getByRole('button', { name: 'Confirmar asistencia' }),
     cancelButton: card.getByRole('button', { name: 'Cancelar asistencia' }),
-    inactive: card.getByText('Tu membresía no está activa.', { exact: true }),
+    caption: card.getByText('Vas a esta clase', { exact: true }),
   };
+}
+
+// A member whose membership is not active is told once, in a notice above the
+// schedule, and no longer on every card.
+const INACTIVE_NOTICE = 'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.';
+const inactiveNotice = (page) => page.getByRole('status').filter({ hasText: INACTIVE_NOTICE });
+
+// The toggle is a light round icon button: as wide and as tall as the tap target of
+// the site (4.4rem, that is 44px with the root at 62.5%), a circle, and with no
+// style attribute anywhere in the control (the CSP allows none).
+async function expectRoundToggle(page, toggle, step) {
+  const box = await toggle.boundingBox();
+  assert.ok(box, `${step}: el botón no tiene tamaño en la página`);
+  assert.ok(
+    box.width >= 44 && box.height >= 44,
+    `${step}: el botón mide ${box.width}x${box.height} y debe medir al menos 44x44 (4.4rem)`,
+  );
+  assert.equal(box.width, box.height, `${step}: el botón no es un círculo (${box.width}x${box.height})`);
+  assert.equal(
+    await toggle.evaluate((element) => getComputedStyle(element).borderRadius),
+    '50%',
+    `${step}: el botón no es redondo`,
+  );
+  assert.equal(
+    await page.locator('.attendance-control [style]').count(),
+    0,
+    `${step}: el control de asistencia tiene un atributo style`,
+  );
 }
 
 // The first card of the day's column is what the legs work with, so it must be the
@@ -940,7 +972,7 @@ async function memberAttendanceLeg(page) {
   const firstClass = firstClassOf(readSchedule(), weekday);
 
   const {
-    card, confirmButton, cancelButton, inactive,
+    card, confirmButton, cancelButton, caption,
   } = firstCardOf(page, dayName);
   const confirmationsOf = () => psql(
     `select count(*) from public.attendance_confirmations where member_id = '${userId}'`,
@@ -953,15 +985,30 @@ async function memberAttendanceLeg(page) {
     );
   };
 
-  console.log('Abriendo los horarios sin ningún pago: membresía inactiva y WhatsApp...');
+  console.log('Abriendo los horarios sin ningún pago: un solo aviso de membresía inactiva y WhatsApp...');
   await page.goto(`${SITE}/schedules`);
   await page.getByRole('heading', { level: 1, name: 'Horarios' }).waitFor();
   const start = await expectFirstClass(card, firstClass);
-  await inactive.waitFor();
+  await inactiveNotice(page).waitFor();
+  assert.equal(
+    await page.getByText(/Tu membresía no está activa/).count(),
+    1,
+    'el aviso de membresía inactiva no aparece una sola vez en la página',
+  );
+  assert.equal(
+    await inactiveNotice(page).getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
+    1,
+    'el aviso de membresía inactiva no ofrece el enlace de WhatsApp',
+  );
+  assert.equal(
+    await card.getByText(/Tu membresía/).count(),
+    0,
+    'la clase de un miembro inactivo repite el mensaje de membresía inactiva',
+  );
   assert.equal(
     await card.getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
-    1,
-    'la clase inactiva no ofrece el enlace de WhatsApp',
+    0,
+    'la clase de un miembro inactivo repite el enlace de WhatsApp',
   );
   assert.equal(
     await page.getByRole('button', { name: 'Confirmar asistencia' }).count(),
@@ -979,6 +1026,9 @@ async function memberAttendanceLeg(page) {
   await page.reload();
   await confirmButton.waitFor();
   await card.getByText(`Próxima clase: ${longDate(classDate)}`, { exact: true }).waitFor();
+  assert.equal(await inactiveNotice(page).count(), 0, 'un miembro con un pago ve el aviso de membresía inactiva');
+  assert.equal(await confirmButton.getAttribute('aria-pressed'), 'false', 'el botón sin confirmar está presionado');
+  await expectRoundToggle(page, confirmButton, 'el botón de confirmar');
   // What the real PostgREST was asked: the own rows only, from today, in order.
   const periodsResponse = await periodsRead;
   const periodsUrl = new URL(periodsResponse.url());
@@ -990,8 +1040,10 @@ async function memberAttendanceLeg(page) {
 
   console.log('Confirmando la asistencia...');
   await confirmButton.click();
-  await card.getByText('Confirmaste tu asistencia.', { exact: true }).waitFor();
+  await caption.waitFor();
   await cancelButton.waitFor();
+  assert.equal(await cancelButton.getAttribute('aria-pressed'), 'true', 'el botón confirmado no está presionado');
+  await expectRoundToggle(page, cancelButton, 'el botón de cancelar');
   assert.equal(await confirmationsOf(), '1', 'la confirmación no quedó en la base');
   // The database prints a time as HH:MM:SS, and the starts_at it computed is ahead.
   // Only the row of this class: another leg's confirmations are not this check's.
@@ -1008,12 +1060,14 @@ async function memberAttendanceLeg(page) {
   console.log('Recargando: la confirmación sigue (la hora HH:MM:SS se normaliza)...');
   await page.reload();
   await cancelButton.waitFor();
+  await caption.waitFor();
   assert.equal(await confirmButton.count(), 0, 'tras recargar, la clase confirmada ofrece confirmar');
   await expectNoLoadError('con la confirmación');
 
   console.log('Cancelando la asistencia...');
   await cancelButton.click();
   await confirmButton.waitFor();
+  assert.equal(await caption.count(), 0, 'la clase cancelada sigue diciendo que el miembro va');
   assert.equal(await confirmationsOf(), '0', 'la cancelación no borró la fila');
 
   console.log('Acortando el pago hasta hoy: una clase de otro día avisa cuándo vence...');
@@ -1021,12 +1075,16 @@ async function memberAttendanceLeg(page) {
   await page.reload();
   await card.getByText(`Tu membresía vence el ${longDate(today)}.`, { exact: true }).waitFor();
   assert.equal(await card.getByRole('button').count(), 0, 'una clase fuera del pago ofrece un botón');
+  // The member is active today, so the notice about the membership is not shown: the
+  // message of the card is about the class.
+  assert.equal(await inactiveNotice(page).count(), 0, 'un miembro activo hoy ve el aviso de membresía inactiva');
   await expectNoLoadError('con el pago acortado');
 
-  console.log('Borrando el pago: vuelve el mensaje de membresía inactiva...');
+  console.log('Borrando el pago: vuelve el aviso de membresía inactiva...');
   psql(`delete from public.paid_periods where member_id = '${userId}'`);
   await page.reload();
-  await inactive.waitFor();
+  await inactiveNotice(page).waitFor();
+  assert.equal(await card.getByText(/Tu membresía/).count(), 0, 'la clase repite el aviso de membresía inactiva');
   assert.equal(
     await page.getByRole('button', { name: 'Confirmar asistencia' }).count(),
     0,
@@ -1037,15 +1095,15 @@ async function memberAttendanceLeg(page) {
 // Administrators have free access to classes: the same card and the same button as
 // a member, with no paid period at all (the admin branch of the confirm_own policy,
 // migration 20261022120000). The account is an administrator here and has no
-// payment left, so the inactive message and the missing button of the member leg
-// are what must NOT happen. The class is the first one of the day `classDay` gives,
+// payment left, so the notice about the membership and the missing button of the
+// member leg are what must NOT happen. The class is the first one of the day `classDay` gives,
 // and the leg leaves no confirmation behind: the attendee list that follows
 // confirms the same class with SQL.
 async function adminFreeAccessLeg(page, userId) {
   const { weekday, dayName, classDate } = classDay();
   const firstClass = firstClassOf(readSchedule(), weekday);
   const {
-    card, confirmButton, cancelButton, inactive,
+    card, confirmButton, cancelButton, caption,
   } = firstCardOf(page, dayName);
   const rowsOfClass = () => psql(
     'select count(*) from public.attendance_confirmations '
@@ -1062,9 +1120,15 @@ async function adminFreeAccessLeg(page, userId) {
   await expectFirstClass(card, firstClass);
   await confirmButton.waitFor();
   await card.getByText(`Próxima clase: ${longDate(classDate)}`, { exact: true }).waitFor();
-  assert.equal(await inactive.count(), 0, 'un administrador sin pagos ve que su membresía no está activa');
+  // The toggle is there, so the data was read: the notice that is not there is not
+  // simply one that has not come yet.
   assert.equal(
-    await card.getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
+    await inactiveNotice(page).count(),
+    0,
+    'un administrador sin pagos ve que su membresía no está activa',
+  );
+  assert.equal(
+    await page.getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
     0,
     'un administrador sin pagos ve el enlace de WhatsApp para matricularse',
   );
@@ -1087,6 +1151,7 @@ async function adminFreeAccessLeg(page, userId) {
       `la confirmación del administrador sin pagos no se completó${await visibleAlerts(page)}`,
     );
   }
+  await caption.waitFor();
   assert.equal(rowsOfClass(), '1', 'la confirmación del administrador no quedó en la base');
   assert.equal(
     psql(
@@ -1101,6 +1166,7 @@ async function adminFreeAccessLeg(page, userId) {
   console.log('Recargando: la confirmación del administrador sigue...');
   await page.reload();
   await cancelButton.waitFor();
+  await caption.waitFor();
   assert.equal(await confirmButton.count(), 0, 'tras recargar, la clase confirmada ofrece confirmar');
 
   console.log('Cancelando la asistencia como administrador...');
