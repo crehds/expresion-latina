@@ -55,6 +55,12 @@ export default defineConfig(({ mode }) => {
       // DOM and no bundler, and must stay independent of this config.
       include: ['src/**/*.{test,spec}.{js,jsx}'],
       css: false,
+      // vitest 5.0.4+ hashes file contents for its on-disk module cache, and
+      // src/data/assets.js imports about 80 MB of media through
+      // import.meta.glob(?url), so the hash costs about 1.2 s per run and the
+      // tests that load a route lazily time out (AdminRoute.test.jsx waits 1 s
+      // for the not-found page).
+      fsModuleCache: false,
     },
   };
 });
