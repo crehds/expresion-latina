@@ -6,7 +6,6 @@ import {
   CONFIRMED,
   CONFIRM_ATTENDANCE,
   DATE_UNAVAILABLE,
-  INACTIVE_NOTICE,
   LEGEND_CANCEL_WORDS,
   LEGEND_CHECK_NAME,
   LEGEND_CROSS_NAME,
@@ -14,7 +13,6 @@ import {
   LEGEND_TOUCH,
   LOADING_ATTENDEES,
   MEMBERSHIP_MODAL_CLOSE,
-  MEMBERSHIP_MODAL_TEXT,
   MEMBERSHIP_MODAL_TITLE,
   MISMATCH_TITLE,
   NOT_COVERED,
@@ -28,6 +26,7 @@ import {
   attendeeCount,
   classDateText,
   expiresText,
+  membershipModalCopy,
   occurrenceLine,
 } from './attendanceCopy';
 
@@ -43,24 +42,61 @@ describe('attendanceCopy', () => {
     expect(RETRY).toBe('Reintentar');
   });
 
-  // The one notice above the schedule for a member whose membership is not active
-  // (a draft for the owner's review): it says so and invites to enrol, and the
-  // link to WhatsApp sits next to it.
-  it('has the notice for a member whose membership is not active', () => {
-    expect(INACTIVE_NOTICE).toBe(
-      'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.',
-    );
-  });
-
   // The prompt that a check opens for a member with no active membership, and the
   // legend above the schedule (drafts for the owner's review).
   it('has the texts of the prompt to enrol', () => {
     expect(MEMBERSHIP_MODAL_TITLE).toBe('Necesitas una membresía activa');
-    expect(MEMBERSHIP_MODAL_TEXT).toBe(
-      'Para confirmar tu asistencia, primero matricúlate. '
-      + 'Escríbenos por WhatsApp y te ayudamos con el pago.',
-    );
     expect(MEMBERSHIP_MODAL_CLOSE).toBe('Cerrar');
+  });
+
+  // The owner settled this copy (2026-10-22): "y te ayudamos con el pago" is gone, and the
+  // sentence about WhatsApp goes when the studio has no WhatsApp.
+  describe('membershipModalCopy', () => {
+    it('asks a member with no membership to enrol, and points to WhatsApp when there is a link', () => {
+      expect(membershipModalCopy({ kind: 'enrol' }, true)).toEqual({
+        title: 'Necesitas una membresía activa',
+        text: 'Para confirmar tu asistencia, primero matricúlate. Escríbenos por WhatsApp.',
+      });
+    });
+
+    it('drops the sentence about WhatsApp when there is no link', () => {
+      expect(membershipModalCopy({ kind: 'enrol' }, false)).toEqual({
+        title: 'Necesitas una membresía activa',
+        text: 'Para confirmar tu asistencia, primero matricúlate.',
+      });
+    });
+
+    // Option A (owner): an early start is something the member asks for and the admin does.
+    it('tells a member whose membership starts later the day it starts, and how to ask for an earlier one', () => {
+      expect(membershipModalCopy({ kind: 'starts-later', startsOn: '2026-11-03' }, true)).toEqual({
+        title: 'Tu membresía empieza el 3 de noviembre de 2026',
+        text: 'Si quieres empezar antes, escríbenos por WhatsApp.',
+      });
+    });
+
+    it('sends them to the academy when there is no WhatsApp link', () => {
+      expect(membershipModalCopy({ kind: 'starts-later', startsOn: '2026-11-03' }, false)).toEqual({
+        title: 'Tu membresía empieza el 3 de noviembre de 2026',
+        text: 'Si quieres empezar antes, acércate a la academia.',
+      });
+    });
+
+    it('writes the day as the same day in every zone, with no leading zero', () => {
+      expect(membershipModalCopy({ kind: 'starts-later', startsOn: '2027-01-01' }, true).title)
+        .toBe('Tu membresía empieza el 1 de enero de 2027');
+    });
+
+    it.each(['soon', '', null, undefined, '2026-02-30'])(
+      'falls back to the plain invitation when the day %j cannot be written',
+      (startsOn) => {
+        expect(membershipModalCopy({ kind: 'starts-later', startsOn }, true))
+          .toEqual(membershipModalCopy({ kind: 'enrol' }, true));
+      },
+    );
+
+    it.each([null, undefined])('is the plain invitation for no prompt (%s)', (prompt) => {
+      expect(membershipModalCopy(prompt, true).title).toBe('Necesitas una membresía activa');
+    });
   });
 
   it('has the words of the legend, which the two icons are drawn between', () => {

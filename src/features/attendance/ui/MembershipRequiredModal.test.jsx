@@ -10,18 +10,21 @@ import MembershipRequiredModal from './MembershipRequiredModal';
 const USER = '0b1a4c6e-7d52-4f0a-9d3e-2c5f8a1b7e90';
 const WHATSAPP = 'https://wa.me/51960507583';
 const TITLE = 'Necesitas una membresía activa';
-const TEXT = 'Para confirmar tu asistencia, primero matricúlate. '
-  + 'Escríbenos por WhatsApp y te ayudamos con el pago.';
+const TEXT = 'Para confirmar tu asistencia, primero matricúlate. Escríbenos por WhatsApp.';
+const TEXT_WITHOUT_LINK = 'Para confirmar tu asistencia, primero matricúlate.';
+
+// Tuesday 2026-10-20, 10:00 in Lima: what the prompt judges the periods against.
+const NOW = new Date('2026-10-20T15:00:00Z');
 
 const ok = (data) => ({ ok: true, data });
 
-const services = () => ({
+const services = (periods = []) => ({
   attendance: {
     listOwnConfirmations: vi.fn(async () => ok([])),
     confirm: vi.fn(async () => ok(null)),
     cancel: vi.fn(async () => ok(null)),
   },
-  membership: { listOwnPeriods: vi.fn(async () => ok([])) },
+  membership: { listOwnPeriods: vi.fn(async () => ok(periods)) },
 });
 
 const session = { status: 'signed-in', session: { userId: USER }, profile: { id: USER, isAdmin: false } };
@@ -41,7 +44,9 @@ function Opener({ second = false }) {
 
 Opener.propTypes = { second: PropTypes.bool };
 
-async function renderModal({ whatsappLink = WHATSAPP, backend = services(), second = false } = {}) {
+async function renderModal({
+  whatsappLink = WHATSAPP, periods = [], backend = services(periods), second = false,
+} = {}) {
   const view = render(
     <BackendContext.Provider value={{ enabled: true, services: backend }}>
       <SessionContext.Provider value={session}>
@@ -62,6 +67,17 @@ const open = async (user) => {
 const dialog = () => screen.getByRole('dialog');
 
 describe('MembershipRequiredModal', () => {
+  // Only the date is judged against the clock, so the clock is fixed and the timers stay
+  // real for the focus and the keys.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('draws nothing while it is closed, not even the host of the portal', async () => {
     await renderModal();
 
@@ -95,14 +111,79 @@ describe('MembershipRequiredModal', () => {
       expect(link).toHaveAttribute('rel', 'noreferrer');
     });
 
-    it('shows the text without the link when the studio has no WhatsApp', async () => {
+    it('shows the text without the link, and without the sentence about WhatsApp, when the studio has none', async () => {
       const user = userEvent.setup();
       await renderModal({ whatsappLink: null });
 
       await open(user);
 
-      expect(screen.getByText(TEXT)).toBeInTheDocument();
+      expect(screen.getByText(TEXT_WITHOUT_LINK)).toBeInTheDocument();
+      expect(screen.queryByText(/WhatsApp/)).toBeNull();
       expect(screen.queryByRole('link')).toBeNull();
+    });
+
+    it('no longer promises help with the payment (the owner took that out)', async () => {
+      const user = userEvent.setup();
+      await renderModal();
+
+      await open(user);
+
+      expect(dialog()).not.toHaveTextContent('pago');
+    });
+
+    // Option A (owner): a member whose membership starts later asks for an earlier start,
+    // and the admin moves the dates. The same dialog says so.
+    describe('for a member whose membership starts later', () => {
+      const LATER = [{ startsOn: '2026-11-03', endsOn: '2026-12-02' }];
+      const STARTS = 'Tu membresía empieza el 3 de noviembre de 2026';
+
+      it('says the day it starts, in the title, and how to ask for an earlier start', async () => {
+        const user = userEvent.setup();
+        await renderModal({ periods: LATER });
+
+        await open(user);
+
+        expect(dialog()).toHaveAccessibleName(STARTS);
+        expect(screen.getByRole('heading', { level: 2, name: STARTS })).toBeInTheDocument();
+        expect(dialog()).toHaveAccessibleDescription('Si quieres empezar antes, escríbenos por WhatsApp.');
+        expect(screen.getByRole('link', { name: 'Escríbenos por WhatsApp' }))
+          .toHaveAttribute('href', WHATSAPP);
+        expect(screen.queryByText(/Necesitas una membresía activa/)).toBeNull();
+      });
+
+      it('sends them to the academy when the studio has no WhatsApp', async () => {
+        const user = userEvent.setup();
+        await renderModal({ periods: LATER, whatsappLink: null });
+
+        await open(user);
+
+        expect(dialog()).toHaveAccessibleName(STARTS);
+        expect(screen.getByText('Si quieres empezar antes, acércate a la academia.')).toBeInTheDocument();
+        expect(screen.queryByRole('link')).toBeNull();
+      });
+
+      it('gives the earliest start when there are several', async () => {
+        const user = userEvent.setup();
+        await renderModal({
+          periods: [
+            { startsOn: '2026-12-10', endsOn: '2027-01-09' },
+            { startsOn: '2026-11-03', endsOn: '2026-12-02' },
+          ],
+        });
+
+        await open(user);
+
+        expect(dialog()).toHaveAccessibleName(STARTS);
+      });
+
+      it('asks to enrol, as before, when the only periods are past ones', async () => {
+        const user = userEvent.setup();
+        await renderModal({ periods: [{ startsOn: '2026-08-01', endsOn: '2026-09-30' }] });
+
+        await open(user);
+
+        expect(dialog()).toHaveAccessibleName(TITLE);
+      });
     });
 
     it('moves the focus inside, to the close button', async () => {
@@ -190,7 +271,7 @@ describe('MembershipRequiredModal', () => {
         await renderModal({ whatsappLink: null });
         await open(user);
 
-        await user.click(screen.getByText(TEXT));
+        await user.click(screen.getByText(TEXT_WITHOUT_LINK));
         await user.tab();
         expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
         await user.tab();

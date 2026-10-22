@@ -3,13 +3,13 @@ import { useEffect, useId, useRef } from 'react';
 
 import Modal from '../../../components/Modal/Modal';
 import { useAttendance } from '../composition/AttendanceProvider';
+import { membershipPrompt } from '../domain/rules';
 import { CrossIcon } from './AttendanceIcons';
 import {
   MEMBERSHIP_MODAL_CLOSE,
   MEMBERSHIP_MODAL_SCRIM,
-  MEMBERSHIP_MODAL_TEXT,
-  MEMBERSHIP_MODAL_TITLE,
   WHATSAPP_LINK_TEXT,
+  membershipModalCopy,
 } from './attendanceCopy';
 
 import './css/membership-modal.css';
@@ -19,9 +19,12 @@ const FOCUSABLE = 'a[href], button:not([disabled])';
 // The dialog itself, mounted only while it is open, so everything it does on the way
 // in (take the focus) and out (give it back, stop listening for keys) is its mount
 // and its unmount.
-function Dialog({ whatsappLink = null, opener = null, onClose }) {
+function Dialog({
+  whatsappLink = null, opener = null, prompt = null, onClose,
+}) {
   const titleId = useId();
   const textId = useId();
+  const { title, text } = membershipModalCopy(prompt, Boolean(whatsappLink));
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
   // What had the focus when it opened, for a tap that left it nowhere (a browser
@@ -101,10 +104,8 @@ function Dialog({ whatsappLink = null, opener = null, onClose }) {
         >
           <CrossIcon className="attendance-icon--close" />
         </button>
-        <h2 className="heading-sm membership-modal__title" id={titleId}>
-          {MEMBERSHIP_MODAL_TITLE}
-        </h2>
-        <p className="text-md membership-modal__text" id={textId}>{MEMBERSHIP_MODAL_TEXT}</p>
+        <h2 className="heading-sm membership-modal__title" id={titleId}>{title}</h2>
+        <p className="text-md membership-modal__text" id={textId}>{text}</p>
         {whatsappLink && (
           <a
             className="text-md membership-modal__link"
@@ -123,11 +124,14 @@ function Dialog({ whatsappLink = null, opener = null, onClose }) {
 Dialog.propTypes = {
   whatsappLink: PropTypes.string,
   opener: PropTypes.instanceOf(Element),
+  prompt: PropTypes.shape({ kind: PropTypes.string, startsOn: PropTypes.string }),
   onClose: PropTypes.func.isRequired,
 };
 
 /**
- * The prompt for a member who needs a membership to confirm (F2b). It opens when the
+ * The prompt for a member who needs a membership to confirm (F2b). It says one of two
+ * things (`membershipPrompt`): that they have to enrol, or that their membership starts
+ * on a day and that an earlier start is asked for (the admin moves the dates). It opens when the
  * check of a card is tapped by a member with no active membership, and when a confirm
  * that the database refuses is followed by a fresh read that shows the membership
  * lapsed, so the checks never vanish under a finger. It asks the member to enrol and
@@ -140,13 +144,26 @@ Dialog.propTypes = {
  * once on the page, inside the attendance provider, which holds whether it is open.
  */
 function MembershipRequiredModal({ whatsappLink = null }) {
-  const { promptOpen, promptOpener, closePrompt } = useAttendance();
+  const {
+    promptOpen, promptOpener, closePrompt, membership, now, isAdmin,
+  } = useAttendance();
 
   if (!promptOpen) {
     return null;
   }
 
-  return <Dialog whatsappLink={whatsappLink} opener={promptOpener} onClose={closePrompt} />;
+  // What it says depends on the periods held now: no membership at all, or one that
+  // starts later. The periods were just read when a refused confirm opened it.
+  const prompt = membershipPrompt({ membership, now, isAdmin });
+
+  return (
+    <Dialog
+      whatsappLink={whatsappLink}
+      opener={promptOpener}
+      prompt={prompt}
+      onClose={closePrompt}
+    />
+  );
 }
 
 MembershipRequiredModal.propTypes = { whatsappLink: PropTypes.string };

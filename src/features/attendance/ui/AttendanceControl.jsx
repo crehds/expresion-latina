@@ -39,8 +39,8 @@ WhatsappLink.propTypes = { href: PropTypes.string };
  * - `uncovered`: the membership runs out before this class, with the last day it
  *   covers and the link to WhatsApp, when there is one;
  * - anything else (`hidden`, `started`): nothing. A membership that is not active
- *   today is said once, above the schedule (InactiveMembershipNotice), and a card
- *   does not repeat it.
+ *   today is said by the prompt that a tap on the check opens, and a card does not
+ *   repeat it.
  *
  * The toggle has no text. Its accessible name is the action it performs, so it
  * changes with the state ("Confirmar asistencia", "Cancelar asistencia"), and

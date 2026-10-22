@@ -150,8 +150,9 @@ update public.profiles set is_admin = true where id = (
   an administrator with no payment at all, it then confirms and cancels the
   first class of a day on the public schedule (administrators have free
   access to classes). Before that, as a member, it taps the check with no
-  payment (a dialog asks to enrol and nothing is written) and again on a page
-  that was loaded while the payment existed and lost it. Last
+  payment (a dialog asks to enrol and nothing is written), with a payment that
+  starts later (the dialog says the day), and again on a page that was loaded while
+  the payment existed and lost it. Last
   it drives the account page: the menu shows "Mi cuenta" and no "Ingresar",
   the page shows the name, the email and the consent on record, "Cerrar
   sesión" brings "Ingresar" back, a new sign-in reaches the page again, and
@@ -279,27 +280,27 @@ of Studio (`http://127.0.0.1:34323`).
 
 ### Manual checklist (attendance on the schedule)
 
-The member leg of `npm run test:e2e:auth` runs steps 1 to 8 against the real
-stack (step 9 is its admin leg), except two that only unit tests cover
+The member leg of `npm run test:e2e:auth` runs steps 1 to 9 against the real
+stack (step 10 is its admin leg), except two that only unit tests cover
 (`src/pages/Schedules/Schedules.attendance.test.jsx`): the signed-out page in
 step 1 and the rehearsal in step 2. Do it by hand after changing the attendance
 controls, the schedule page
 or the `attendance_confirmations` table. Start the stack and the app as above and
 sign a member up through the app, and do not make them an administrator before
-step 9 (an administrator's policies read everyone's rows, which hides a missing
+step 10 (an administrator's policies read everyone's rows, which hides a missing
 filter).
 Open `/schedules` on a wide window and look at the first class of a weekday that
 is not today (in Lima). Run the SQL in the SQL editor of Studio.
 
-1. **No payment.** One notice above the schedule says "Tu membresía no está
-   activa. Matricúlate para confirmar tu asistencia a las clases." with the link
-   "Escríbenos por WhatsApp". Under it a legend says "Toca ✓ para confirmar tu
-   asistencia y ✕ para cancelarla." with the two icons drawn. Every class has the
-   same round button with a check as anyone's, and the cards have no message of
-   their own. Press one: a dialog opens, "Necesitas una membresía activa" with the
-   same WhatsApp link, and nothing is written to the database. Escape, "Cerrar" and
-   a click outside close it, and the focus goes back to the button. Signed out,
-   the page is the same as ever: no notice, no legend and no button.
+1. **No payment.** The page has no notice about the membership. A legend above
+   the schedule says "Toca ✓ para confirmar tu asistencia y ✕ para cancelarla." with
+   the two icons drawn. Every class has the same round button with a check as
+   anyone's, and the cards have no message of their own. Press one: a dialog opens,
+   "Necesitas una membresía activa" with the text "Para confirmar tu asistencia,
+   primero matricúlate. Escríbenos por WhatsApp." and the button "Escríbenos por
+   WhatsApp", and nothing is written to the database. Escape, "Cerrar" and a click
+   outside close it, and the focus goes back to the button. Signed out, the page is
+   the same as ever: no legend and no button.
 2. **Record a payment** that covers today and the next month, and reload:
 
    ```sql
@@ -308,7 +309,7 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    from auth.users where email = '...';
    ```
 
-   The notice is gone and the legend stays. The class shows "Próxima clase: ..."
+   The legend stays. The class shows "Próxima clase: ..."
    with its date and, at the right of the card, a light round button with a check
    whose name is "Confirmar asistencia" (it has no visible text; hover it or use a
    screen reader to read it). A rehearsal ("Ensayo Elenco") shows neither a button
@@ -338,9 +339,9 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    ```
 
    Press the check without reloading. The database refuses the confirm, and the
-   dialog "Necesitas una membresía activa" opens: the checks stay on every card, no
-   error is shown, and the notice above the schedule appears. Close the dialog and
-   record the payment again (step 2) to go on.
+   dialog "Necesitas una membresía activa" opens: the checks stay on every card and
+   no error is shown. Close the dialog and record the payment again (step 2) to go
+   on.
 
 7. **Shorten the payment** to end today and reload:
 
@@ -350,23 +351,39 @@ is not today (in Lima). Run the SQL in the SQL editor of Studio.
    ```
 
    A class of another day says "Tu membresía vence el ..." with today, and has
-   no button. The notice above the schedule is not shown: the member is active
-   today.
+   no button. The member is active today, so nothing else says anything about
+   the membership.
 
-8. **Delete the payment** and reload: the notice above the schedule is back, and
-   the checks are back on the cards (a class that was already confirmed keeps its
-   X, which still cancels).
-9. **Administrator.** Make the member an administrator (step 1 of "Manual
-   checklist (admin area)") and reload `/schedules` with still no payment: the
-   class shows the "Confirmar asistencia" button, with the legend, and there is no
-   notice about the membership and no dialog when the button is pressed.
-   Confirming and cancelling work as in steps 3 to 5, because administrators
-   have free access to classes (the `confirm_own` policy lets `private.is_admin()`
-   through its last clause). The window of seven days, the start of the class
-   and the recorded consent still apply to them. Take the role away
-   (`update public.profiles set is_admin = false ...`) and reload: the notice
-   is back, and the buttons open the dialog again.
-10. **Clean up.** Delete the test member
+8. **Delete the payment** and reload: the checks are back on the cards, and
+   pressing one opens the dialog of step 1 (a class that was already confirmed keeps
+   its X, which still cancels).
+9. **A payment that starts later.** With no payment that covers today, record one
+   that starts in ten days:
+
+   ```sql
+   insert into public.paid_periods (member_id, starts_on, ends_on)
+   select id, private.lima_today() + 10, private.lima_today() + 40
+   from auth.users where email = '...';
+   ```
+
+   Reload and press a check: the dialog says "Tu membresía empieza el ..." with that
+   day (for example "3 de noviembre de 2026") and "Si quieres empezar antes,
+   escríbenos por WhatsApp.", with the same button. An earlier start is something
+   the member asks for and the administrator does, by editing the dates of the
+   payment on the member's page. Several later payments give the earliest start.
+   Delete the payment to go on.
+
+10. **Administrator.** Make the member an administrator (step 1 of "Manual
+    checklist (admin area)") and reload `/schedules` with still no payment: the
+    class shows the "Confirmar asistencia" button, with the legend, and there is no
+    dialog when the button is pressed.
+    Confirming and cancelling work as in steps 3 to 5, because administrators
+    have free access to classes (the `confirm_own` policy lets `private.is_admin()`
+    through its last clause). The window of seven days, the start of the class
+    and the recorded consent still apply to them. Take the role away
+    (`update public.profiles set is_admin = false ...`) and reload: the buttons
+    open the dialog again.
+11. **Clean up.** Delete the test member
     (`delete from auth.users where email = '...'`): their profile, payments and
     confirmations go with it.
 

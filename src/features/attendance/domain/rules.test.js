@@ -1,4 +1,4 @@
-import { controlState, isMembershipInactive } from './rules';
+import { controlState, membershipPrompt } from './rules';
 import { occurrenceKey } from './occurrences';
 
 const NOW = new Date('2026-09-28T12:00:00Z'); // Lima today: 2026-09-28
@@ -274,62 +274,93 @@ describe('controlState for an administrator', () => {
   });
 });
 
-// The notice above the schedule (one place, instead of a message on every card):
-// who it is for is decided here, in Lima time like the card states.
-describe('isMembershipInactive', () => {
-  const inactive = (overrides = {}) => isMembershipInactive({
+// What the prompt for a member with no active membership says: who gets it, and which
+// of its two forms. Decided here, in Lima time like the card states.
+describe('membershipPrompt', () => {
+  const prompt = (overrides = {}) => membershipPrompt({
     membership: { periods: [] },
     now: NOW,
     isAdmin: false,
     ...overrides,
   });
+  const withPeriods = (...periods) => ({ membership: { periods } });
 
-  it('is true for a member with no paid period at all', () => {
-    expect(inactive()).toBe(true);
+  it('asks the member to enrol when there is no paid period at all', () => {
+    expect(prompt()).toEqual({ kind: 'enrol' });
   });
 
-  it('is true when every period ended before today in Lima', () => {
-    expect(inactive({ membership: { periods: [period('2026-08-01', '2026-09-27')] } })).toBe(true);
+  it('asks the member to enrol when every period ended before today in Lima', () => {
+    expect(prompt(withPeriods(period('2026-08-01', '2026-09-27')))).toEqual({ kind: 'enrol' });
+    expect(prompt(withPeriods(
+      period('2026-07-01', '2026-07-31'),
+      period('2026-08-01', '2026-09-27'),
+    ))).toEqual({ kind: 'enrol' });
   });
 
-  it('is true when the only period has not started yet', () => {
-    expect(inactive({ membership: { periods: [period('2026-09-29', '2026-10-31')] } })).toBe(true);
+  it('says when the membership starts when the only period starts later', () => {
+    expect(prompt(withPeriods(period('2026-11-03', '2026-12-02'))))
+      .toEqual({ kind: 'starts-later', startsOn: '2026-11-03' });
   });
 
-  it('is false when a period covers today, at both ends of it', () => {
-    expect(inactive({ membership: { periods: [period('2026-09-01', '2026-10-31')] } })).toBe(false);
-    expect(inactive({ membership: { periods: [period('2026-09-28', '2026-09-28')] } })).toBe(false);
+  it('gives the day after today as a start that has not come yet, and today as no prompt', () => {
+    expect(prompt(withPeriods(period('2026-09-29', '2026-10-28'))))
+      .toEqual({ kind: 'starts-later', startsOn: '2026-09-29' });
+    expect(prompt(withPeriods(period('2026-09-28', '2026-10-27')))).toBeNull();
   });
 
-  // The notice is about the membership today, not about one class: a member whose
-  // period ends before a later class still gets that card's own message.
-  it('is false for a member who is active today, however soon the period ends', () => {
-    expect(inactive({ membership: { periods: [period('2026-09-01', '2026-09-28')] } })).toBe(false);
+  it('gives the earliest start when several periods start later, whatever their order', () => {
+    expect(prompt(withPeriods(
+      period('2026-12-10', '2027-01-09'),
+      period('2026-11-03', '2026-12-02'),
+      period('2027-02-01', '2027-02-28'),
+    ))).toEqual({ kind: 'starts-later', startsOn: '2026-11-03' });
+  });
+
+  it('ignores the past periods when a later one exists', () => {
+    expect(prompt(withPeriods(
+      period('2026-07-01', '2026-07-31'),
+      period('2026-10-05', '2026-11-04'),
+    ))).toEqual({ kind: 'starts-later', startsOn: '2026-10-05' });
+  });
+
+  it('gives no prompt when a period covers today, at both ends of it', () => {
+    expect(prompt(withPeriods(period('2026-09-01', '2026-10-31')))).toBeNull();
+    expect(prompt(withPeriods(period('2026-09-28', '2026-09-28')))).toBeNull();
+    expect(prompt(withPeriods(period('2026-09-01', '2026-09-28')))).toBeNull();
+  });
+
+  it('gives no prompt when a period covers today, even if another one starts later', () => {
+    expect(prompt(withPeriods(
+      period('2026-09-01', '2026-09-30'),
+      period('2026-11-03', '2026-12-02'),
+    ))).toBeNull();
   });
 
   it('counts today on the Lima calendar, not the UTC one', () => {
     // 2026-09-29T03:00Z is still the evening of the 28th in Lima.
     const lateEvening = new Date('2026-09-29T03:00:00Z');
-    const periods = [period('2026-09-28', '2026-09-28')];
+    const periods = [period('2026-09-28', '2026-09-28'), period('2026-09-29', '2026-10-28')];
 
-    expect(inactive({ now: lateEvening, membership: { periods } })).toBe(false);
-    // One day later in Lima the same period is over.
-    expect(inactive({ now: new Date('2026-09-29T06:00:00Z'), membership: { periods } })).toBe(true);
+    expect(prompt({ now: lateEvening, membership: { periods } })).toBeNull();
+    // One day later in Lima the first period is over and the second one covers today.
+    expect(prompt({ now: new Date('2026-09-29T06:00:00Z'), membership: { periods } })).toBeNull();
+    expect(prompt({
+      now: new Date('2026-09-29T03:00:00Z'),
+      membership: { periods: [period('2026-09-29', '2026-10-28')] },
+    })).toEqual({ kind: 'starts-later', startsOn: '2026-09-29' });
   });
 
-  it('is false for an administrator, with or without periods', () => {
-    expect(inactive({ isAdmin: true })).toBe(false);
-    expect(inactive({
-      isAdmin: true, membership: { periods: [period('2026-08-01', '2026-09-01')] },
-    })).toBe(false);
+  it('gives no prompt to an administrator, with or without periods', () => {
+    expect(prompt({ isAdmin: true })).toBeNull();
+    expect(prompt({ isAdmin: true, ...withPeriods(period('2026-11-03', '2026-12-02')) })).toBeNull();
   });
 
   it('reads only the exact true as an administrator', () => {
-    expect(inactive({ isAdmin: 'true' })).toBe(true);
-    expect(inactive({ isAdmin: undefined })).toBe(true);
+    expect(prompt({ isAdmin: 'true' })).toEqual({ kind: 'enrol' });
+    expect(prompt({ isAdmin: undefined })).toEqual({ kind: 'enrol' });
   });
 
-  it.each([null, undefined])('is false without membership data (%s): a visitor, or data not read yet', (membership) => {
-    expect(inactive({ membership })).toBe(false);
+  it.each([null, undefined])('gives no prompt without membership data (%s): a visitor, or data not read yet', (membership) => {
+    expect(prompt({ membership })).toBeNull();
   });
 });

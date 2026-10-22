@@ -17,18 +17,12 @@ export const CANCEL_ATTENDANCE = 'Cancelar asistencia';
 // The caption next to the toggle of a class the member has confirmed.
 export const CONFIRMED = 'Vas a esta clase';
 
-// The one notice above the schedule for a signed-in member whose membership is not
-// active today. It says so and invites to enrol; the link to WhatsApp that goes with
-// it is WHATSAPP_LINK_TEXT. The wording is a draft for the owner's review.
-export const INACTIVE_NOTICE = 'Tu membresía no está activa. '
-  + 'Matricúlate para confirmar tu asistencia a las clases.';
-
 // The prompt that the check of a card opens for a member with no active membership,
-// and that a refused confirm opens when the membership turns out to have lapsed. The
-// wording is a draft for the owner's review, like the notice above.
+// and that a refused confirm opens when the membership turns out to have lapsed. It is
+// the only place that says so: the notice above the schedule is gone ("Con el modal, el
+// texto ya no iría", owner). The wording of the plain invitation is the owner's; the
+// one for a membership that starts later is a draft for the owner's review.
 export const MEMBERSHIP_MODAL_TITLE = 'Necesitas una membresía activa';
-export const MEMBERSHIP_MODAL_TEXT = 'Para confirmar tu asistencia, primero matricúlate. '
-  + 'Escríbenos por WhatsApp y te ayudamos con el pago.';
 export const MEMBERSHIP_MODAL_CLOSE = 'Cerrar';
 export const MEMBERSHIP_MODAL_SCRIM = 'Cerrar aviso';
 
@@ -40,12 +34,49 @@ export const LEGEND_CONFIRM_WORDS = 'para confirmar tu asistencia y';
 export const LEGEND_CANCEL_WORDS = 'para cancelarla.';
 export const LEGEND_CHECK_NAME = 'el check';
 export const LEGEND_CROSS_NAME = 'la equis';
+
 // A member who is active today but whose periods stop before this class, when the
 // day they stop cannot be written.
 export const NOT_COVERED = 'Tu membresía no cubre esta clase.';
 export const WHATSAPP_LINK_TEXT = 'Escríbenos por WhatsApp';
 
 export const ALREADY_STARTED = 'Esta clase ya empezó.';
+
+/**
+ * The title and the text of the prompt for a member with no active membership, from
+ * what `membershipPrompt` decided and whether the studio has a WhatsApp link.
+ *
+ * - `enrol`: "Necesitas una membresía activa", and to enrol ("Escríbenos por WhatsApp."
+ *   goes when there is a link, and only then);
+ * - `starts-later`: the membership starts on a day, and an earlier start is asked for
+ *   (option A, the owner's: the member asks and the admin moves the dates), by
+ *   WhatsApp or, with no link, at the academy.
+ *
+ * The day is written like every day the app writes for a member, a calendar day that
+ * reads the same in every zone. A day that cannot be written, or no prompt at all,
+ * gives the plain invitation.
+ *
+ * @param {{kind: string, startsOn?: string}|null|undefined} prompt
+ * @param {boolean} hasLink
+ * @returns {{title: string, text: string}}
+ */
+export function membershipModalCopy(prompt, hasLink) {
+  const startsOn = prompt?.kind === 'starts-later' ? formatDateOnlyOrNull(prompt.startsOn) : null;
+  if (startsOn !== null) {
+    return {
+      title: `Tu membresía empieza el ${startsOn}`,
+      text: hasLink
+        ? 'Si quieres empezar antes, escríbenos por WhatsApp.'
+        : 'Si quieres empezar antes, acércate a la academia.',
+    };
+  }
+  return {
+    title: MEMBERSHIP_MODAL_TITLE,
+    text: hasLink
+      ? 'Para confirmar tu asistencia, primero matricúlate. Escríbenos por WhatsApp.'
+      : 'Para confirmar tu asistencia, primero matricúlate.',
+  };
+}
 
 /** Which class the control is about, or null when its date cannot be written. */
 export function classDateText(isoDate) {

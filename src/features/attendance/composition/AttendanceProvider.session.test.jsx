@@ -4,8 +4,8 @@
 // AttendanceProvider takes `isAdmin` from the session profile, but its readiness
 // waits only for its own two reads (the periods and the confirmations). That is
 // enough, and this file pins why, so that nobody breaks it by accident: an
-// administrator must never meet the inactive state of a member, which the notice
-// above the schedule says in words, while the profile is still on its way.
+// administrator must never meet the inactive state of a member (the prompt to enrol
+// that a tap on a check opens) while the profile is still on its way.
 //
 // - SessionProvider turns `signed-in` in the same state that holds the profile it
 //   has read (loadProfile, which awaits getOwnProfile before it sets anything), so
@@ -17,12 +17,15 @@
 //
 // Only the auth adapter, the attendance adapter and the membership adapter are
 // fakes; the session provider and everything above it are the real ones.
-import { act, render, screen } from '@testing-library/react';
+import {
+  act, fireEvent, render, screen,
+} from '@testing-library/react';
 import { useEffect } from 'react';
 
 import BackendContext from '../../../shared/backend/BackendContext';
 import { SessionProvider, useSession } from '../../accounts/composition/SessionProvider';
-import InactiveMembershipNotice from '../ui/InactiveMembershipNotice';
+import { membershipPrompt } from '../domain/rules';
+import MembershipRequiredModal from '../ui/MembershipRequiredModal';
 import SessionAttendance from '../ui/SessionAttendance';
 import AttendanceProvider, { useAttendance } from './AttendanceProvider';
 
@@ -35,8 +38,6 @@ const MEMBER_PROFILE = {
   isAdmin: false,
 };
 const ADMIN_PROFILE = { ...MEMBER_PROFILE, isAdmin: true };
-
-const INACTIVE = 'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.';
 
 // Tuesday 2026-10-20, 10:00 in Lima (UTC-05:00); the next Monday class is on the 26th.
 const NOW = new Date('2026-10-20T15:00:00Z');
@@ -87,6 +88,10 @@ function Probe() {
     hasProfile: session.profile !== null,
     ready: attendance.ready,
     isAdmin: attendance.isAdmin,
+    // What the prompt to enrol would say to this viewer, in this very render.
+    prompt: membershipPrompt({
+      membership: attendance.membership, now: attendance.now, isAdmin: attendance.isAdmin,
+    }),
   });
   return null;
 }
@@ -124,8 +129,8 @@ async function renderTree(services) {
         <AttendanceProvider>
           <Starter />
           <Probe />
-          <InactiveMembershipNotice whatsappLink="https://wa.me/51960507583" />
           <SessionAttendance session={MONDAY} whatsappLink="https://wa.me/51960507583" />
+          <MembershipRequiredModal whatsappLink="https://wa.me/51960507583" />
         </AttendanceProvider>
       </SessionProvider>
     </BackendContext.Provider>,
@@ -197,30 +202,39 @@ describe('the administrator flag with the real session provider', () => {
       expect(snapshots.filter((one) => one.status === 'signed-in' && !one.hasProfile)).toEqual([]);
     });
 
-    it('never draws the notice about the membership, not even for one render', async () => {
+    it('never has a prompt to enrol, not even for one render, and a tap opens none', async () => {
       const { container, drawn } = await adminWhoseProfileArrivesLate();
 
+      expect(snapshots.some((one) => one.ready)).toBe(true);
+      expect(snapshots.filter((one) => one.prompt !== null)).toEqual([]);
       expect(container).not.toHaveTextContent('Tu membresía');
       expect(drawn.stop().filter((text) => text.includes('Tu membresía'))).toEqual([]);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
+      await act(async () => {});
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
   });
 
-  // The counterpart: the same tree with a member shows the notice, so the absence
-  // above is not an artefact of the page failing to draw anything.
+  // The counterpart: the same tree with a member has the prompt, so the absence above
+  // is not an artefact of the page failing to draw anything.
   describe('for a member with no paid period', () => {
-    it('draws the notice once the data is ready, and in no render before', async () => {
+    it('has the prompt once the data is ready, in no render before, and a tap opens it', async () => {
       const profile = deferred();
       const services = fakeServices([profile.promise]);
       const { drawn } = await renderTree(services);
-      expect(screen.queryByText(INACTIVE)).toBeNull();
+      expect(snapshots.filter((one) => one.prompt !== null)).toEqual([]);
 
       await act(async () => { profile.resolve(ok(MEMBER_PROFILE)); });
 
-      expect(screen.getByText(INACTIVE)).toBeInTheDocument();
       expect(snapshots.filter((one) => one.ready && one.isAdmin)).toEqual([]);
-      expect(drawn.stop().filter((text) => text.includes('Tu membresía'))).not.toEqual([]);
+      expect(snapshots.filter((one) => !one.ready && one.prompt !== null)).toEqual([]);
+      expect(snapshots.some((one) => one.ready && one.prompt?.kind === 'enrol')).toBe(true);
       // The member sees the check like everyone: tapping it asks them to enrol.
-      expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeEnabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
+      await act(async () => {});
+      expect(screen.getByRole('dialog', { name: 'Necesitas una membresía activa' })).toBeInTheDocument();
+      drawn.stop();
     });
   });
 
@@ -229,14 +243,14 @@ describe('the administrator flag with the real session provider', () => {
       const refreshed = deferred();
       const services = fakeServices([Promise.resolve(ok(MEMBER_PROFILE)), refreshed.promise]);
       const { drawn } = await renderTree(services);
-      expect(screen.getByText(INACTIVE)).toBeInTheDocument();
+      expect(snapshots.at(-1).prompt).toEqual({ kind: 'enrol' });
 
       let refreshing;
       await act(async () => { refreshing = seen.current.refresh(); });
       // Still the member of before: the session never goes through "no profile".
       expect(seen.current.status).toBe('signed-in');
       expect(seen.current.profile.isAdmin).toBe(false);
-      expect(screen.getByText(INACTIVE)).toBeInTheDocument();
+      expect(snapshots.at(-1).prompt).toEqual({ kind: 'enrol' });
 
       await act(async () => {
         refreshed.resolve(ok(ADMIN_PROFILE));
@@ -244,7 +258,7 @@ describe('the administrator flag with the real session provider', () => {
       });
 
       expect(seen.current.profile.isAdmin).toBe(true);
-      expect(screen.queryByText(INACTIVE)).toBeNull();
+      expect(snapshots.at(-1).prompt).toBeNull();
       expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeEnabled();
       expect(snapshots.filter((one) => one.status === 'signed-in' && !one.hasProfile)).toEqual([]);
       drawn.stop();

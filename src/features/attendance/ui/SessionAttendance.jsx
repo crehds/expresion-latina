@@ -23,9 +23,9 @@ const REHEARSAL = 'rehearsal';
  * element that was tapped goes along only so that the focus can return to it if a
  * prompt opens, and the card never reads anything else from the click.
  *
- * A membership that is not active is said once, above the schedule
- * (InactiveMembershipNotice), and the card of such a member shows the same check as
- * everyone's: tapping it opens the prompt to enrol and calls no server. An
+ * A membership that is not active is said by the prompt, and the card of such a
+ * member shows the same check as everyone's: tapping it opens the prompt to enrol
+ * (or says when the membership starts) and calls no server. An
  * administrator has free access to classes, so their card is the same as a member's
  * with a paid period (the provider tells whether the viewer is one).
  *

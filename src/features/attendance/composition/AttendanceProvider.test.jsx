@@ -380,6 +380,20 @@ describe('AttendanceProvider', () => {
       expect(result.current.busyKey).toBeNull();
     });
 
+    it('opens too when the fresh read shows no period today but one that starts later', async () => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      const { result } = await mount({ services });
+      services.membership.listOwnPeriods.mockResolvedValue(
+        ok([{ startsOn: '2026-11-03', endsOn: '2026-12-02' }]),
+      );
+
+      await act(async () => { await result.current.confirm(MONDAY); });
+
+      expect(result.current.promptOpen).toBe(true);
+      expect(result.current.errorCode).toBeNull();
+    });
+
     it('keeps the alert when the membership is still active after the refusal', async () => {
       const services = fakeServices();
       services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));

@@ -310,8 +310,8 @@ describe('SessionAttendance', () => {
     });
   });
 
-  // The message about the membership is said once, above the schedule
-  // (InactiveMembershipNotice). The cards of a member with no active membership show
+  // The prompt says that the membership is not active (the page has no notice for it).
+  // The cards of a member with no active membership show
   // the same check as everyone's (F2b: they used to show nothing, or lose their check
   // when it was tapped), and tapping one asks them to enrol without calling the server.
   describe('for a member whose membership is not active', () => {
@@ -367,6 +367,7 @@ describe('SessionAttendance', () => {
       await act(async () => {});
 
       expect(screen.getByRole('dialog')).toHaveTextContent('primero matricúlate');
+      expect(screen.getByRole('dialog')).not.toHaveTextContent('WhatsApp');
       expect(screen.queryByRole('link')).toBeNull();
     });
 
@@ -419,6 +420,15 @@ describe('SessionAttendance', () => {
         expect(buttonOf('lun-1900', 'Confirmar asistencia')).toBeTruthy();
         expect(buttonOf('mar-1800', 'Confirmar asistencia')).toBeTruthy();
         // The prompt says it, so the card does not also show the refusal.
+        expect(screen.queryByRole('alert')).toBeNull();
+      });
+
+      it('says when the membership starts when the fresh read shows only a later period', async () => {
+        await staleConfirm({ after: ok([{ startsOn: '2026-11-03', endsOn: '2026-12-02' }]) });
+
+        expect(screen.getByRole('dialog', { name: 'Tu membresía empieza el 3 de noviembre de 2026' }))
+          .toBeInTheDocument();
+        expect(screen.getByText('Si quieres empezar antes, escríbenos por WhatsApp.')).toBeInTheDocument();
         expect(screen.queryByRole('alert')).toBeNull();
       });
 

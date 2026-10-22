@@ -15,11 +15,12 @@
  * asks for a reset from the login page, opens the link of the recovery email,
  * presses "Continuar", sets a new password, and checks that the new password
  * signs in and the old one does not. Then the member leg, while the member is
- * still no administrator: with no payment the public schedule shows one notice
- * above it that the membership is not active, with the WhatsApp link, a legend that
- * explains the two icons, and on every card the same check as everyone's; tapping it
- * opens a prompt to enrol (a dialog with the WhatsApp link, whose Escape and close
- * button give the focus back) and calls no server. With a payment recorded with SQL
+ * still no administrator: with no payment the public schedule has no notice about the
+ * membership, a legend that explains the two icons, and on every card the same check
+ * as everyone's; tapping it opens a prompt to enrol (a dialog with the WhatsApp link,
+ * whose Escape and close button give the focus back) and calls no server. With a
+ * payment that starts later and none that covers today, the same dialog says the day
+ * the membership starts and how to ask for an earlier start. With a payment recorded with SQL
  * a class offers the round toggle "Confirmar asistencia" with a check (at least
  * 4.4rem wide, with no style attribute) and, once confirmed, "Cancelar asistencia"
  * with an X and the caption "Vas a esta clase" (the row holds the times as HH:MM:SS
@@ -28,7 +29,7 @@
  * behind the page that was already open makes the next tap open the same prompt,
  * with every check still there and no error (the bug of checks that vanished). A
  * payment that ends today makes a class of another day say "Tu membresía vence el"
- * on its card and the notice goes away; deleting it brings the notice back. Then the
+ * on its card; deleting it brings the checks back with their prompt. Then the
  * admin leg, before the account is deleted: while the member is no administrator
  * the menu has no "Admin" and /admin/members is the not-found page; the account
  * is promoted with SQL, the page is reloaded (the profile loads once per
@@ -914,10 +915,16 @@ function firstCardOf(page, dayName) {
   };
 }
 
-// A member whose membership is not active is told once, in a notice above the
-// schedule, and no longer on every card.
-const INACTIVE_NOTICE = 'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.';
-const inactiveNotice = (page) => page.getByRole('status').filter({ hasText: INACTIVE_NOTICE });
+// A member whose membership is not active is told by the prompt that a tap on a check
+// opens, and nowhere else: the page has no notice for it (owner: "Con el modal, el
+// texto ya no iría"), and a card does not repeat it.
+async function expectNoMembershipText(page, step) {
+  assert.equal(
+    await page.getByText(/Tu membresía no está activa|Matricúlate/).count(),
+    0,
+    `${step}: la página dice que la membresía no está activa sin que nadie toque la marca`,
+  );
+}
 
 // The prompt that asks a member with no active membership to enrol (F2b), the legend
 // above the schedule and the two icons of the toggles.
@@ -1055,21 +1062,12 @@ async function memberAttendanceLeg(page) {
     );
   };
 
-  console.log('Abriendo los horarios sin ningún pago: un solo aviso de membresía inactiva y WhatsApp...');
+  console.log('Abriendo los horarios sin ningún pago: las marcas de todos y el aviso solo al tocar...');
   await page.goto(`${SITE}/schedules`);
   await page.getByRole('heading', { level: 1, name: 'Horarios' }).waitFor();
   const start = await expectFirstClass(card, firstClass);
-  await inactiveNotice(page).waitFor();
-  assert.equal(
-    await page.getByText(/Tu membresía no está activa/).count(),
-    1,
-    'el aviso de membresía inactiva no aparece una sola vez en la página',
-  );
-  assert.equal(
-    await inactiveNotice(page).getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
-    1,
-    'el aviso de membresía inactiva no ofrece el enlace de WhatsApp',
-  );
+  await confirmButton.waitFor();
+  await expectNoMembershipText(page, 'sin pagos');
   assert.equal(
     await card.getByText(/Tu membresía/).count(),
     0,
@@ -1087,6 +1085,17 @@ async function memberAttendanceLeg(page) {
   await expectNoLoadError('sin pagos');
   await expectEnrolPrompt(page, confirmButton, 'sin pagos');
   assert.equal(await confirmationsOf(), '0', 'el aviso de matricularse dejó una confirmación');
+  // The owner's copy: no promise about the payment.
+  await confirmButton.click();
+  const enrol = membershipDialog(page);
+  await enrol.waitFor();
+  assert.equal(
+    (await enrol.locator('p').textContent()).trim(),
+    'Para confirmar tu asistencia, primero matricúlate. Escríbenos por WhatsApp.',
+    'el texto del aviso para matricularse no es el acordado',
+  );
+  await page.keyboard.press('Escape');
+  await enrol.waitFor({ state: 'detached' });
 
   console.log('Registrando un pago con SQL y recargando: la clase se puede confirmar...');
   psql(
@@ -1097,7 +1106,7 @@ async function memberAttendanceLeg(page) {
   await page.reload();
   await confirmButton.waitFor();
   await card.getByText(`Próxima clase: ${longDate(classDate)}`, { exact: true }).waitFor();
-  assert.equal(await inactiveNotice(page).count(), 0, 'un miembro con un pago ve el aviso de membresía inactiva');
+  await expectNoMembershipText(page, 'con un pago');
   assert.equal(await confirmButton.getAttribute('aria-pressed'), 'false', 'el botón sin confirmar está presionado');
   await expectRoundToggle(page, confirmButton, 'el botón de confirmar');
   assert.equal(await checkIcon(confirmButton).count(), 1, 'el botón de confirmar no muestra un check');
@@ -1157,7 +1166,11 @@ async function memberAttendanceLeg(page) {
   await stale.waitFor();
   assert.equal(await confirmationsOf(), '0', 'la base aceptó una confirmación sin pago');
   assert.equal(await page.getByRole('alert').count(), 0, `se mostró un error en vez del aviso${await visibleAlerts(page)}`);
-  await inactiveNotice(page).waitFor();
+  assert.equal(
+    (await stale.getByRole('heading', { level: 2 }).textContent()).trim(),
+    'Necesitas una membresía activa',
+    'tras el rechazo el aviso no pide matricularse',
+  );
   assert.equal(await confirmButton.count(), 1, 'la marca de la clase desapareció tras el rechazo');
   assert.ok(
     await page.getByRole('button', { name: 'Confirmar asistencia' }).count() >= 1,
@@ -1176,19 +1189,47 @@ async function memberAttendanceLeg(page) {
   await page.reload();
   await card.getByText(`Tu membresía vence el ${longDate(today)}.`, { exact: true }).waitFor();
   assert.equal(await card.getByRole('button').count(), 0, 'una clase fuera del pago ofrece un botón');
-  // The member is active today, so the notice about the membership is not shown: the
+  // The member is active today, so there is nothing to say about the membership: the
   // message of the card is about the class.
-  assert.equal(await inactiveNotice(page).count(), 0, 'un miembro activo hoy ve el aviso de membresía inactiva');
+  await expectNoMembershipText(page, 'con el pago acortado');
   await expectNoLoadError('con el pago acortado');
 
-  console.log('Borrando el pago: vuelve el aviso de membresía inactiva...');
+  console.log('Borrando el pago: vuelven las marcas, con su aviso al tocarlas...');
   psql(`delete from public.paid_periods where member_id = '${userId}'`);
   await page.reload();
-  await inactiveNotice(page).waitFor();
-  assert.equal(await card.getByText(/Tu membresía/).count(), 0, 'la clase repite el aviso de membresía inactiva');
-  // The checks come back with the notice: the member can tap them and be asked to enrol.
+  // The checks are back for a member with no payment, and nothing says why until one is tapped.
   await confirmButton.waitFor();
+  assert.equal(await card.getByText(/Tu membresía/).count(), 0, 'la clase repite el aviso de membresía inactiva');
+  await expectNoMembershipText(page, 'sin pagos otra vez');
   assert.equal(await membershipDialog(page).count(), 0, 'el aviso de matricularse está abierto sin que nadie toque la marca');
+
+  // Option A (owner): a member with a payment that starts later, and none that covers
+  // today, is told the day it starts and that an earlier start is asked for.
+  console.log('Un pago que empieza más adelante: el aviso dice desde cuándo empieza la membresía...');
+  const later = addDays(today, 10);
+  psql(
+    'insert into public.paid_periods (member_id, starts_on, ends_on) '
+    + `values ('${userId}', '${later}', '${addDays(later, 30)}')`,
+  );
+  await page.reload();
+  await confirmButton.waitFor();
+  await confirmButton.click();
+  const laterDialog = page.getByRole('dialog', { name: `Tu membresía empieza el ${longDate(later)}` });
+  await laterDialog.waitFor();
+  assert.equal(
+    (await laterDialog.locator('p').textContent()).trim(),
+    'Si quieres empezar antes, escríbenos por WhatsApp.',
+    'el aviso de una membresía que empieza más adelante no dice cómo pedir un inicio anterior',
+  );
+  assert.equal(
+    await laterDialog.getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
+    1,
+    'el aviso de una membresía que empieza más adelante no ofrece WhatsApp',
+  );
+  assert.equal(await confirmationsOf(), '0', 'tocar la marca con un pago futuro dejó una confirmación');
+  await page.keyboard.press('Escape');
+  await laterDialog.waitFor({ state: 'detached' });
+  psql(`delete from public.paid_periods where member_id = '${userId}'`);
 }
 
 // Administrators have free access to classes: the same card and the same button as
@@ -1224,7 +1265,7 @@ async function adminFreeAccessLeg(page, userId) {
   // The toggle is there, so the data was read: the notice that is not there is not
   // simply one that has not come yet.
   assert.equal(
-    await inactiveNotice(page).count(),
+    await page.getByText(/Tu membresía/).count(),
     0,
     'un administrador sin pagos ve que su membresía no está activa',
   );

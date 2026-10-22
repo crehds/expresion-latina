@@ -6,7 +6,6 @@ import { getActiveDays, getSessionsForWeekday, hasPublishedSchedule } from '../.
 import AttendanceProvider from '../../features/attendance/composition/AttendanceProvider';
 import AttendanceLegend from '../../features/attendance/ui/AttendanceLegend';
 import AttendanceReadError from '../../features/attendance/ui/AttendanceReadError';
-import InactiveMembershipNotice from '../../features/attendance/ui/InactiveMembershipNotice';
 import MembershipRequiredModal from '../../features/attendance/ui/MembershipRequiredModal';
 import SessionAttendance from '../../features/attendance/ui/SessionAttendance';
 import DayAgenda from './components/DayAgenda';
@@ -79,7 +78,6 @@ class ScheduleView extends Component {
       return (
         <Page title="Horarios" lead="Las clases de la semana, día por día." className="schedules">
           <AttendanceReadError />
-          <InactiveMembershipNotice whatsappLink={whatsappLink} />
           <AttendanceLegend />
           <WeekColumns
             days={this.days}
@@ -96,7 +94,6 @@ class ScheduleView extends Component {
     return (
       <Page title="Horarios" lead="Elige un día para ver sus clases." className="schedules">
         <AttendanceReadError />
-        <InactiveMembershipNotice whatsappLink={whatsappLink} />
         <AttendanceLegend />
         <DayPicker
           days={this.days}

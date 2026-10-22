@@ -49,7 +49,7 @@ import { RESULT_CODES, fail } from '../../../shared/backend/resultCodes';
 import { todayInLima } from '../../../shared/limaCalendar';
 import SessionContext from '../../accounts/composition/SessionProvider';
 import { occurrenceKey } from '../domain/occurrences';
-import { isMembershipInactive } from '../domain/rules';
+import { membershipPrompt } from '../domain/rules';
 
 export const TICK_MS = 30 * 1000;
 
@@ -243,9 +243,9 @@ export default function AttendanceProvider({ children }) {
       // they are judged against this very instant, and `now` can be up to 30 seconds old
       // (it ticks every TICK_MS), which at Lima midnight is the wrong day.
       if (promptOnLapse && fresh && result.code === RESULT_CODES.FORBIDDEN
-        && isMembershipInactive({
+        && membershipPrompt({
           membership: { periods: fresh.periods }, now: new Date(), isAdmin,
-        })) {
+        }) !== null) {
         setFailure({ code: null, key: null });
         openPrompt(promptOnLapse.opener);
       }

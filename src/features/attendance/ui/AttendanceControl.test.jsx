@@ -147,9 +147,8 @@ describe('AttendanceControl', () => {
     });
   });
 
-  // The message about an inactive membership is said once, above the schedule
-  // (InactiveMembershipNotice), and the card shows the same check as everyone's: the
-  // container decides that tapping it opens the prompt to enrol and calls no server.
+  // The card of a member with no active membership shows the same check as everyone's:
+  // the container decides that tapping it opens the prompt to enrol and calls no server.
   describe('state inactive', () => {
     it('shows the same check toggle as a member who can confirm, with the date', () => {
       renderControl({ state: 'inactive' });

@@ -131,9 +131,7 @@ describe.each([
       session: sessionContext('signed-in', start, isAdmin),
     });
 
-    // The wording is a draft for the owner's review, and the link is the studio's
-    // WhatsApp from the content of the site.
-    const INACTIVE = 'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.';
+    // The link is the studio's WhatsApp from the content of the site.
     const scheduleOf = (view) => view.container.querySelector(isWide ? '.week-columns' : '.day-agenda');
     const isBefore = (first, second) => Boolean(
       // eslint-disable-next-line no-bitwise
@@ -179,15 +177,15 @@ describe.each([
       expect(start).not.toHaveBeenCalled();
     });
 
-    it('says once, above the schedule, that the membership is not active and invites to enrol', async () => {
-      const view = await renderPage(contextsFor(fakeServices({ periods: ok([]) })));
+    // The owner took the notice above the schedule out: "Con el modal, el texto ya no
+    // iría". The prompt that a tap opens says it, and nothing says it before.
+    it('has no notice about the membership above the schedule, for an inactive member either', async () => {
+      await renderPage(contextsFor(fakeServices({ periods: ok([]) })));
 
-      const notice = screen.getByRole('status');
-      expect(notice).toHaveTextContent(INACTIVE);
-      expect(screen.getAllByText(/Tu membresía no está activa/)).toHaveLength(1);
-      expect(within(notice).getByRole('link', { name: 'Escríbenos por WhatsApp' }))
-        .toHaveAttribute('href', 'https://wa.me/51960507583');
-      expect(isBefore(notice, scheduleOf(view))).toBe(true);
+      expect(screen.queryByRole('status')).toBeNull();
+      expect(screen.queryByText(/Tu membresía no está activa/)).toBeNull();
+      expect(screen.queryByText(/Matricúlate/)).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     // F2b: the checks of a member with no active membership are the same as
@@ -214,9 +212,26 @@ describe.each([
       const dialog = screen.getByRole('dialog', { name: 'Necesitas una membresía activa' });
       expect(within(dialog).getByRole('link', { name: 'Escríbenos por WhatsApp' }))
         .toHaveAttribute('href', 'https://wa.me/51960507583');
+      expect(within(dialog).getByText(
+        'Para confirmar tu asistencia, primero matricúlate. Escríbenos por WhatsApp.',
+      )).toBeInTheDocument();
       expect(services.attendance.confirm).not.toHaveBeenCalled();
-      // The notice above the schedule stays as the passive message.
-      expect(screen.getByRole('status')).toHaveTextContent('Tu membresía no está activa.');
+    });
+
+    // Option A (owner): the member asks for an earlier start and the admin moves the dates.
+    it('tells a member whose membership starts later the day it starts, in the same prompt', async () => {
+      const services = fakeServices({ periods: ok([{ startsOn: '2025-11-03', endsOn: '2025-12-02' }]) });
+      await renderPage(contextsFor(services));
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Confirmar asistencia' })[0]);
+      await act(async () => {});
+
+      const dialog = screen.getByRole('dialog', { name: 'Tu membresía empieza el 3 de noviembre de 2025' });
+      expect(within(dialog).getByText('Si quieres empezar antes, escríbenos por WhatsApp.'))
+        .toBeInTheDocument();
+      expect(within(dialog).getByRole('link', { name: 'Escríbenos por WhatsApp' }))
+        .toHaveAttribute('href', 'https://wa.me/51960507583');
+      expect(services.attendance.confirm).not.toHaveBeenCalled();
     });
 
     describe('the legend that explains the two icons', () => {
@@ -253,24 +268,19 @@ describe.each([
       });
     });
 
-    it('says nothing above the schedule to a member who is active today', async () => {
-      await renderPage(contextsFor(fakeServices()));
-
-      // The legend is there, but it is a plain paragraph and not a notice.
-      expect(screen.queryByRole('status')).toBeNull();
-      expect(screen.queryByText(/Tu membresía no está activa/)).toBeNull();
-    });
-
-    it('never says it to an administrator, who confirms with no paid period', async () => {
+    it('never opens the prompt for an administrator, who confirms with no paid period', async () => {
       const view = await renderPage(contextsFor(fakeServices({ periods: ok([]) }), vi.fn(), true));
 
       const attended = visibleSessions().filter((session) => session.genre.kind !== 'rehearsal');
-      expect(screen.queryByRole('status')).toBeNull();
       expect(screen.queryByText(/Tu membresía/)).toBeNull();
       expect(screen.queryByRole('link', { name: 'Escríbenos por WhatsApp' })).toBeNull();
       expect(screen.getAllByRole('button', { name: 'Confirmar asistencia' }))
         .toHaveLength(attended.length);
       expect(scheduleOf(view)).toBeInTheDocument();
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Confirmar asistencia' })[0]);
+      await act(async () => {});
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('shows nothing under the cards while the data is loading', async () => {
@@ -281,8 +291,7 @@ describe.each([
 
       expect(view.container.querySelector('.attendance-control')).toBeNull();
       expect(screen.queryByRole('alert')).toBeNull();
-      // Nothing flashes as inactive before the periods are known.
-      expect(screen.queryByRole('status')).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('shows the retry notice above the schedule when the first read fails', async () => {
@@ -297,8 +306,8 @@ describe.each([
       expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(view.container.querySelector('.attendance-control')).toBeNull();
       // The retry notice speaks alone: the periods are unknown, so nobody is told
-      // that their membership is not active.
-      expect(screen.queryByText(/Tu membresía no está activa/)).toBeNull();
+      // anything about their membership.
+      expect(screen.queryByText(/Tu membresía/)).toBeNull();
     });
   });
 });
