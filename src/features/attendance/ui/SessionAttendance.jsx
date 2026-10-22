@@ -19,19 +19,22 @@ const REHEARSAL = 'rehearsal';
  * presentational control. It renders nothing for a visitor, a signed-out member, a
  * disabled backend, data that is still loading, a rehearsal, or a class whose
  * occurrence cannot be worked out, so the card stays what it is without a
- * membership. The buttons call the provider with this card's occurrence and never
- * receive the click event.
+ * membership. The buttons call the provider with this card's occurrence; the
+ * element that was tapped goes along only so that the focus can return to it if a
+ * prompt opens, and the card never reads anything else from the click.
  *
  * A membership that is not active is said once, above the schedule
- * (InactiveMembershipNotice), so the card of an inactive member has nothing under
- * it. An administrator has free access to classes, so their card is the same as a
- * member's with a paid period (the provider tells whether the viewer is one).
+ * (InactiveMembershipNotice), and the card of such a member shows the same check as
+ * everyone's: tapping it opens the prompt to enrol and calls no server. An
+ * administrator has free access to classes, so their card is the same as a member's
+ * with a paid period (the provider tells whether the viewer is one).
  *
  * A failure is shown only on the card whose occurrence it belongs to.
  */
 function SessionAttendance({ session, whatsappLink = null }) {
   const {
-    membership, isAdmin, confirmedKeys, now, busyKey, errorCode, errorKey, confirm, cancel,
+    membership, isAdmin, confirmedKeys, now, busyKey, errorCode, errorKey,
+    confirm, cancel, openPrompt,
   } = useAttendance();
 
   if (!membership || session.genre.kind === REHEARSAL) {
@@ -59,7 +62,9 @@ function SessionAttendance({ session, whatsappLink = null }) {
       whatsappLink={whatsappLink}
       busy={busyKey === key}
       errorCode={errorKey === key ? errorCode : null}
-      onConfirm={() => confirm(occurrence)}
+      onConfirm={(event) => (state === 'inactive'
+        ? openPrompt(event.currentTarget)
+        : confirm(occurrence, event.currentTarget))}
       onCancel={() => cancel(occurrence)}
     />
   );

@@ -5,6 +5,7 @@ import {
 import SessionContext from '../../accounts/composition/SessionProvider';
 import BackendContext from '../../../shared/backend/BackendContext';
 import AttendanceProvider from '../composition/AttendanceProvider';
+import MembershipRequiredModal from './MembershipRequiredModal';
 import SessionAttendance from './SessionAttendance';
 
 const USER = '0b1a4c6e-7d52-4f0a-9d3e-2c5f8a1b7e90';
@@ -83,6 +84,7 @@ async function renderCards(sessions, {
               <SessionAttendance session={one} whatsappLink={whatsappLink} />
             </div>
           ))}
+          <MembershipRequiredModal whatsappLink={whatsappLink} />
         </AttendanceProvider>
       </SessionContext.Provider>
     </BackendContext.Provider>,
@@ -296,40 +298,158 @@ describe('SessionAttendance', () => {
       expect(card('lun-1900').querySelector('[role="alert"]')).toBeInTheDocument();
     });
 
-    it('does not give a member the same: no period, no button', async () => {
-      await renderCards([MONDAY], { services: fakeServices({ periods: [] }) });
-
-      expect(screen.queryByRole('button')).toBeNull();
-    });
-  });
-
-  // The message about the membership is said once, above the schedule
-  // (InactiveMembershipNotice), so a card of an inactive member has nothing under it.
-  describe('for a member whose membership is not active', () => {
-    it('puts nothing on any card: no message, no link and no button', async () => {
-      await renderCards([MONDAY, TUESDAY], { services: fakeServices({ periods: [] }) });
-
-      expect(card('lun-1900')).toBeEmptyDOMElement();
-      expect(card('mar-1800')).toBeEmptyDOMElement();
-      expect(screen.queryByText(/Tu membresía/)).toBeNull();
-      expect(screen.queryByRole('link')).toBeNull();
-      expect(screen.queryByRole('button')).toBeNull();
-    });
-
-    it('still shows the refusal of a confirm on the card that was clicked', async () => {
-      const services = fakeServices();
-      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
-      await renderCards([MONDAY], { services });
-      // The refusal makes the page read again, and the membership has run out since.
-      services.membership.listOwnPeriods.mockResolvedValue(ok([]));
+    it('never opens the prompt to enrol, because the free access is theirs', async () => {
+      await renderCards([MONDAY], {
+        services: fakeServices({ periods: [] }), session: SIGNED_IN_ADMIN,
+      });
 
       fireEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
       await act(async () => {});
 
-      expect(card('lun-1900').querySelector('[role="alert"]')).toHaveTextContent(
-        'No pudimos confirmar tu asistencia. Revisa que tu membresía cubra esa fecha.',
-      );
-      expect(screen.queryByRole('button')).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  // The message about the membership is said once, above the schedule
+  // (InactiveMembershipNotice). The cards of a member with no active membership show
+  // the same check as everyone's (F2b: they used to show nothing, or lose their check
+  // when it was tapped), and tapping one asks them to enrol without calling the server.
+  describe('for a member whose membership is not active', () => {
+    const NO_PERIOD = () => fakeServices({ periods: [] });
+
+    it('shows the check on every card, with no message and no link of its own', async () => {
+      await renderCards([MONDAY, TUESDAY], { services: NO_PERIOD() });
+
+      expect(buttonOf('lun-1900', 'Confirmar asistencia')).toBeTruthy();
+      expect(buttonOf('mar-1800', 'Confirmar asistencia')).toBeTruthy();
+      expect(screen.queryByText(/Tu membresía/)).toBeNull();
+      expect(screen.queryByRole('link')).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('opens the prompt on a tap, calls no server, and keeps every check', async () => {
+      const services = NO_PERIOD();
+      await renderCards([MONDAY, TUESDAY], { services });
+
+      fireEvent.click(buttonOf('lun-1900', 'Confirmar asistencia'));
+      await act(async () => {});
+
+      expect(screen.getByRole('dialog', { name: 'Necesitas una membresía activa' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Escríbenos por WhatsApp' }))
+        .toHaveAttribute('href', WHATSAPP);
+      expect(services.attendance.confirm).not.toHaveBeenCalled();
+      expect(services.attendance.cancel).not.toHaveBeenCalled();
+      // Nothing was read again either: the card knew from the periods it holds.
+      expect(services.membership.listOwnPeriods).toHaveBeenCalledTimes(1);
+      expect(buttonOf('lun-1900', 'Confirmar asistencia')).toBeTruthy();
+      expect(buttonOf('mar-1800', 'Confirmar asistencia')).toBeTruthy();
+    });
+
+    it('gives the focus back to the check that opened the prompt when it closes', async () => {
+      await renderCards([MONDAY, TUESDAY], { services: NO_PERIOD() });
+      const check = buttonOf('mar-1800', 'Confirmar asistencia');
+      check.focus();
+
+      fireEvent.click(check);
+      await act(async () => {});
+      expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await act(async () => {});
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(check).toHaveFocus();
+    });
+
+    it('shows the text of the prompt alone when the studio has no WhatsApp', async () => {
+      await renderCards([MONDAY], { services: NO_PERIOD(), whatsappLink: null });
+
+      fireEvent.click(buttonOf('lun-1900', 'Confirmar asistencia'));
+      await act(async () => {});
+
+      expect(screen.getByRole('dialog')).toHaveTextContent('primero matricúlate');
+      expect(screen.queryByRole('link')).toBeNull();
+    });
+
+    it('treats a period that has not started yet like no membership', async () => {
+      const services = fakeServices({ periods: [{ startsOn: '2026-10-21', endsOn: '2026-11-20' }] });
+      await renderCards([MONDAY], { services });
+
+      fireEvent.click(buttonOf('lun-1900', 'Confirmar asistencia'));
+      await act(async () => {});
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(services.attendance.confirm).not.toHaveBeenCalled();
+    });
+
+    it('still lets the member cancel a class they confirmed before the membership lapsed', async () => {
+      const services = fakeServices({ periods: [], confirmed: [MONDAY_OCCURRENCE] });
+      await renderCards([MONDAY, TUESDAY], { services });
+      expect(screen.getByText('Vas a esta clase')).toBeInTheDocument();
+
+      fireEvent.click(buttonOf('lun-1900', 'Cancelar asistencia'));
+      await act(async () => {});
+
+      expect(services.attendance.cancel).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      // The card that was cancelled keeps its check, now to be tapped for the prompt.
+      expect(buttonOf('lun-1900', 'Confirmar asistencia')).toBeTruthy();
+    });
+
+    // F2b, the stale page: it was loaded while the payment existed, the payment was
+    // deleted, and the database refuses the confirm. The checks used to vanish.
+    describe('when the page was loaded before the payment was deleted', () => {
+      async function staleConfirm({ code = 'FORBIDDEN', after = ok([]) } = {}) {
+        const services = fakeServices();
+        services.attendance.confirm.mockResolvedValue(fail(code));
+        await renderCards([MONDAY, TUESDAY], { services });
+        services.membership.listOwnPeriods.mockResolvedValue(after);
+        const check = buttonOf('lun-1900', 'Confirmar asistencia');
+        check.focus();
+
+        fireEvent.click(check);
+        await act(async () => {});
+        return { services, check };
+      }
+
+      it('opens the prompt instead of letting the checks vanish', async () => {
+        const { services } = await staleConfirm();
+
+        expect(services.attendance.confirm).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('dialog', { name: 'Necesitas una membresía activa' })).toBeInTheDocument();
+        expect(buttonOf('lun-1900', 'Confirmar asistencia')).toBeTruthy();
+        expect(buttonOf('mar-1800', 'Confirmar asistencia')).toBeTruthy();
+        // The prompt says it, so the card does not also show the refusal.
+        expect(screen.queryByRole('alert')).toBeNull();
+      });
+
+      it('gives the focus back to the check that was tapped', async () => {
+        const { check } = await staleConfirm();
+
+        fireEvent.keyDown(document, { key: 'Escape' });
+        await act(async () => {});
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(buttonOf('lun-1900', 'Confirmar asistencia')).toBe(check);
+        expect(check).toHaveFocus();
+      });
+
+      it('keeps the alert, and no prompt, for any other refusal', async () => {
+        await staleConfirm({ code: 'NETWORK' });
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(card('lun-1900').querySelector('[role="alert"]')).toHaveTextContent(
+          'No hay conexión. Revisa tu internet e inténtalo de nuevo.',
+        );
+      });
+
+      it('keeps the alert when the fresh read says the membership is still active', async () => {
+        await staleConfirm({ after: ok(OPEN_MONTH) });
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(card('lun-1900').querySelector('[role="alert"]')).toHaveTextContent(
+          'No pudimos confirmar tu asistencia. Revisa que tu membresía cubra esa fecha.',
+        );
+      });
     });
   });
 

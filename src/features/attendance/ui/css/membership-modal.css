@@ -1,0 +1,98 @@
+/*
+ * The prompt to enrol: a centred dialog on the portal layer of the site (.modal
+ * positions nothing itself). The scrim is a real button, out of the tab order, like
+ * the one of the teacher panel; the close button is the labelled way to do the same.
+ * No inline style, because the CSP has no 'unsafe-inline' for styles.
+ */
+.membership-modal__scrim {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  border: none;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.66);
+  cursor: pointer;
+}
+
+.membership-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  width: min(44rem, calc(100% - 2 * var(--page-gutter)));
+  max-height: calc(100% - 2 * var(--page-gutter));
+  padding: var(--space-md);
+  border: 1px solid var(--surface-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-overlay);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+}
+
+.membership-modal__close {
+  position: absolute;
+  top: var(--space-2xs);
+  right: var(--space-2xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.4rem;
+  height: 4.4rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.membership-modal__close:hover {
+  background: var(--surface-overlay);
+}
+
+.membership-modal__close:focus-visible,
+.membership-modal__link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.membership-modal .attendance-icon--close {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+/* Room for the close button, which sits in the corner. */
+.membership-modal__title {
+  margin: 0;
+  padding-right: var(--space-xl);
+  color: var(--text-primary);
+}
+
+.membership-modal__text {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* A pill that is the primary action of the prompt, as tall as every tap target. */
+.membership-modal__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 4.4rem;
+  padding: 1.2rem 2rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.membership-modal__link:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}

@@ -7,7 +7,15 @@ import {
   CONFIRM_ATTENDANCE,
   DATE_UNAVAILABLE,
   INACTIVE_NOTICE,
+  LEGEND_CANCEL_WORDS,
+  LEGEND_CHECK_NAME,
+  LEGEND_CROSS_NAME,
+  LEGEND_CONFIRM_WORDS,
+  LEGEND_TOUCH,
   LOADING_ATTENDEES,
+  MEMBERSHIP_MODAL_CLOSE,
+  MEMBERSHIP_MODAL_TEXT,
+  MEMBERSHIP_MODAL_TITLE,
   MISMATCH_TITLE,
   NOT_COVERED,
   NO_ATTENDEES,
@@ -42,6 +50,25 @@ describe('attendanceCopy', () => {
     expect(INACTIVE_NOTICE).toBe(
       'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.',
     );
+  });
+
+  // The prompt that a check opens for a member with no active membership, and the
+  // legend above the schedule (drafts for the owner's review).
+  it('has the texts of the prompt to enrol', () => {
+    expect(MEMBERSHIP_MODAL_TITLE).toBe('Necesitas una membresía activa');
+    expect(MEMBERSHIP_MODAL_TEXT).toBe(
+      'Para confirmar tu asistencia, primero matricúlate. '
+      + 'Escríbenos por WhatsApp y te ayudamos con el pago.',
+    );
+    expect(MEMBERSHIP_MODAL_CLOSE).toBe('Cerrar');
+  });
+
+  it('has the words of the legend, which the two icons are drawn between', () => {
+    expect(LEGEND_TOUCH).toBe('Toca');
+    expect(LEGEND_CONFIRM_WORDS).toBe('para confirmar tu asistencia y');
+    expect(LEGEND_CANCEL_WORDS).toBe('para cancelarla.');
+    expect(LEGEND_CHECK_NAME).toBe('el check');
+    expect(LEGEND_CROSS_NAME).toBe('la equis');
   });
 
   it('has the fixed texts of the administrator\'s list', () => {

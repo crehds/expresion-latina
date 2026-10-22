@@ -22,6 +22,24 @@ export const CONFIRMED = 'Vas a esta clase';
 // it is WHATSAPP_LINK_TEXT. The wording is a draft for the owner's review.
 export const INACTIVE_NOTICE = 'Tu membresía no está activa. '
   + 'Matricúlate para confirmar tu asistencia a las clases.';
+
+// The prompt that the check of a card opens for a member with no active membership,
+// and that a refused confirm opens when the membership turns out to have lapsed. The
+// wording is a draft for the owner's review, like the notice above.
+export const MEMBERSHIP_MODAL_TITLE = 'Necesitas una membresía activa';
+export const MEMBERSHIP_MODAL_TEXT = 'Para confirmar tu asistencia, primero matricúlate. '
+  + 'Escríbenos por WhatsApp y te ayudamos con el pago.';
+export const MEMBERSHIP_MODAL_CLOSE = 'Cerrar';
+export const MEMBERSHIP_MODAL_SCRIM = 'Cerrar aviso';
+
+// The legend above the schedule: "Toca (check) para confirmar tu asistencia y (X)
+// para cancelarla." The two icons are drawn between these words, as real elements,
+// and each has a name for a screen reader.
+export const LEGEND_TOUCH = 'Toca';
+export const LEGEND_CONFIRM_WORDS = 'para confirmar tu asistencia y';
+export const LEGEND_CANCEL_WORDS = 'para cancelarla.';
+export const LEGEND_CHECK_NAME = 'el check';
+export const LEGEND_CROSS_NAME = 'la equis';
 // A member who is active today but whose periods stop before this class, when the
 // day they stop cannot be written.
 export const NOT_COVERED = 'Tu membresía no cubre esta clase.';

@@ -1,5 +1,5 @@
 import {
-  act, render, screen, within,
+  act, fireEvent, render, screen, within,
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -190,19 +190,73 @@ describe.each([
       expect(isBefore(notice, scheduleOf(view))).toBe(true);
     });
 
-    it('puts nothing on the cards of an inactive member: no message, no link and no button', async () => {
-      const view = await renderPage(contextsFor(fakeServices({ periods: ok([]) })));
+    // F2b: the checks of a member with no active membership are the same as
+    // everyone's, so they neither vanish nor leave the page with nothing to tap.
+    it('shows the check on the cards of an inactive member, with no message or link of their own', async () => {
+      await renderPage(contextsFor(fakeServices({ periods: ok([]) })));
 
-      expect(view.container.querySelector('.attendance-control')).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Confirmar asistencia' })).toBeNull();
+      const attended = visibleSessions().filter((session) => session.genre.kind !== 'rehearsal');
+      expect(screen.getAllByRole('button', { name: 'Confirmar asistencia' }))
+        .toHaveLength(attended.length);
       screen.getAllByRole('article').forEach((card) => {
         expect(within(card).queryByRole('link', { name: 'Escríbenos por WhatsApp' })).toBeNull();
+        expect(within(card).queryByText(/Tu membresía/)).toBeNull();
+      });
+    });
+
+    it('opens the prompt to enrol on a tap, with the WhatsApp link, and calls no server', async () => {
+      const services = fakeServices({ periods: ok([]) });
+      await renderPage(contextsFor(services));
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Confirmar asistencia' })[0]);
+      await act(async () => {});
+
+      const dialog = screen.getByRole('dialog', { name: 'Necesitas una membresía activa' });
+      expect(within(dialog).getByRole('link', { name: 'Escríbenos por WhatsApp' }))
+        .toHaveAttribute('href', 'https://wa.me/51960507583');
+      expect(services.attendance.confirm).not.toHaveBeenCalled();
+      // The notice above the schedule stays as the passive message.
+      expect(screen.getByRole('status')).toHaveTextContent('Tu membresía no está activa.');
+    });
+
+    describe('the legend that explains the two icons', () => {
+      const LEGEND = 'Toca para confirmar tu asistencia y para cancelarla.';
+      const legend = () => screen.queryByText(/^Toca/);
+
+      it('is above the schedule for a member, with a paid period or without', async () => {
+        const view = await renderPage(contextsFor(fakeServices()));
+
+        expect(legend()).toHaveTextContent(LEGEND);
+        expect(isBefore(legend(), scheduleOf(view))).toBe(true);
+        view.unmount();
+
+        const inactive = await renderPage(contextsFor(fakeServices({ periods: ok([]) })));
+        expect(legend()).toHaveTextContent(LEGEND);
+        expect(isBefore(legend(), scheduleOf(inactive))).toBe(true);
+      });
+
+      it('is there for an administrator', async () => {
+        await renderPage(contextsFor(fakeServices({ periods: ok([]) }), vi.fn(), true));
+
+        expect(legend()).toHaveTextContent(LEGEND);
+      });
+
+      it('is not there while the data is loading or when it could not be read', async () => {
+        const loading = fakeServices();
+        loading.membership.listOwnPeriods.mockReturnValue(new Promise(() => {}));
+        const view = await renderPage(contextsFor(loading));
+        expect(legend()).toBeNull();
+        view.unmount();
+
+        await renderPage(contextsFor(fakeServices({ periods: fail('NETWORK') })));
+        expect(legend()).toBeNull();
       });
     });
 
     it('says nothing above the schedule to a member who is active today', async () => {
       await renderPage(contextsFor(fakeServices()));
 
+      // The legend is there, but it is a plain paragraph and not a notice.
       expect(screen.queryByRole('status')).toBeNull();
       expect(screen.queryByText(/Tu membresía no está activa/)).toBeNull();
     });

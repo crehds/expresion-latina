@@ -16,15 +16,19 @@
  * presses "Continuar", sets a new password, and checks that the new password
  * signs in and the old one does not. Then the member leg, while the member is
  * still no administrator: with no payment the public schedule shows one notice
- * above it that the membership is not active, with the WhatsApp link, and nothing
- * on the cards; with one recorded with SQL a class offers the round toggle
- * "Confirmar asistencia" (at least 4.4rem wide, with no style attribute) and, once
- * confirmed, "Cancelar asistencia" with the caption "Vas a esta clase" (the row
- * holds the times as HH:MM:SS and a future starts_at, and a reload still shows
- * "Cancelar", which proves the page reads those times back as HH:MM); cancelling
- * leaves no row; a payment that ends today makes a class of another day say
- * "Tu membresía vence el" on its card and the notice goes away; deleting it brings
- * the notice back. Then the
+ * above it that the membership is not active, with the WhatsApp link, a legend that
+ * explains the two icons, and on every card the same check as everyone's; tapping it
+ * opens a prompt to enrol (a dialog with the WhatsApp link, whose Escape and close
+ * button give the focus back) and calls no server. With a payment recorded with SQL
+ * a class offers the round toggle "Confirmar asistencia" with a check (at least
+ * 4.4rem wide, with no style attribute) and, once confirmed, "Cancelar asistencia"
+ * with an X and the caption "Vas a esta clase" (the row holds the times as HH:MM:SS
+ * and a future starts_at, and a reload still shows "Cancelar", which proves the page
+ * reads those times back as HH:MM); cancelling leaves no row. A payment deleted
+ * behind the page that was already open makes the next tap open the same prompt,
+ * with every check still there and no error (the bug of checks that vanished). A
+ * payment that ends today makes a class of another day say "Tu membresía vence el"
+ * on its card and the notice goes away; deleting it brings the notice back. Then the
  * admin leg, before the account is deleted: while the member is no administrator
  * the menu has no "Admin" and /admin/members is the not-found page; the account
  * is promoted with SQL, the page is reloaded (the profile loads once per
@@ -915,6 +919,72 @@ function firstCardOf(page, dayName) {
 const INACTIVE_NOTICE = 'Tu membresía no está activa. Matricúlate para confirmar tu asistencia a las clases.';
 const inactiveNotice = (page) => page.getByRole('status').filter({ hasText: INACTIVE_NOTICE });
 
+// The prompt that asks a member with no active membership to enrol (F2b), the legend
+// above the schedule and the two icons of the toggles.
+const MODAL_TITLE = 'Necesitas una membresía activa';
+const membershipDialog = (page) => page.getByRole('dialog', { name: MODAL_TITLE });
+const legendOf = (page) => page.locator('p.attendance-legend');
+const checkIcon = (toggle) => toggle.locator('svg.attendance-icon--check');
+const crossIcon = (toggle) => toggle.locator('svg.attendance-icon--cross');
+
+// The legend says what the two icons do, and draws them as real elements.
+async function expectLegend(page, step) {
+  const legend = legendOf(page);
+  await legend.waitFor();
+  assert.equal(
+    (await legend.textContent()).replace(/\s+/g, ' ').trim(),
+    'Toca para confirmar tu asistencia y para cancelarla.',
+    `${step}: la leyenda no dice lo esperado`,
+  );
+  assert.equal(await legend.getByRole('img', { name: 'el check' }).count(), 1, `${step}: la leyenda no dibuja el check`);
+  assert.equal(await legend.getByRole('img', { name: 'la equis' }).count(), 1, `${step}: la leyenda no dibuja la equis`);
+}
+
+const hasFocus = (locator) => locator.evaluate((element) => element === document.activeElement);
+
+// Tapping the check of a member with no active membership opens the prompt: a modal
+// dialog with the WhatsApp link, the focus inside, and no request to the server.
+// Escape and the close button close it and give the focus back to the check.
+async function expectEnrolPrompt(page, toggle, step) {
+  const writes = [];
+  const watch = (request) => {
+    if (request.method() !== 'GET' && request.url().includes('/rest/v1/attendance_confirmations')) {
+      writes.push(request.method());
+    }
+  };
+  page.on('request', watch);
+  try {
+    const dialog = membershipDialog(page);
+    await toggle.click();
+    await dialog.waitFor();
+    assert.equal(await dialog.getAttribute('aria-modal'), 'true', `${step}: el aviso no es modal`);
+    assert.equal(
+      await dialog.getByRole('link', { name: 'Escríbenos por WhatsApp' }).count(),
+      1,
+      `${step}: el aviso no ofrece el enlace de WhatsApp`,
+    );
+    assert.equal(
+      await page.evaluate(() => document.activeElement?.getAttribute('aria-label')),
+      'Cerrar',
+      `${step}: el foco no pasó al botón de cerrar`,
+    );
+    assert.deepEqual(writes, [], `${step}: tocar la marca llamó al servidor (${writes.join(', ')})`);
+
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'detached' });
+    assert.ok(await hasFocus(toggle), `${step}: con Escape el foco no volvió a la marca`);
+
+    await toggle.click();
+    await dialog.waitFor();
+    await dialog.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await dialog.waitFor({ state: 'detached' });
+    assert.ok(await hasFocus(toggle), `${step}: con el botón el foco no volvió a la marca`);
+    assert.deepEqual(writes, [], `${step}: el aviso llamó al servidor al cerrarse`);
+  } finally {
+    page.off('request', watch);
+  }
+}
+
 // The toggle is a light round icon button: as wide and as tall as the tap target of
 // the site (4.4rem, that is 44px with the root at 62.5%), a circle, and with no
 // style attribute anywhere in the control (the CSP allows none).
@@ -1010,12 +1080,13 @@ async function memberAttendanceLeg(page) {
     0,
     'la clase de un miembro inactivo repite el enlace de WhatsApp',
   );
-  assert.equal(
-    await page.getByRole('button', { name: 'Confirmar asistencia' }).count(),
-    0,
-    'un miembro sin pagos ve "Confirmar asistencia"',
-  );
+  // F2b: the card shows the check like everyone's, and tapping it asks to enrol.
+  await confirmButton.waitFor();
+  assert.equal(await checkIcon(confirmButton).count(), 1, 'la marca de un miembro sin pagos no es un check');
+  await expectLegend(page, 'sin pagos');
   await expectNoLoadError('sin pagos');
+  await expectEnrolPrompt(page, confirmButton, 'sin pagos');
+  assert.equal(await confirmationsOf(), '0', 'el aviso de matricularse dejó una confirmación');
 
   console.log('Registrando un pago con SQL y recargando: la clase se puede confirmar...');
   psql(
@@ -1029,6 +1100,9 @@ async function memberAttendanceLeg(page) {
   assert.equal(await inactiveNotice(page).count(), 0, 'un miembro con un pago ve el aviso de membresía inactiva');
   assert.equal(await confirmButton.getAttribute('aria-pressed'), 'false', 'el botón sin confirmar está presionado');
   await expectRoundToggle(page, confirmButton, 'el botón de confirmar');
+  assert.equal(await checkIcon(confirmButton).count(), 1, 'el botón de confirmar no muestra un check');
+  assert.equal(await crossIcon(confirmButton).count(), 0, 'el botón de confirmar muestra una equis');
+  await expectLegend(page, 'con un pago');
   // What the real PostgREST was asked: the own rows only, from today, in order.
   const periodsResponse = await periodsRead;
   const periodsUrl = new URL(periodsResponse.url());
@@ -1044,6 +1118,9 @@ async function memberAttendanceLeg(page) {
   await cancelButton.waitFor();
   assert.equal(await cancelButton.getAttribute('aria-pressed'), 'true', 'el botón confirmado no está presionado');
   await expectRoundToggle(page, cancelButton, 'el botón de cancelar');
+  assert.equal(await crossIcon(cancelButton).count(), 1, 'el botón de cancelar no muestra una equis');
+  assert.equal(await checkIcon(cancelButton).count(), 0, 'el botón de cancelar muestra un check');
+  assert.equal(await checkIcon(caption).count(), 1, 'el texto "Vas a esta clase" no empieza con un check');
   assert.equal(await confirmationsOf(), '1', 'la confirmación no quedó en la base');
   // The database prints a time as HH:MM:SS, and the starts_at it computed is ahead.
   // Only the row of this class: another leg's confirmations are not this check's.
@@ -1070,6 +1147,30 @@ async function memberAttendanceLeg(page) {
   assert.equal(await caption.count(), 0, 'la clase cancelada sigue diciendo que el miembro va');
   assert.equal(await confirmationsOf(), '0', 'la cancelación no borró la fila');
 
+  // F2b, the stale page: it was loaded while the payment existed. The payment is
+  // deleted behind it, the database refuses the confirm, and the checks used to
+  // vanish. Now the same prompt opens, every check stays and no error is shown.
+  console.log('Borrando el pago con la página ya abierta: tocar la marca abre el aviso y las marcas se quedan...');
+  psql(`delete from public.paid_periods where member_id = '${userId}'`);
+  const stale = membershipDialog(page);
+  await confirmButton.click();
+  await stale.waitFor();
+  assert.equal(await confirmationsOf(), '0', 'la base aceptó una confirmación sin pago');
+  assert.equal(await page.getByRole('alert').count(), 0, `se mostró un error en vez del aviso${await visibleAlerts(page)}`);
+  await inactiveNotice(page).waitFor();
+  assert.equal(await confirmButton.count(), 1, 'la marca de la clase desapareció tras el rechazo');
+  assert.ok(
+    await page.getByRole('button', { name: 'Confirmar asistencia' }).count() >= 1,
+    'las marcas desaparecieron tras el rechazo',
+  );
+  await page.keyboard.press('Escape');
+  await stale.waitFor({ state: 'detached' });
+  assert.ok(await hasFocus(confirmButton), 'tras el rechazo el foco no volvió a la marca');
+  psql(
+    'insert into public.paid_periods (member_id, starts_on, ends_on) '
+    + `values ('${userId}', '${today}', '${addDays(today, 30)}')`,
+  );
+
   console.log('Acortando el pago hasta hoy: una clase de otro día avisa cuándo vence...');
   psql(`update public.paid_periods set ends_on = '${today}' where member_id = '${userId}'`);
   await page.reload();
@@ -1085,11 +1186,9 @@ async function memberAttendanceLeg(page) {
   await page.reload();
   await inactiveNotice(page).waitFor();
   assert.equal(await card.getByText(/Tu membresía/).count(), 0, 'la clase repite el aviso de membresía inactiva');
-  assert.equal(
-    await page.getByRole('button', { name: 'Confirmar asistencia' }).count(),
-    0,
-    'un miembro sin pagos ve "Confirmar asistencia" tras borrar el pago',
-  );
+  // The checks come back with the notice: the member can tap them and be asked to enrol.
+  await confirmButton.waitFor();
+  assert.equal(await membershipDialog(page).count(), 0, 'el aviso de matricularse está abierto sin que nadie toque la marca');
 }
 
 // Administrators have free access to classes: the same card and the same button as
@@ -1120,6 +1219,8 @@ async function adminFreeAccessLeg(page, userId) {
   await expectFirstClass(card, firstClass);
   await confirmButton.waitFor();
   await card.getByText(`Próxima clase: ${longDate(classDate)}`, { exact: true }).waitFor();
+  assert.equal(await checkIcon(confirmButton).count(), 1, 'la marca del administrador no es un check');
+  await expectLegend(page, 'el administrador');
   // The toggle is there, so the data was read: the notice that is not there is not
   // simply one that has not come yet.
   assert.equal(
@@ -1152,6 +1253,8 @@ async function adminFreeAccessLeg(page, userId) {
     );
   }
   await caption.waitFor();
+  assert.equal(await crossIcon(cancelButton).count(), 1, 'el botón de cancelar del administrador no muestra una equis');
+  assert.equal(await membershipDialog(page).count(), 0, 'a un administrador se le pidió matricularse');
   assert.equal(rowsOfClass(), '1', 'la confirmación del administrador no quedó en la base');
   assert.equal(
     psql(

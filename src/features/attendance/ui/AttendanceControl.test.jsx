@@ -29,9 +29,9 @@ describe('AttendanceControl', () => {
       expect(screen.queryByRole('button', { name: 'Cancelar asistencia' })).toBeNull();
     });
 
-    // A light round toggle instead of a pill: an outline with a calendar when the
-    // class is not confirmed yet. Its name is the action, so it has no visible text.
-    it('is a round toggle with a calendar icon, not pressed, named by its label', () => {
+    // A light round toggle: an outline with a CHECK, the action it performs. Its
+    // name is the action, so it has no visible text.
+    it('is a round toggle with a check, not pressed, named by its label', () => {
       const { container } = renderControl({ state: 'confirm' });
 
       const toggle = screen.getByRole('button', { name: 'Confirmar asistencia' });
@@ -39,10 +39,12 @@ describe('AttendanceControl', () => {
       expect(toggle).toHaveAttribute('aria-pressed', 'false');
       expect(toggle).toHaveClass('attendance-control__toggle');
       expect(toggle).toHaveTextContent('');
-      const icon = toggle.querySelector('.icon-calendar');
+      const icon = toggle.querySelector('svg.attendance-icon--check');
       expect(icon).toBeInTheDocument();
       expect(icon).toHaveAttribute('aria-hidden', 'true');
-      expect(toggle.querySelector('svg')).toBeNull();
+      expect(icon).toHaveAttribute('focusable', 'false');
+      expect(toggle.querySelector('svg.attendance-icon--cross')).toBeNull();
+      expect(toggle.querySelector('.icon-calendar')).toBeNull();
       expect(container.querySelector('[style]')).toBeNull();
     });
 
@@ -87,18 +89,19 @@ describe('AttendanceControl', () => {
   });
 
   describe('state cancel', () => {
-    it('says the member goes to the class and offers to cancel the attendance', () => {
+    it('says the member goes to the class, with a small check, and offers to cancel', () => {
       renderControl({ state: 'cancel' });
 
-      expect(screen.getByText('Vas a esta clase')).toBeInTheDocument();
+      const caption = screen.getByText('Vas a esta clase');
+      expect(caption.querySelector('svg.attendance-icon--check')).toHaveAttribute('aria-hidden', 'true');
       expect(screen.getByText('Próxima clase: 26 de octubre de 2026')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Cancelar asistencia' })).toBeEnabled();
       expect(screen.queryByRole('button', { name: 'Confirmar asistencia' })).toBeNull();
       expect(screen.queryByText(/Confirmaste/)).toBeNull();
     });
 
-    // Filled, with a check drawn inline (the icon font has no check), and pressed.
-    it('is a pressed round toggle with an inline check, hidden from assistive technology', () => {
+    // Filled, pressed, with an X (the action is to cancel), drawn inline.
+    it('is a pressed round toggle with an inline X, hidden from assistive technology', () => {
       const { container } = renderControl({ state: 'cancel' });
 
       const toggle = screen.getByRole('button', { name: 'Cancelar asistencia' });
@@ -106,11 +109,11 @@ describe('AttendanceControl', () => {
       expect(toggle).toHaveAttribute('aria-pressed', 'true');
       expect(toggle).toHaveClass('attendance-control__toggle');
       expect(toggle).toHaveTextContent('');
-      const check = toggle.querySelector('svg');
-      expect(check).toBeInTheDocument();
-      expect(check).toHaveAttribute('aria-hidden', 'true');
-      expect(check).toHaveAttribute('focusable', 'false');
-      expect(toggle.querySelector('.icon-calendar')).toBeNull();
+      const cross = toggle.querySelector('svg.attendance-icon--cross');
+      expect(cross).toBeInTheDocument();
+      expect(cross).toHaveAttribute('aria-hidden', 'true');
+      expect(cross).toHaveAttribute('focusable', 'false');
+      expect(toggle.querySelector('svg.attendance-icon--check')).toBeNull();
       expect(container.querySelector('[style]')).toBeNull();
     });
 
@@ -145,14 +148,38 @@ describe('AttendanceControl', () => {
   });
 
   // The message about an inactive membership is said once, above the schedule
-  // (InactiveMembershipNotice), and no longer on every card.
+  // (InactiveMembershipNotice), and the card shows the same check as everyone's: the
+  // container decides that tapping it opens the prompt to enrol and calls no server.
   describe('state inactive', () => {
-    it('says nothing of its own: no message, no link and no button', () => {
-      const { container } = renderControl({ state: 'inactive' });
+    it('shows the same check toggle as a member who can confirm, with the date', () => {
+      renderControl({ state: 'inactive' });
 
-      expect(container).toBeEmptyDOMElement();
+      const toggle = screen.getByRole('button', { name: 'Confirmar asistencia' });
+      expect(toggle).toBeEnabled();
+      expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      expect(toggle.querySelector('svg.attendance-icon--check')).toBeInTheDocument();
+      expect(toggle).toHaveAccessibleDescription('Próxima clase: 26 de octubre de 2026');
+    });
+
+    it('says nothing of its own: no message and no link', () => {
+      renderControl({ state: 'inactive' });
+
       expect(screen.queryByText(/Tu membresía/)).toBeNull();
       expect(screen.queryByRole('link')).toBeNull();
+      expect(screen.queryByText('Vas a esta clase')).toBeNull();
+    });
+
+    it('hands the tap to onConfirm, like the confirm state, and is busy like it', async () => {
+      const { onConfirm, onCancel, rerender } = renderControl({ state: 'inactive' });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+      expect(onCancel).not.toHaveBeenCalled();
+
+      rerender(
+        <AttendanceControl state="inactive" classDate="2026-10-26" busy onConfirm={onConfirm} onCancel={onCancel} />,
+      );
+      expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeDisabled();
     });
   });
 
@@ -196,13 +223,11 @@ describe('AttendanceControl', () => {
 
     // The data may have just changed under the member: a refusal can sit on a card
     // the page has already moved to "inactive", and it still says which class failed.
-    it('shows alone on an inactive card, since the data may have just changed', () => {
-      renderControl({ state: 'inactive', errorCode: 'FORBIDDEN' });
+    it('shows next to the check of an inactive card, since the data may have just changed', () => {
+      renderControl({ state: 'inactive', errorCode: 'NETWORK' });
 
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        'No pudimos confirmar tu asistencia. Revisa que tu membresía cubra esa fecha.',
-      );
-      expect(screen.queryByRole('button')).toBeNull();
+      expect(screen.getByRole('alert')).toHaveTextContent('No hay conexión.');
+      expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeInTheDocument();
       expect(screen.queryByRole('link')).toBeNull();
     });
 
@@ -228,7 +253,7 @@ describe('AttendanceControl', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it.each(['hidden', 'started', 'inactive', 'nonsense', undefined])('renders nothing for the state %s', (state) => {
+  it.each(['hidden', 'started', 'nonsense', undefined])('renders nothing for the state %s', (state) => {
     const { container } = renderControl({ state });
 
     expect(container).toBeEmptyDOMElement();

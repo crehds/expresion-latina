@@ -1,8 +1,9 @@
 /*
  * The attendance control under a class of the public schedule: the date it is
  * about (and, once confirmed, that the member goes), with a light round toggle at
- * the right of the card. The toggle is an outline with a calendar when the class
- * is not confirmed and a filled accent circle with a check when it is; it follows
+ * the right of the card. The toggle is an outline with a check (the action is to
+ * confirm) when the class is not confirmed and a filled accent circle with an X (the
+ * action is to cancel) when it is; the icons are in attendance-icons.css. It follows
  * aria-pressed, so the look cannot drift from the state. The control sits at the
  * end of the session card's column, so it adds spacing above itself and no layout
  * of its own. There is no inline style, because the CSP has no 'unsafe-inline' for
@@ -91,24 +92,10 @@
   opacity: 0.6;
 }
 
-/*
- * The icon font sizes every icon at 3.5rem (index.css); here the calendar is a
- * glyph inside a 4.4rem circle. The compound selector wins over that rule whatever
- * the order of the stylesheets.
- */
-.attendance-control__toggle .attendance-control__icon {
-  font-size: 2rem;
-}
-
-/* The check is an inline SVG, so its look is set here and not on the markup. */
-.attendance-control__check {
-  width: 2.6rem;
-  height: 2.6rem;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+/* The caption of a confirmed class starts with a small check. */
+.attendance-control__message {
+  display: flex;
+  align-items: center;
 }
 
 @media (prefers-reduced-motion: reduce) {

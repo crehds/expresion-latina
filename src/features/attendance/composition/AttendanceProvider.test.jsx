@@ -151,6 +151,7 @@ describe('AttendanceProvider', () => {
         busyKey: null,
         errorCode: null,
         errorKey: null,
+        promptOpen: false,
       });
       expect(result.current.confirmedKeys).toEqual(new Set());
       expect(result.current.now).toBeInstanceOf(Date);
@@ -320,6 +321,156 @@ describe('AttendanceProvider', () => {
       expect(services.attendance.listOwnConfirmations).toHaveBeenCalledWith({
         userId: USER, fromDate: '2026-10-20',
       });
+    });
+  });
+
+  // A member whose membership is not active sees the same checks as everyone, and
+  // tapping one asks them to enrol (a modal) instead of calling the server. The
+  // same prompt answers a confirm that the database refuses when a fresh read shows
+  // that the membership has lapsed, so the checks do not vanish under their finger
+  // (F2b: the page was loaded while the payment still existed).
+  describe('the prompt to enrol', () => {
+    const asAdmin = {
+      status: 'signed-in',
+      session: { userId: USER, email: 'a@example.test' },
+      profile: { id: USER, isAdmin: true },
+    };
+
+    it('starts closed, opens with the element to give the focus back to, and closes', async () => {
+      const { result } = await mount();
+      const opener = document.createElement('button');
+
+      expect(result.current.promptOpen).toBe(false);
+
+      act(() => result.current.openPrompt(opener));
+      expect(result.current.promptOpen).toBe(true);
+      expect(result.current.promptOpener).toBe(opener);
+
+      act(() => result.current.closePrompt());
+      expect(result.current.promptOpen).toBe(false);
+    });
+
+    it('calls no adapter when it is opened or closed', async () => {
+      const { result, services } = await mount();
+      const before = callsOf(services);
+
+      act(() => result.current.openPrompt());
+      act(() => result.current.closePrompt());
+
+      expect(callsOf(services)).toBe(before);
+    });
+
+    it('opens when the database refuses a confirm and a fresh read shows the membership lapsed', async () => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      const { result } = await mount({ services });
+      // The payment was deleted behind the page that was already open.
+      services.membership.listOwnPeriods.mockResolvedValue(ok([]));
+      const opener = document.createElement('button');
+
+      await act(async () => { await result.current.confirm(MONDAY, opener); });
+
+      expect(services.membership.listOwnPeriods).toHaveBeenCalledTimes(2);
+      expect(result.current.promptOpen).toBe(true);
+      expect(result.current.promptOpener).toBe(opener);
+      // The prompt says it: the card does not also show the refusal as an error.
+      expect(result.current.errorCode).toBeNull();
+      expect(result.current.errorKey).toBeNull();
+      expect(result.current.membership).toEqual({ periods: [] });
+      expect(result.current.busyKey).toBeNull();
+    });
+
+    it('keeps the alert when the membership is still active after the refusal', async () => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      const { result } = await mount({ services });
+
+      await act(async () => { await result.current.confirm(MONDAY); });
+
+      expect(result.current.promptOpen).toBe(false);
+      expect(result.current.errorCode).toBe('FORBIDDEN');
+      expect(result.current.errorKey).toBe(occurrenceKey(MONDAY));
+    });
+
+    it('keeps the alert when the fresh read fails, since nothing says the membership lapsed', async () => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      const { result } = await mount({ services });
+      services.membership.listOwnPeriods.mockResolvedValue(fail('NETWORK'));
+
+      await act(async () => { await result.current.confirm(MONDAY); });
+
+      expect(result.current.promptOpen).toBe(false);
+      expect(result.current.errorCode).toBe('FORBIDDEN');
+    });
+
+    it.each(['NETWORK', 'UNKNOWN'])('does not open for a refusal with the code %s', async (code) => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail(code));
+      const { result } = await mount({ services });
+      services.membership.listOwnPeriods.mockResolvedValue(ok([]));
+
+      await act(async () => { await result.current.confirm(MONDAY); });
+
+      expect(result.current.promptOpen).toBe(false);
+      expect(result.current.errorCode).toBe(code);
+    });
+
+    it('does not open for a confirm refused as already started', async () => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail('STARTED'));
+      const { result } = await mount({ services });
+      services.membership.listOwnPeriods.mockResolvedValue(ok([]));
+
+      await act(async () => { await result.current.confirm(MONDAY); });
+
+      expect(result.current.promptOpen).toBe(false);
+    });
+
+    it('does not open for a refused cancel, which never needed a membership', async () => {
+      const services = fakeServices({ confirmations: ok([MONDAY]) });
+      services.attendance.cancel.mockResolvedValue(fail('FORBIDDEN'));
+      const { result } = await mount({ services });
+      services.membership.listOwnPeriods.mockResolvedValue(ok([]));
+
+      await act(async () => { await result.current.cancel(MONDAY); });
+
+      expect(result.current.promptOpen).toBe(false);
+      expect(result.current.errorCode).toBe('FORBIDDEN');
+    });
+
+    it('never opens for an administrator, whose refusal stays an alert', async () => {
+      const services = fakeServices();
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      const { result } = await mount({ services, session: asAdmin });
+      services.membership.listOwnPeriods.mockResolvedValue(ok([]));
+
+      await act(async () => { await result.current.confirm(MONDAY); });
+
+      expect(result.current.promptOpen).toBe(false);
+      expect(result.current.errorCode).toBe('FORBIDDEN');
+    });
+
+    it('does not open for a member who is active today but whose period ends before the class', async () => {
+      const services = fakeServices({ periods: ok([{ startsOn: '2026-10-01', endsOn: '2026-10-20' }]) });
+      services.attendance.confirm.mockResolvedValue(fail('FORBIDDEN'));
+      const { result } = await mount({ services });
+
+      await act(async () => { await result.current.confirm(MONDAY); });
+
+      expect(result.current.promptOpen).toBe(false);
+      expect(result.current.errorCode).toBe('FORBIDDEN');
+    });
+
+    it('is closed again for the next user, and is never open while inert', async () => {
+      const { result, unmount } = await mount();
+      act(() => result.current.openPrompt());
+      expect(result.current.promptOpen).toBe(true);
+      unmount();
+
+      const inert = await mount({ enabled: false });
+      act(() => inert.result.current.openPrompt());
+      expect(inert.result.current.promptOpen).toBe(false);
     });
   });
 

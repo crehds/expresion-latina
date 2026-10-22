@@ -219,7 +219,8 @@ describe('the administrator flag with the real session provider', () => {
       expect(screen.getByText(INACTIVE)).toBeInTheDocument();
       expect(snapshots.filter((one) => one.ready && one.isAdmin)).toEqual([]);
       expect(drawn.stop().filter((text) => text.includes('Tu membresía'))).not.toEqual([]);
-      expect(screen.queryByRole('button', { name: 'Confirmar asistencia' })).toBeNull();
+      // The member sees the check like everyone: tapping it asks them to enrol.
+      expect(screen.getByRole('button', { name: 'Confirmar asistencia' })).toBeEnabled();
     });
   });
 
