@@ -206,7 +206,7 @@ describe('App account routes', () => {
 
       expect(await screen.findByRole('heading', { level: 1, name: 'Ingresar' }, { timeout: 5000 }))
         .toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: /Aviso de privacidad/ })).toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
       expect(screen.queryByText(/no encontramos/i)).not.toBeInTheDocument();
     });
 

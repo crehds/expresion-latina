@@ -13,11 +13,12 @@ function renderSection({
   deleteMyAccount = vi.fn(async () => ok()),
   signOut = vi.fn(async () => ok()),
   onDeleted = vi.fn(),
+  className = undefined,
 } = {}) {
   render(
     <BackendContext.Provider value={{ enabled: true, services: { auth: { deleteMyAccount } } }}>
       <SessionContext.Provider value={{ status: 'signed-in', signOut }}>
-        <DeleteAccount onDeleted={onDeleted} />
+        <DeleteAccount onDeleted={onDeleted} className={className} />
       </SessionContext.Provider>
     </BackendContext.Provider>,
   );
@@ -37,6 +38,22 @@ describe('DeleteAccount', () => {
     expect(screen.getByText(/No se pueden recuperar/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sí, eliminar mi cuenta' })).not.toBeInTheDocument();
     expect(deleteMyAccount).not.toHaveBeenCalled();
+  });
+
+  // The page that places the section lays it out: it hands over the classes of the
+  // card it wants, and the section keeps its own.
+  it('keeps its own class and takes the one the page gives it', () => {
+    renderSection({ className: 'account__card account__card--wide' });
+
+    expect(screen.getByRole('region', { name: 'Eliminar mi cuenta' }))
+      .toHaveClass('delete-account', 'account__card', 'account__card--wide');
+  });
+
+  it('has only its own class when the page gives none', () => {
+    renderSection();
+
+    expect(screen.getByRole('region', { name: 'Eliminar mi cuenta' }).className)
+      .toBe('delete-account');
   });
 
   it('renders nothing while the backend offers no auth service', () => {

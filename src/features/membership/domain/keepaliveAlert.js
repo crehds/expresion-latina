@@ -74,25 +74,25 @@ export function resolveAlertDays(value) {
 /**
  * What the banner should say about the last ping.
  *
- * - `never`: no ping is recorded.
  * - `stale`: the ping is older than `days` days, by more than a millisecond.
  *   It carries the instant of the ping and the whole days that have passed since.
  * - `fresh`: it is not older than that. Exactly the threshold is still fresh, and
  *   so is a ping in the future (a clock that is behind).
- * - `unknown`: the instant cannot be read, so nothing can be said about it.
+ * - `unknown`: there is no instant to judge (nothing is recorded, which the
+ *   banner deliberately does not report) or it cannot be read, so nothing can be
+ *   said about it.
  *
  * @param {{ lastPingAt: string | null, now: Date, days: number }} input
  *   `lastPingAt` is the instant as the database writes it (an ISO string with an
  *   offset), or null when nothing was ever recorded; `days` comes from
  *   `parseAlertDays`.
- * @returns {{ status: 'never' }
- *   | { status: 'fresh' }
+ * @returns {{ status: 'fresh' }
  *   | { status: 'stale', lastPingAt: Date, daysAgo: number }
  *   | { status: 'unknown' }}
  */
 export function keepaliveStatus({ lastPingAt, now, days }) {
   if (lastPingAt === null) {
-    return { status: 'never' };
+    return { status: 'unknown' };
   }
   // Only text is an instant here: a number would read as milliseconds.
   const pingedAt = typeof lastPingAt === 'string' ? new Date(lastPingAt) : null;

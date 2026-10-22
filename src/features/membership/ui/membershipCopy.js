@@ -208,13 +208,11 @@ const MEMBER_ERRORS = new Map([
 /** The message for the code of a member who could not be read. */
 export const memberErrorMessage = (code) => MEMBER_ERRORS.get(code) ?? DEFAULT_MEMBER_ERROR;
 
-// The notice above the admin pages when the keep-alive has not pinged lately. It
+// The notice above the admin pages when the last keep-alive ping is too old. It
 // only reports what is recorded and never says that the workflow failed:
 // `last_ping_at` can be refreshed by anyone holding the publishable key, so the
 // run history of the workflow, which the notice points to, is the real signal.
 const CHECK_THE_RUNS = 'Revisa el historial del flujo «Keep-alive ping» en GitHub Actions.';
-
-export const KEEPALIVE_NEVER = `Todavía no hay ningún ping de mantenimiento registrado. ${CHECK_THE_RUNS}`;
 
 // The ping is an instant, so the day it falls on depends on the zone: it is
 // written on the Lima calendar, the way the account page writes its instants.

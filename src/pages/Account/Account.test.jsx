@@ -192,6 +192,71 @@ describe('Account', () => {
     });
   });
 
+  // The page is three cards: the data of the member (with the sign-out), the
+  // password and, last and wide because it is the destructive one, the deletion.
+  // The stylesheet lays them out (one column on a phone, two from 768px), so the
+  // order of the document is the order they are read and tabbed in.
+  describe('layout', () => {
+    const regions = () => screen.getAllByRole('region');
+
+    it('has the three sections in this order, each with its own level 2 heading', () => {
+      renderAccount();
+
+      expect(regions().map((region) => within(region).getByRole('heading', { level: 2 }).textContent))
+        .toEqual(['Mis datos', 'Cambiar contraseña', 'Eliminar mi cuenta']);
+      expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(3);
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    });
+
+    it('makes each section a card, and the deletion the only wide one', () => {
+      renderAccount();
+
+      regions().forEach((region) => expect(region).toHaveClass('account__card'));
+      expect(regions().map((region) => region.classList.contains('account__card--wide')))
+        .toEqual([false, false, true]);
+    });
+
+    it('keeps the privacy link and the sign-out button together, in one row of actions', () => {
+      renderAccount();
+
+      const link = screen.getByRole('link', { name: 'Ver el aviso de privacidad' });
+      const signOut = screen.getByRole('button', { name: 'Cerrar sesión' });
+
+      expect(link.parentElement).toBe(signOut.parentElement);
+      expect(link.parentElement).toHaveClass('account__actions');
+      expect(regions()[0]).toContainElement(link);
+    });
+
+    it('tabs through the page in the order it is read', async () => {
+      const user = userEvent.setup();
+      renderAccount();
+      // The fields are told by their name, the buttons and the link by their text.
+      const nameOf = (element) => element.name || element.textContent;
+
+      const visited = [];
+      for (let step = 0; step < 6; step += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await user.tab();
+        visited.push(nameOf(document.activeElement));
+      }
+
+      expect(visited).toEqual([
+        'Ver el aviso de privacidad',
+        'Cerrar sesión',
+        'new-password',
+        'password-confirmation',
+        'Cambiar contraseña',
+        'Eliminar mi cuenta',
+      ]);
+    });
+
+    it('has no style attribute, because the CSP allows none', () => {
+      renderAccount();
+
+      expect(document.querySelector('[style]')).toBeNull();
+    });
+  });
+
   describe('signed in', () => {
     it('shows the name, the email and the consent on record, with the date in Lima time', () => {
       renderAccount({

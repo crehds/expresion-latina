@@ -1,4 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import {
+  act, render, screen, waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import SessionContext from '../../features/accounts/composition/SessionProvider';
@@ -51,7 +53,16 @@ function renderLogin({
   return { auth, session };
 }
 
-const consent = () => screen.getByRole('checkbox', { name: /Leí y acepto el Aviso de privacidad/ });
+const CONSENT = { name: /Leí y acepto el Aviso de privacidad/ };
+const consent = () => screen.getByRole('checkbox', CONSENT);
+const googleOn = () => fakeAuth({ getProviders: vi.fn(async () => ok({ google: true })) });
+
+// Lets the answer about the providers reach the screen, so that something that is
+// not there is not simply something that has not come yet.
+async function providersAnswered(auth) {
+  await waitFor(() => expect(auth.getProviders).toHaveBeenCalledTimes(1));
+  await act(async () => {});
+}
 const switchButton = (name) => screen.getByRole('button', { name });
 
 // Whether `first` comes before `second` in the document.
@@ -78,17 +89,18 @@ describe('Login', () => {
       expect(screen.queryByText('home page')).not.toBeInTheDocument();
     });
 
-    it('puts the consent checkbox, unchecked, above the form', () => {
-      renderLogin();
+    it('shows no consent checkbox on the sign-in view when Google is off: it would gate nothing', async () => {
+      const { auth } = renderLogin();
 
-      expect(consent()).not.toBeChecked();
-      expect(isBefore(consent(), screen.getByLabelText('Correo'))).toBe(true);
+      await providersAnswered(auth);
+
+      expect(screen.getByLabelText('Correo')).toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
-    it('lets the member sign in without ticking the box: that account already consented', () => {
+    it('lets the member sign in without ticking any box: that account already consented', () => {
       renderLogin();
 
-      expect(consent()).not.toBeChecked();
       expect(screen.getByRole('button', { name: 'Ingresar' })).toBeEnabled();
     });
   });
@@ -113,7 +125,8 @@ describe('Login', () => {
 
     it('keeps the consent when the form changes', async () => {
       const user = userEvent.setup();
-      renderLogin();
+      renderLogin({ auth: googleOn() });
+      await screen.findByRole('button', { name: 'Continuar con Google' });
       await user.click(consent());
 
       await user.click(switchButton('Crear cuenta'));
@@ -121,6 +134,66 @@ describe('Login', () => {
 
       await user.click(switchButton('Ingresar'));
       expect(consent()).toBeChecked();
+    });
+
+    // Owner: "el acepto debe estar al final y antes de crear cuenta".
+    it('puts the consent checkbox, unchecked, at the end of the sign-up form, right before "Crear cuenta"', async () => {
+      const user = userEvent.setup();
+      renderLogin();
+      await user.click(switchButton('Crear cuenta'));
+
+      const submit = screen.getByRole('button', { name: 'Crear cuenta' });
+      expect(consent()).not.toBeChecked();
+      expect(isBefore(screen.getByLabelText('Contraseña'), consent())).toBe(true);
+      expect(isBefore(consent(), submit)).toBe(true);
+      expect(consent().closest('form')).toContainElement(submit);
+      expect(consent().closest('label').nextElementSibling).toBe(submit);
+    });
+
+    it('goes through the sign-up form with the keyboard: the box, its link and then the button', async () => {
+      const user = userEvent.setup();
+      renderLogin();
+      await user.click(switchButton('Crear cuenta'));
+
+      await user.click(screen.getByLabelText('Nombre completo'));
+      await user.tab();
+      await user.tab();
+      expect(screen.getByLabelText('Contraseña')).toHaveFocus();
+      await user.tab();
+      expect(consent()).toHaveFocus();
+      await user.keyboard(' ');
+      expect(consent()).toBeChecked();
+      // The words "Aviso de privacidad" are a link, so it takes a stop of its own.
+      await user.tab();
+      expect(screen.getByRole('link', { name: 'Aviso de privacidad' })).toHaveFocus();
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Crear cuenta' })).toHaveFocus();
+    });
+
+    it('still gates "Continuar con Google" on the sign-up view, which stays below the form', async () => {
+      const user = userEvent.setup();
+      renderLogin({ auth: googleOn() });
+      await screen.findByRole('button', { name: 'Continuar con Google' });
+      await user.click(switchButton('Crear cuenta'));
+
+      const google = screen.getByRole('button', { name: 'Continuar con Google' });
+      expect(isBefore(screen.getByRole('button', { name: 'Crear cuenta' }), google)).toBe(true);
+      expect(google).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Crear cuenta' })).toBeDisabled();
+
+      await user.click(consent());
+
+      expect(google).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Crear cuenta' })).toBeEnabled();
+    });
+
+    it('shows the consent checkbox once on the sign-up view, Google on or off', async () => {
+      const user = userEvent.setup();
+      renderLogin({ auth: googleOn() });
+      await screen.findByRole('button', { name: 'Continuar con Google' });
+      await user.click(switchButton('Crear cuenta'));
+
+      expect(screen.getAllByRole('checkbox', CONSENT)).toHaveLength(1);
     });
 
     it('keeps the sign-up button disabled until the consent is given', async () => {
@@ -170,7 +243,7 @@ describe('Login', () => {
 
     it('swaps the sign-in for the reset request, without the consent box or Google', async () => {
       const user = userEvent.setup();
-      renderLogin({ auth: fakeAuth({ getProviders: vi.fn(async () => ok({ google: true })) }) });
+      renderLogin({ auth: googleOn() });
       await screen.findByRole('button', { name: 'Continuar con Google' });
 
       await user.click(forgot());
@@ -207,7 +280,7 @@ describe('Login', () => {
 
       expect(screen.getByRole('heading', { level: 1, name: 'Ingresar' })).toBeInTheDocument();
       expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: /Aviso de privacidad/ })).toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
     it('opens on the reset request when an expired link sent the member here for a new one', () => {
@@ -222,23 +295,47 @@ describe('Login', () => {
 
   describe('Google', () => {
     it('is not offered while the backend has Google off', async () => {
-      renderLogin();
+      const { auth } = renderLogin();
 
-      await screen.findByLabelText('Correo');
+      await providersAnswered(auth);
+
       expect(screen.queryByRole('button', { name: 'Continuar con Google' })).not.toBeInTheDocument();
     });
 
-    it('is offered below the form once the backend has Google on, and waits for the consent', async () => {
+    it('is offered below the form once the backend has Google on, with its consent box right above it', async () => {
       const user = userEvent.setup();
-      renderLogin({ auth: fakeAuth({ getProviders: vi.fn(async () => ok({ google: true })) }) });
+      renderLogin({ auth: googleOn() });
 
       const google = await screen.findByRole('button', { name: 'Continuar con Google' });
       expect(google).toBeDisabled();
+      expect(isBefore(screen.getByLabelText('Correo'), consent())).toBe(true);
       expect(isBefore(consent(), google)).toBe(true);
-      expect(isBefore(screen.getByLabelText('Correo'), google)).toBe(true);
 
       await user.click(consent());
       expect(google).toBeEnabled();
+    });
+
+    it('shows the consent box on the sign-in view only together with the button', async () => {
+      const { auth } = renderLogin({
+        auth: fakeAuth({ getProviders: vi.fn(() => new Promise(() => {})) }),
+      });
+
+      await waitFor(() => expect(auth.getProviders).toHaveBeenCalledTimes(1));
+      await act(async () => {});
+
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Continuar con Google' })).not.toBeInTheDocument();
+    });
+
+    it('gates the button on the sign-up view with the box above that form', async () => {
+      const user = userEvent.setup();
+      renderLogin({ auth: googleOn() });
+      await screen.findByRole('button', { name: 'Continuar con Google' });
+      await user.click(switchButton('Crear cuenta'));
+
+      expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeDisabled();
+      await user.click(consent());
+      expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeEnabled();
     });
   });
 

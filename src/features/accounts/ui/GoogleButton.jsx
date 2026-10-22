@@ -18,6 +18,11 @@
  * Google, and on `/auth/callback` the consent gate records the stored version.
  * If the flow does not start, the stored version is removed again. The button
  * waits for the consent checkbox of the page (`consentAccepted`).
+ *
+ * The page may hand over the checkbox itself (`consentField`) for the view where
+ * Google is the only thing it gates. The button is what knows whether Google is
+ * on, so it draws the field above itself and only when it draws itself: a visitor
+ * is never asked to accept something that gates nothing.
  */
 import PropTypes from 'prop-types';
 import { useContext, useEffect, useState } from 'react';
@@ -89,7 +94,7 @@ function useGoogleAvailable(auth) {
   return available;
 }
 
-export default function GoogleButton({ consentAccepted }) {
+export default function GoogleButton({ consentAccepted, consentField = null }) {
   const { services } = useContext(BackendContext);
   const auth = services?.auth;
   const { busy, errorCode, run } = useAuthRequest();
@@ -109,6 +114,7 @@ export default function GoogleButton({ consentAccepted }) {
 
   return (
     <div className="auth-google">
+      {consentField}
       {errorCode && (
         <p className="auth-form__alert" role="alert">{authErrorMessage(errorCode)}</p>
       )}
@@ -126,4 +132,5 @@ export default function GoogleButton({ consentAccepted }) {
 
 GoogleButton.propTypes = {
   consentAccepted: PropTypes.bool.isRequired,
+  consentField: PropTypes.node,
 };
