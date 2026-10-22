@@ -1,13 +1,36 @@
 /*
- * The frame comes from .page. The body keeps the sections at the measure the
- * forms use and sets them apart by space. The link and the message follow the
- * ones of the confirmation page (auth-confirm.css).
+ * The page is three cards in a grid: one column on a phone and, from 768px, two
+ * columns with the data of the member and the password side by side and the deletion
+ * below them on the whole width. That is the last place and the widest, which sets
+ * the destructive card apart from the other two, and the cards follow the order of
+ * the document, so what is read, tabbed and seen agree. The frame comes from .page.
+ * The link and the message follow the ones of the confirmation page
+ * (auth-confirm.css). No inline style, because the CSP has no 'unsafe-inline' for
+ * styles.
  */
 .account__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  max-width: 44rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-sm);
+  max-width: 96rem;
+}
+
+/*
+ * A card of the page. min-width: 0 lets a long email wrap inside its column instead
+ * of widening the grid.
+ */
+.account__card {
+  min-width: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+
+/* The deletion: the same card with a stronger border, and the whole width below. */
+.account__card--wide {
+  border-color: var(--surface-border-strong);
 }
 
 .account__section {
@@ -15,6 +38,17 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-sm);
+}
+
+/* A form takes the width of its card, up to its own measure. */
+.account__section--form {
+  align-items: stretch;
+}
+
+.account__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
 }
 
 .account__heading,
@@ -70,4 +104,19 @@
 .account__link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  .account__body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md);
+  }
+
+  .account__card {
+    padding: var(--space-md);
+  }
+
+  .account__card--wide {
+    grid-column: 1 / -1;
+  }
 }

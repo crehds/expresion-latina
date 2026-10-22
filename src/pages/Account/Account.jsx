@@ -26,7 +26,11 @@ const consentLine = ({ consentVersion, consentAt }) => (
  *
  * It shows who the member is and the consent on record, signs this device out
  * (and goes home), changes the password (the other devices are signed out by
- * the form) and deletes the account. Once the account is deleted the page shows
+ * the form) and deletes the account. Each of those is a card: the data of the
+ * member with the sign-out, the password, and last, on the whole width because it
+ * is the destructive one, the deletion. The stylesheet puts the cards in one column
+ * on a phone and in two from 768px, and the cards stay in the order of the document,
+ * so what is read, tabbed and seen agree. Once the account is deleted the page shows
  * its final state and stays there: the sign-out that follows must not send the
  * member to the login page.
  *
@@ -115,7 +119,10 @@ export default function Account() {
   return (
     <Page title="Mi cuenta" className="account">
       <div className="account__body">
-        <section className="account__section" aria-labelledby="account-profile-title">
+        <section
+          className="account__card account__section"
+          aria-labelledby="account-profile-title"
+        >
           <h2 className="heading-sm account__heading" id="account-profile-title">Mis datos</h2>
           <dl className="text-md account__details">
             <div>
@@ -130,21 +137,26 @@ export default function Account() {
           {profile.consentAt && (
             <p className="text-md account__text">{consentLine(profile)}</p>
           )}
-          <Link className="account__link" to="/privacy">Ver el aviso de privacidad</Link>
           {signOutFailed && (
             <p className="text-md account__message" role="alert">{SIGN_OUT_FAILED}</p>
           )}
-          <button
-            type="button"
-            className="auth-button account__button"
-            onClick={signOut}
-            disabled={signingOut}
-          >
-            Cerrar sesión
-          </button>
+          <div className="account__actions">
+            <Link className="account__link" to="/privacy">Ver el aviso de privacidad</Link>
+            <button
+              type="button"
+              className="auth-button account__button"
+              onClick={signOut}
+              disabled={signingOut}
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </section>
 
-        <section className="account__section" aria-labelledby="account-password-title">
+        <section
+          className="account__card account__section account__section--form"
+          aria-labelledby="account-password-title"
+        >
           <h2 className="heading-sm account__heading" id="account-password-title">
             Cambiar contraseña
           </h2>
@@ -155,7 +167,10 @@ export default function Account() {
           )}
         </section>
 
-        <DeleteAccount onDeleted={() => setDeleted(true)} />
+        <DeleteAccount
+          className="account__card account__card--wide"
+          onDeleted={() => setDeleted(true)}
+        />
       </div>
     </Page>
   );
