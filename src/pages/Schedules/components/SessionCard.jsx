@@ -18,11 +18,17 @@ import '../css/session-card.css';
  * `action` is whatever a page wants under the class (the attendance controls of a
  * signed-in member). It is rendered as the last child of the card, with no wrapper
  * of its own, so a card without one is the same markup as before.
+ *
+ * `teacherLink(teacher)`, when given, says where the teacher's name goes instead of
+ * the teachers page: it returns the `to` and, optionally, the router `state` of the
+ * link. The schedule uses it to open the profile over itself. Without it the link is
+ * the one it always was, which is what the Home strip relies on.
  */
-function SessionCard({ session, action = undefined }) {
+function SessionCard({ session, action = undefined, teacherLink = undefined }) {
   const {
     genre, slot, teacher, level, note,
   } = session;
+  const link = teacher && (teacherLink?.(teacher) ?? { to: `/teachers/${teacher.id}` });
 
   return (
     <article className="session-card">
@@ -37,7 +43,7 @@ function SessionCard({ session, action = undefined }) {
       {(teacher || level) && (
         <p className="text-sm session-card__detail">
           {teacher && (
-            <Link className="session-card__teacher" to={`/teachers/${teacher.id}`}>
+            <Link className="session-card__teacher" to={link.to} state={link.state}>
               {teacher.name}
             </Link>
           )}
@@ -68,6 +74,7 @@ SessionCard.propTypes = {
     note: PropTypes.string,
   }).isRequired,
   action: PropTypes.node,
+  teacherLink: PropTypes.func,
 };
 
 export default SessionCard;
