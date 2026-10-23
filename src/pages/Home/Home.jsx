@@ -1,5 +1,6 @@
 import { Component } from 'react';
 
+import TeacherProfileOverlay from '../Teachers/components/TeacherProfileOverlay';
 import createAdaptedPoster from './adapters/posters';
 import FALLBACK_POSTERS from './api/fallbackPosters';
 import Hero from './components/Hero';
@@ -49,23 +50,29 @@ export default class Home extends Component {
     const {
       posters,
     } = this.state;
+    // The profile is a sibling of the page, not a wrapper around it, so the search
+    // changing never rebuilds Home: the posters are not fetched again and the scroll
+    // stays put.
     return (
-      <main className="home">
-        <Hero />
+      <>
+        <main className="home">
+          <Hero />
 
-        <section className="home__posters" aria-labelledby="home-posters-heading">
-          <h2 className="heading-md home__posters-heading" id="home-posters-heading">
-            Novedades
-          </h2>
-          <PosterStrip posters={posters} />
-        </section>
+          <section className="home__posters" aria-labelledby="home-posters-heading">
+            <h2 className="heading-md home__posters-heading" id="home-posters-heading">
+              Novedades
+            </h2>
+            <PosterStrip posters={posters} />
+          </section>
 
-        <div className="home__band">
-          <TodayStrip />
-        </div>
+          <div className="home__band">
+            <TodayStrip />
+          </div>
 
-        <ReviewsStrip />
-      </main>
+          <ReviewsStrip />
+        </main>
+        <TeacherProfileOverlay />
+      </>
     );
   }
 }

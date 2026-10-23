@@ -264,7 +264,7 @@ describe('Schedules closing a profile opened from a card', () => {
   const OPENED = {
     pathname: '/schedules',
     search: '?teacher=mishel-fernandez',
-    state: { openedFromSchedule: true },
+    state: { openedHere: true },
   };
 
   function ForwardButton() {
