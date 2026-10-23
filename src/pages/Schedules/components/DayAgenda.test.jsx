@@ -48,6 +48,20 @@ describe('DayAgenda', () => {
     expect(silent.container.innerHTML).toBe(bareHtml);
   });
 
+  it('hands the teacher link of the page down to the cards, and links to the teacher page without one', () => {
+    const taught = [{ ...SESSIONS[0], teacher: { id: 'omar', name: 'Omar' } }];
+
+    const bare = renderAgenda({ sessions: taught });
+    expect(screen.getByRole('link', { name: 'Omar' })).toHaveAttribute('href', '/teachers/omar');
+    bare.unmount();
+
+    renderAgenda({
+      sessions: taught,
+      teacherLink: (teacher) => ({ to: `/schedules?teacher=${teacher.id}` }),
+    });
+    expect(screen.getByRole('link', { name: 'Omar' })).toHaveAttribute('href', '/schedules?teacher=omar');
+  });
+
   it('does not ask for an action on a day with no classes', () => {
     const renderSessionAction = vi.fn();
 

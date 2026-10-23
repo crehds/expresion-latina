@@ -14,6 +14,7 @@ import '../css/week-columns.css';
  */
 function WeekColumns({
   days, sessionsByWeekday, currentWeekday, renderSessionAction = undefined,
+  teacherLink = undefined,
 }) {
   return (
     <div className="week-columns" style={{ '--week-column-count': days.length }}>
@@ -34,6 +35,7 @@ function WeekColumns({
               day={day}
               sessions={sessionsByWeekday(day.weekday)}
               renderSessionAction={renderSessionAction}
+              teacherLink={teacherLink}
             />
           </div>
         );
@@ -51,6 +53,7 @@ WeekColumns.propTypes = {
   sessionsByWeekday: PropTypes.func.isRequired,
   currentWeekday: PropTypes.number.isRequired,
   renderSessionAction: PropTypes.func,
+  teacherLink: PropTypes.func,
 };
 
 export default WeekColumns;

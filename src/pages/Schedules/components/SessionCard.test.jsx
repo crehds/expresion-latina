@@ -1,5 +1,7 @@
-import { render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import {
+  fireEvent, render, screen, within,
+} from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 
 import SessionCard from './SessionCard';
 
@@ -23,8 +25,8 @@ const session = (overrides = {}) => ({
   ...overrides,
 });
 
-const renderCard = (props) => render(
-  <SessionCard session={session(props)} />,
+const renderCard = ({ teacherLink = undefined, ...props } = {}) => render(
+  <SessionCard session={session(props)} teacherLink={teacherLink} />,
   { wrapper: MemoryRouter },
 );
 
@@ -124,6 +126,39 @@ describe('the time of a class', () => {
     const { container } = renderCard({ level: 'Básico', note: 'Nuevo curso' });
 
     expect(container.querySelector('[style]')).toBeNull();
+  });
+});
+
+describe('where the teacher link goes', () => {
+  it('goes where the page says, with the state the page asks for', () => {
+    const teacherLink = vi.fn((teacher) => ({
+      to: `/schedules?teacher=${teacher.id}`,
+      state: { fromSchedule: true },
+    }));
+    function LocationState() {
+      return <output>{JSON.stringify(useLocation().state)}</output>;
+    }
+    render(
+      <>
+        <SessionCard session={session()} teacherLink={teacherLink} />
+        <LocationState />
+      </>,
+      { wrapper: MemoryRouter },
+    );
+
+    const link = screen.getByRole('link', { name: 'Mishel Fernández' });
+
+    expect(link).toHaveAttribute('href', '/schedules?teacher=mishel-fernandez');
+    expect(teacherLink).toHaveBeenCalledWith({ id: 'mishel-fernandez', name: 'Mishel Fernández' });
+    fireEvent.click(link);
+    expect(screen.getByText('{"fromSchedule":true}')).toBeInTheDocument();
+  });
+
+  it('is not asked for when the class names no teacher', () => {
+    const teacherLink = vi.fn();
+    renderCard({ teacher: null, teacherLink });
+
+    expect(teacherLink).not.toHaveBeenCalled();
   });
 });
 

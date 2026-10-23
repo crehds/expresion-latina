@@ -27,12 +27,19 @@ class TeacherPanel extends Component {
     // scrolls instead whenever the pointer leaves the panel.
     document.body.classList.add('has-panel');
 
+    // Remembered so that closing hands focus back to whatever opened the panel (a
+    // keyboard visitor would otherwise restart from the top of the page).
+    this.opener = document.activeElement;
     if (this.closeButton) this.closeButton.focus();
   }
 
   componentWillUnmount() {
     document.removeEventListener('keydown', this.handleKeyDown);
     document.body.classList.remove('has-panel');
+
+    // The opener can be gone by now (another day was chosen, a link was followed);
+    // the body is what focus falls back to anyway, so there is nothing to restore.
+    if (this.opener?.isConnected && this.opener !== document.body) this.opener.focus();
   }
 
   handleKeyDown = (event) => {
