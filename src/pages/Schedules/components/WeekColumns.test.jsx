@@ -48,6 +48,23 @@ describe('WeekColumns', () => {
       .getByRole('button', { name: 'Acción mar-1900' })).toBeInTheDocument();
   });
 
+  it('hands the teacher link of the page down to every column', () => {
+    const taught = {
+      1: [{ ...BY_WEEKDAY[1][0], teacher: { id: 'omar', name: 'Omar' } }],
+      2: [{ ...BY_WEEKDAY[2][0], teacher: { id: 'mishel', name: 'Mishel' } }],
+    };
+
+    renderColumns({
+      sessionsByWeekday: (weekday) => taught[weekday],
+      teacherLink: (teacher) => ({ to: `/schedules?teacher=${teacher.id}` }),
+    });
+
+    expect(within(screen.getByRole('region', { name: 'Lunes' })).getByRole('link', { name: 'Omar' }))
+      .toHaveAttribute('href', '/schedules?teacher=omar');
+    expect(within(screen.getByRole('region', { name: 'Martes' })).getByRole('link', { name: 'Mishel' }))
+      .toHaveAttribute('href', '/schedules?teacher=mishel');
+  });
+
   it('renders the same markup with an action that renders nothing as with none', () => {
     const bare = renderColumns();
     const bareHtml = bare.container.innerHTML;

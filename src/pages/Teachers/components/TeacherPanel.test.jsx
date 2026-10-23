@@ -62,6 +62,55 @@ describe('the teacher panel', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  describe('focus', () => {
+    const openers = [];
+
+    afterEach(() => {
+      openers.splice(0).forEach((opener) => opener.remove());
+    });
+
+    const addOpener = () => {
+      const opener = document.createElement('button');
+      document.body.appendChild(opener);
+      opener.focus();
+      openers.push(opener);
+      return opener;
+    };
+
+    it('moves to the close button when it opens', () => {
+      addOpener();
+      renderPanel();
+
+      expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+    });
+
+    it('goes back to what had it before the panel opened', () => {
+      const opener = addOpener();
+      const { unmount } = renderPanel();
+      unmount();
+
+      expect(opener).toHaveFocus();
+    });
+
+    it('lets go quietly when that element has left the document', () => {
+      const opener = addOpener();
+      const { unmount } = renderPanel();
+      opener.remove();
+
+      expect(unmount).not.toThrow();
+      expect(opener).not.toHaveFocus();
+    });
+
+    it('does not focus the body when nothing had focus', () => {
+      const focusBody = vi.spyOn(document.body, 'focus');
+      const { unmount } = renderPanel();
+      unmount();
+
+      expect(focusBody).not.toHaveBeenCalled();
+      focusBody.mockRestore();
+    });
+  });
+
   it('closes from its own button', async () => {
     const onClose = vi.fn();
     renderPanel(onClose);
