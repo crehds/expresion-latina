@@ -1,6 +1,8 @@
-import { render, screen, within } from '@testing-library/react';
+import {
+  act, render, screen, within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 
 import Schedules from './Schedules';
 
@@ -253,5 +255,66 @@ describe('Schedules opening a teacher on a wide screen', () => {
 
     expect(screen.getByRole('dialog', { name: link.textContent })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Viernes' })).toBeInTheDocument();
+  });
+});
+
+describe('Schedules closing a profile opened from a card', () => {
+  beforeEach(() => mockViewport(false));
+
+  const OPENED = {
+    pathname: '/schedules',
+    search: '?teacher=mishel-fernandez',
+    state: { openedFromSchedule: true },
+  };
+
+  function ForwardButton() {
+    const navigate = useNavigate();
+    return <button type="button" onClick={() => navigate(1)}>Adelante</button>;
+  }
+
+  const renderOpened = (entries) => render(
+    <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+      <Schedules />
+      <LocationProbe />
+      <ForwardButton />
+    </MemoryRouter>,
+  );
+
+  // Both closes land before React commits the first one, which is what a double
+  // click does while the browser is still working through the first step back.
+  it.each([
+    ['two clicks on the X', () => {
+      const close = screen.getByRole('button', { name: 'Cerrar' });
+      close.click();
+      close.click();
+    }],
+    ['the X and then the scrim', () => {
+      screen.getByRole('button', { name: 'Cerrar' }).click();
+      screen.getByRole('button', { name: 'Cerrar perfil' }).click();
+    }],
+    ['the X and then Escape', () => {
+      screen.getByRole('button', { name: 'Cerrar' }).click();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    }],
+  ])('goes back one entry only for %s', (_label, closeTwice) => {
+    renderOpened(['/', '/schedules', OPENED]);
+
+    act(closeTwice);
+
+    expect(currentAddress()).toBe('/schedules');
+  });
+
+  it('still goes back when the same entry is reopened with forward and closed again', async () => {
+    const user = userEvent.setup();
+    renderOpened(['/', '/schedules', OPENED]);
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(currentAddress()).toBe('/schedules');
+    await user.click(screen.getByRole('button', { name: 'Adelante' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(currentAddress()).toBe('/schedules');
   });
 });

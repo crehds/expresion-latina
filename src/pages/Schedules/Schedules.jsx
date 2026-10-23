@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { Component, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Page } from '../../components';
@@ -147,8 +147,21 @@ function Schedules() {
   // Opened from a card: the previous entry is this page without the profile, so going
   // back is exactly what the back button would do. Reached by a link: there may be no
   // previous entry on this site at all, so drop the parameter in place instead.
+  //
+  // Stepping back is asynchronous in a browser: the panel stays up until the location
+  // changes. A second close in that gap (a double click, Escape and then a click)
+  // would step back again and leave the site, so it is ignored. The flag is cleared
+  // by the location changing, not by the entry: forward reopens the same entry, and
+  // closing that one must work again.
+  const goingBack = useRef(false);
+  useEffect(() => {
+    goingBack.current = false;
+  }, [location.key]);
+
   const closeProfile = () => {
     if (location.state?.[OPENED_FROM_SCHEDULE]) {
+      if (goingBack.current) return;
+      goingBack.current = true;
       navigate(-1);
       return;
     }
