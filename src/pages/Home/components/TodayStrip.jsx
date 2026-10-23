@@ -2,10 +2,15 @@ import { Link } from 'react-router-dom';
 
 import { getNextOpenDay } from '../../../data/selectors';
 import SessionCard from '../../Schedules/components/SessionCard';
+import { teacherProfileLink } from '../../Teachers/components/TeacherProfileOverlay';
 
 import '../css/today-strip.css';
 
 const MAX_VISIBLE = 4;
+
+// A teacher's name opens the profile over Home (see TeacherProfileOverlay) instead of
+// leaving the page for the teachers' one.
+const teacherLink = teacherProfileLink('/');
 
 /**
  * What is on today, on the landing page, without a click.
@@ -37,7 +42,7 @@ function TodayStrip() {
       <ul className="today-strip__list">
         {visible.map((session) => (
           <li key={session.id}>
-            <SessionCard session={session} />
+            <SessionCard session={session} teacherLink={teacherLink} />
           </li>
         ))}
       </ul>
