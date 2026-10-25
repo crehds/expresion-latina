@@ -2,14 +2,15 @@
  * Who answers for the personal data of the accounts, as the privacy notice
  * states it (`src/pages/Privacy/Privacy.jsx`).
  *
- * The owner fills these two in before the feature goes live (owner decision
- * 2026-10-19). The brackets are part of the text so that nobody can take them
- * for a name, and a production build with the backend on refuses to ship while
- * either one is still bracketed (`src/composition/activationGuardPlugin.js`).
+ * The owner gave both values on 2026-10-25; the razón social is still to be
+ * checked against the RUC before launch. A production build with the backend
+ * on still refuses to ship if either one goes back to a bracketed placeholder
+ * or blank (`src/composition/activationGuardPlugin.js`).
  *
- * - CONTROLLER: the legal name of the data controller (razón social) and its
- *   tax id (RUC).
- * - CONTACT: the address a member writes to in order to exercise their rights.
+ * - CONTROLLER: the legal name of the data controller (razón social), and its
+ *   tax id (RUC) if the owner wants it shown.
+ * - CONTACT: the address a member writes to in order to exercise their rights:
+ *   the academy's email, the same one the footer shows.
  */
-export const CONTROLLER = '[RESPONSABLE]';
-export const CONTACT = '[CONTACTO]';
+export const CONTROLLER = 'Expresión Latina S.A.C.';
+export const CONTACT = 'expresionlatina@gmail.com';
