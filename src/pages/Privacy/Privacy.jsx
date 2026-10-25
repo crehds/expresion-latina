@@ -15,6 +15,10 @@ import './css/privacy.css';
 // A figure with its unit in the right number: "1 hora", "24 horas".
 const amount = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 
+// Closes a sentence that ends with a contact value, without doubling a period
+// the value already ends with ("Expresión Latina S.A.C.").
+const sentence = (text) => (text.endsWith('.') ? text : `${text}.`);
+
 const DATA_KEPT = [
   'Tu correo y tu contraseña. De la contraseña, Supabase guarda solo una versión protegida (un hash), no la contraseña tal cual.',
   'Tu nombre completo.',
@@ -38,7 +42,7 @@ const WHO_SEES = [
 ];
 
 const WHERE_KEPT = [
-  'Los datos de tu cuenta se guardan en servidores de Supabase ubicados en São Paulo (Brasil).',
+  'Los datos de tu cuenta se guardan en servidores de Supabase ubicados en Virginia del Norte (Estados Unidos).',
   'El sitio web se publica en Vercel.',
   'Si ingresas con Google, Google verifica tu identidad.',
   'Los correos de tu cuenta, como el de confirmación o el de cambio de contraseña, se envían mediante un servicio de envío de correo electrónico.',
@@ -102,8 +106,8 @@ export default function Privacy() {
     <Page title="Aviso de privacidad" lead={`Versión ${CURRENT_NOTICE_VERSION}`} className="privacy">
       <div className="privacy__body">
         <Section title="Quién es responsable">
-          <Paragraph>{`Responsable de tus datos: ${CONTROLLER}.`}</Paragraph>
-          <Paragraph>{`Contacto: ${CONTACT}.`}</Paragraph>
+          <Paragraph>{sentence(`Responsable de tus datos: ${CONTROLLER}`)}</Paragraph>
+          <Paragraph>{sentence(`Contacto: ${CONTACT}`)}</Paragraph>
         </Section>
 
         <Section title="Qué datos guardamos">
@@ -129,7 +133,7 @@ export default function Privacy() {
         </Section>
 
         <Section title="Tus derechos">
-          <Paragraph>{`Tienes derecho de acceso, rectificación, cancelación y oposición sobre tus datos. Para ejercerlos, escribe a ${CONTACT}.`}</Paragraph>
+          <Paragraph>{sentence(`Tienes derecho de acceso, rectificación, cancelación y oposición sobre tus datos. Para ejercerlos, escribe a ${CONTACT}`)}</Paragraph>
           <Paragraph>También puedes eliminar tu cuenta cuando quieras desde «Mi cuenta».</Paragraph>
         </Section>
 

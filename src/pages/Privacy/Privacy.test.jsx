@@ -81,12 +81,14 @@ describe('Privacy', () => {
   });
 
   describe('who is responsible', () => {
-    it('shows the visible placeholders of the controller and of the contact', () => {
+    it('names the academy as the controller and its email as the contact, with no placeholder left', () => {
       renderPrivacy();
 
-      const text = section('Quién es responsable').getByText(/\[RESPONSABLE\]/);
-      expect(text).toBeVisible();
-      expect(section('Quién es responsable').getByText(/\[CONTACTO\]/)).toBeVisible();
+      expect(section('Quién es responsable').getByText('Responsable de tus datos: Expresión Latina S.A.C.'))
+        .toBeVisible();
+      expect(section('Quién es responsable').getByText('Contacto: expresionlatina@gmail.com.'))
+        .toBeVisible();
+      expect(screen.getByRole('main').textContent).not.toMatch(/\[RESPONSABLE\]|\[CONTACTO\]/);
     });
   });
 
@@ -164,14 +166,16 @@ describe('Privacy', () => {
   });
 
   describe('where the data is kept', () => {
-    it('names Supabase in São Paulo, Vercel, Google and an email delivery service', () => {
+    it('names Supabase in Northern Virginia, Vercel, Google and an email delivery service', () => {
       renderPrivacy();
 
       const items = itemsOf('Dónde se guardan');
       const text = items.join('\n');
 
       expect(text).toMatch(/Supabase/);
-      expect(text).toMatch(/São Paulo \(Brasil\)/);
+      // The hosted project's region is us-east-1 (owner, 2026-10-25).
+      expect(text).toMatch(/Virginia del Norte \(Estados Unidos\)/);
+      expect(text).not.toMatch(/São Paulo/);
       expect(text).toMatch(/Vercel/);
       expect(text).toMatch(/Google/);
       expect(text).toMatch(/servicio de envío de correo electrónico/);
@@ -209,7 +213,7 @@ describe('Privacy', () => {
       const text = section('Tus derechos').getByText(/acceso/).textContent;
 
       expect(text).toMatch(/acceso, rectificación, cancelación y oposición/);
-      expect(text).toMatch(/\[CONTACTO\]/);
+      expect(text).toMatch(/escribe a expresionlatina@gmail\.com\./);
     });
 
     it('says the account can be deleted from "Mi cuenta", in plain text', () => {
