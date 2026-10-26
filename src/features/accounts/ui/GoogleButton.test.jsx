@@ -3,6 +3,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import BackendContext from '../../../shared/backend/BackendContext';
 import {
   CURRENT_NOTICE_VERSION,
@@ -21,18 +22,18 @@ function fakeAuth(overrides = {}) {
   };
 }
 
-function tree({ consentAccepted, services, consentField }) {
+function tree({ services }) {
   return (
-    <BackendContext.Provider value={{ enabled: true, services }}>
-      <GoogleButton consentAccepted={consentAccepted} consentField={consentField} />
-    </BackendContext.Provider>
+    <MemoryRouter>
+      <BackendContext.Provider value={{ enabled: true, services }}>
+        <GoogleButton />
+      </BackendContext.Provider>
+    </MemoryRouter>
   );
 }
 
-function renderButton({
-  auth = fakeAuth(), consentAccepted = true, services = { auth }, consentField,
-} = {}) {
-  const view = render(tree({ consentAccepted, services, consentField }));
+function renderButton({ auth = fakeAuth(), services = { auth } } = {}) {
+  const view = render(tree({ services }));
   return { auth, ...view };
 }
 
@@ -65,7 +66,7 @@ describe('GoogleButton availability', () => {
     const { auth, rerender } = renderButton();
     await findButton();
 
-    rerender(tree({ consentAccepted: false, services: { auth } }));
+    rerender(tree({ services: { auth } }));
 
     expect(auth.getProviders).toHaveBeenCalledTimes(1);
   });
@@ -222,7 +223,7 @@ describe('GoogleButton when the backend settings cannot be read', () => {
       const newAuth = fakeAuth({ getProviders: vi.fn(() => new Promise(() => {})) });
       const { container, rerender } = renderButton({ auth: oldAuth });
 
-      rerender(tree({ consentAccepted: true, services: { auth: newAuth } }));
+      rerender(tree({ services: { auth: newAuth } }));
       await act(async () => { answerOld(ok({ google: true })); });
 
       expect(container).toBeEmptyDOMElement();
@@ -234,7 +235,7 @@ describe('GoogleButton when the backend settings cannot be read', () => {
       const { rerender } = renderButton({ auth: oldAuth });
       await elapse(0);
 
-      rerender(tree({ consentAccepted: true, services: { auth: newAuth } }));
+      rerender(tree({ services: { auth: newAuth } }));
       await elapse(60000);
 
       expect(oldAuth.getProviders).toHaveBeenCalledTimes(1);
@@ -247,14 +248,14 @@ describe('GoogleButton when the backend settings cannot be read', () => {
       expect(button()).toBeInTheDocument();
       const newAuth = fakeAuth({ getProviders: vi.fn(() => new Promise(() => {})) });
 
-      rerender(tree({ consentAccepted: true, services: { auth: newAuth } }));
+      rerender(tree({ services: { auth: newAuth } }));
 
       expect(container).toBeEmptyDOMElement();
     });
 
     it('still shows the button when React runs the effect twice, as it does while developing', async () => {
       const auth = fakeAuth();
-      render(<StrictMode>{tree({ consentAccepted: true, services: { auth } })}</StrictMode>);
+      render(<StrictMode>{tree({ services: { auth } })}</StrictMode>);
 
       await elapse(0);
 
@@ -263,41 +264,57 @@ describe('GoogleButton when the backend settings cannot be read', () => {
   });
 });
 
-describe('GoogleButton consent', () => {
-  it('is disabled until the consent is given', async () => {
-    const { auth, rerender } = renderButton({ consentAccepted: false });
+describe('GoogleButton consent notice', () => {
+  const LINE = 'Al continuar con Google, aceptas el Aviso de privacidad.';
 
-    expect(await findButton()).toBeDisabled();
+  it('is enabled without any checkbox to tick', async () => {
+    renderButton();
 
-    rerender(tree({ consentAccepted: true, services: { auth } }));
-    expect(button()).toBeEnabled();
+    expect(await findButton()).toBeEnabled();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
-});
 
-describe('GoogleButton consent field', () => {
-  const field = <input type="checkbox" aria-label="Acepto" />;
+  it('is described by the line that says continuing accepts the notice', async () => {
+    renderButton();
 
-  it('draws the field the page gives it above the button, once the button shows', async () => {
-    renderButton({ consentField: field });
+    const google = await findButton();
+    expect(google).toHaveAccessibleDescription(LINE);
+    expect(screen.getByText(/Al continuar con Google/)).toHaveTextContent(LINE);
+  });
 
-    const box = await screen.findByRole('checkbox', { name: 'Acepto' });
-    const order = [...document.querySelectorAll('*')];
-    expect(order.indexOf(box)).toBeLessThan(order.indexOf(button()));
+  it('puts the line right under the button', async () => {
+    renderButton();
+
+    const google = await findButton();
+    expect(google.nextElementSibling).toHaveTextContent(LINE);
+  });
+
+  it('links "Aviso de privacidad" to the notice in a new tab', async () => {
+    renderButton();
+    await findButton();
+
+    const link = screen.getByRole('link', { name: 'Aviso de privacidad' });
+    expect(link).toHaveAttribute('href', '/privacy');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
   });
 
   it.each([
     ['has Google off', fakeAuth({ getProviders: vi.fn(async () => ok({ google: false })) })],
     ['cannot be read', fakeAuth({ getProviders: vi.fn(async () => fail('FORBIDDEN')) })],
-  ])('draws no field while the backend %s', async (_label, auth) => {
-    const { container } = renderButton({ auth, consentField: field });
+  ])('draws neither the button nor the line while the backend %s', async (_label, auth) => {
+    const { container } = renderButton({ auth });
 
     await waitFor(() => expect(auth.getProviders).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+
     expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText(/aceptas el/)).not.toBeInTheDocument();
   });
 
-  it('draws no field while the answer is still on its way', () => {
+  it('draws no line while the answer is still on its way', () => {
     const getProviders = vi.fn(() => new Promise(() => {}));
-    const { container } = renderButton({ auth: fakeAuth({ getProviders }), consentField: field });
+    const { container } = renderButton({ auth: fakeAuth({ getProviders }) });
 
     expect(container).toBeEmptyDOMElement();
   });
