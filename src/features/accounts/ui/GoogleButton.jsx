@@ -16,16 +16,18 @@
  * Google cannot carry the consent with the request, so the accepted notice
  * version is kept in sessionStorage BEFORE the flow starts: the page is left for
  * Google, and on `/auth/callback` the consent gate records the stored version.
- * If the flow does not start, the stored version is removed again. The button
- * waits for the consent checkbox of the page (`consentAccepted`).
+ * If the flow does not start, the stored version is removed again.
  *
- * The page may hand over the checkbox itself (`consentField`) for the view where
- * Google is the only thing it gates. The button is what knows whether Google is
- * on, so it draws the field above itself and only when it draws itself: a visitor
- * is never asked to accept something that gates nothing.
+ * The button never waits for a checkbox: a disabled button does not tell a
+ * visitor why. The click itself is the act of accepting the notice, and a line
+ * right under the button says so and links to the notice. The line is the
+ * description of the button, so a screen reader announces it with the button. It
+ * is drawn only together with the button, because it explains nothing otherwise.
  */
-import PropTypes from 'prop-types';
-import { useContext, useEffect, useState } from 'react';
+import {
+  useContext, useEffect, useId, useState,
+} from 'react';
+import { Link } from 'react-router-dom';
 import BackendContext from '../../../shared/backend/BackendContext';
 import { RESULT_CODES, fail } from '../../../shared/backend/resultCodes';
 import { authCallbackUrl } from '../domain/authRedirect';
@@ -94,8 +96,9 @@ function useGoogleAvailable(auth) {
   return available;
 }
 
-export default function GoogleButton({ consentAccepted, consentField = null }) {
+export default function GoogleButton() {
   const { services } = useContext(BackendContext);
+  const noticeId = useId();
   const auth = services?.auth;
   const { busy, errorCode, run } = useAuthRequest();
   const available = useGoogleAvailable(auth);
@@ -114,23 +117,26 @@ export default function GoogleButton({ consentAccepted, consentField = null }) {
 
   return (
     <div className="auth-google">
-      {consentField}
       {errorCode && (
         <p className="auth-form__alert" role="alert">{authErrorMessage(errorCode)}</p>
       )}
       <button
         type="button"
         className="auth-button"
-        disabled={busy || !consentAccepted}
+        disabled={busy}
+        aria-describedby={noticeId}
         onClick={handleClick}
       >
         Continuar con Google
       </button>
+      <p id={noticeId} className="auth-google__notice">
+        Al continuar con Google, aceptas el
+        {' '}
+        <Link className="auth-consent__link" to="/privacy" target="_blank" rel="noopener noreferrer">
+          Aviso de privacidad
+        </Link>
+        .
+      </p>
     </div>
   );
 }
-
-GoogleButton.propTypes = {
-  consentAccepted: PropTypes.bool.isRequired,
-  consentField: PropTypes.node,
-};

@@ -50,6 +50,12 @@
   outline-offset: 2px;
 }
 
+/* The line under the Google button; the flex gap of .auth-google spaces it. */
+.auth-google__notice {
+  margin: 0;
+  color: var(--text-primary);
+}
+
 /* Links on this site are underlined text; the accent is reserved for hover. */
 .auth-consent__link {
   color: var(--text-primary);
