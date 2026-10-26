@@ -1,9 +1,9 @@
 /**
  * The consent checkbox of the sign-in page (Design: D5).
  *
- * It is the last field of the sign-up form, right before its button, and right
- * above the Google button on the sign-in view; the page decides where it goes and
- * what the box gates: sign-up and Google do not start until it is checked. The words
+ * It is the last field of the sign-up form, right before its button, and the
+ * sign-up does not start until it is checked. Google does not wait for it: that
+ * button states its own acceptance of the notice. The words
  * "Aviso de privacidad" link to the notice in a new tab, so a member who stops
  * to read it does not lose what they typed.
  */
