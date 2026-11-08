@@ -127,6 +127,12 @@ without it. Client routes must therefore never contain a dot.
 The build needs Node 24, set in the Vercel project settings; older defaults
 fail.
 
+Locally, `.node-version` pins Node 24 too; fnm set up with `--use-on-cd`
+switches to it on entering the repo. Run npm under Node 24: the npm 10 that
+ships with Node 22 drops the `libc` fields from `package-lock.json`, after
+which Linux installs fetch both the glibc and musl builds of the native
+packages.
+
 ### Post-deploy checklist
 
 Unit tests cannot catch a base-path mismatch, so check by hand after a deploy:
