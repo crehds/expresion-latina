@@ -4,10 +4,18 @@
  *
  * The privacy notice states these figures to the member, so they are written
  * once, here, and the notice renders them from this module. They restate what
- * the scheduled purges of `supabase/migrations/20260924160000_account_lifecycle.sql`
- * do; a test reads that file and fails if a figure here stops matching it, so
- * the notice cannot promise something the database does not do. Change the SQL
- * and these together, and bump the notice version if the promise changes.
+ * the scheduled purges in `supabase/migrations/` do; a test reads the newest
+ * definition of each purge across the migrations and fails if a figure here
+ * stops matching it, so the notice cannot promise something the database does
+ * not do.
+ *
+ * To change a figure:
+ * 1. Change it here.
+ * 2. Add a migration that redefines the purge (`create or replace function`)
+ *    with the new value. Never edit a migration that has already been applied.
+ * 3. Bump CURRENT_NOTICE_VERSION in noticeVersion.js, because the notice's
+ *    promise changes.
+ * 4. Deploy, and push the migration to the hosted project (`db push`).
  */
 
 /**
@@ -28,8 +36,8 @@ export const PENDING_CONSENT_DELETED_WITHIN_HOURS = PENDING_CONSENT_PURGE_AFTER_
 
 /**
  * `private.purge_unconfirmed_email_accounts`: an email sign-up that never
- * confirmed its address is deleted after this many days. The owner has not
- * confirmed this figure yet.
+ * confirmed its address is deleted after this many days. The owner confirmed
+ * this figure on 2026-11-08.
  */
 export const UNCONFIRMED_EMAIL_DAYS = 7;
 
