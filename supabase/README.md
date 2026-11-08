@@ -23,20 +23,24 @@ project ("Production runbook" onward).
 npm run test:db
 ```
 
-This starts the local stack if it is not already running (the first run
+This starts the local database (`db start`) if it is not already running (the first run
 pulls Docker images and can take a few minutes), resets the local database
 from `supabase/migrations/`, loads `supabase/seed.sql`, and runs the pgTAP
 suite under `supabase/tests/database/`. `runTestDb` in
 `scripts/db/test-db-lib.mjs` documents exactly what each step does, and
 `RESET_WARNING` there says why it warns before every reset.
 
-To run the stack without resetting or testing -- to browse it in Supabase
-Studio, for example:
+To run the whole stack without resetting or testing -- to use the app
+against it, or to browse it in Supabase Studio:
 
 ```bash
-npx --yes supabase@2.117.0 db start
+npx --yes supabase@2.117.0 start -x vector
 npx --yes supabase@2.117.0 status
 ```
+
+`db start`, which `npm run test:db` uses, starts only Postgres: no Auth,
+Studio or Mailpit, so the app cannot sign anyone in against it. `-x vector`
+skips the log collector, which this project does not need.
 
 `status` prints the Studio URL, the database connection string, and
 Mailpit's inbox URL. Mailpit catches every email the local Auth service
@@ -53,6 +57,10 @@ Stop the stack when done:
 ```bash
 npx --yes supabase@2.117.0 stop
 ```
+
+Until you do, the containers come back every time Docker starts, for example
+after a reboot. `stop --all` stops the stacks of every local project at once.
+Neither deletes the data; only `--no-backup` would.
 
 ## Seed data
 
