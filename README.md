@@ -137,6 +137,21 @@ Unit tests cannot catch a base-path mismatch, so check by hand after a deploy:
 - [ ] Reload while on a sub-route
 - [ ] Repeat on a real phone, not just device emulation
 
+## Dependency overrides
+
+The `overrides` in `package.json` patch a dependency of a dependency. Each one
+is temporary: whenever you update dependencies, check whether it can go, and
+remove it as soon as the package it patches no longer needs it.
+
+- **`uuid` under `exceljs`, forced to `^11.1.1`.** `exceljs` 4.4.0, its latest
+  release as of November 2026, still asks for `uuid` `^8.3.0`, which `npm audit`
+  flags ([GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq)).
+  npm's own fix is to downgrade `exceljs` to 3.4.0. `exceljs` is a dev
+  dependency used only by `scripts/data`, and it calls `uuid`'s `v4()`, which
+  `uuid` 11 still exports. Remove the override once
+  `npm view exceljs dependencies.uuid` allows `11.1.1` or later, then run
+  `npm install`, `npm audit` and `npm run test:data`.
+
 ## Line endings
 
 `.gitattributes` pins `eol=lf` for all text files. `eslint-config-airbnb`
