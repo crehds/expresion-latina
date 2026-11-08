@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   ATTENDANCE_CONFIRMATION_DAYS,
@@ -9,23 +9,30 @@ import {
   UNCONFIRMED_EMAIL_DAYS,
 } from './retentionTerms';
 
-const MIGRATION = path.resolve(
-  __dirname,
-  '../../../../supabase/migrations/20260924160000_account_lifecycle.sql',
-);
+const MIGRATIONS = path.resolve(__dirname, '../../../../supabase/migrations');
 
-const SQL = readFileSync(MIGRATION, 'utf8');
+// Every migration in the order they apply (their names start with a timestamp),
+// so a purge redefined by a later migration is read from that one.
+const SQL = readdirSync(MIGRATIONS)
+  .filter((file) => file.endsWith('.sql'))
+  .sort()
+  .map((file) => readFileSync(path.join(MIGRATIONS, file), 'utf8'))
+  .join('\n');
 
-// The code of one function, from its `create function` line to the `$$;` that
-// closes it, without the comments (a comment may still quote an old figure).
-// Nothing outside the functions can match: the weekly cleanup job below them
-// has an `interval '7 days'` of its own.
-function codeOf(name) {
-  const start = SQL.indexOf(`create function ${name}(`);
-  expect(start, `${name} is not in the migration`).toBeGreaterThan(-1);
-  const end = SQL.indexOf('\n$$;', start);
+// The code of the newest definition of one function, from its `create [or
+// replace] function` line to the `$$;` that closes it, without the comments (a
+// comment may still quote an old figure). Nothing outside the functions can
+// match: the weekly cleanup job has an `interval '7 days'` of its own.
+function codeOf(name, sql = SQL) {
+  const definition = new RegExp(
+    String.raw`create\s+(?:or\s+replace\s+)?function\s+${name.replaceAll('.', '\\.')}\s*\(`,
+    'g',
+  );
+  const start = [...sql.matchAll(definition)].at(-1)?.index ?? -1;
+  expect(start, `${name} is not in the migrations`).toBeGreaterThan(-1);
+  const end = sql.indexOf('\n$$;', start);
   expect(end, `the end of ${name} was not found`).toBeGreaterThan(start);
-  return SQL.slice(start, end).replace(/--.*$/gm, '');
+  return sql.slice(start, end).replace(/--.*$/gm, '');
 }
 
 // `now() - interval '<amount> <unit>'`, whatever the spacing around the
@@ -61,9 +68,10 @@ describe('the retention terms the privacy notice states', () => {
   });
 
   it('say a pending account is gone within a day: the purge age plus the pause between runs', () => {
-    const scheduled = SQL.match(
-      /cron\.schedule\(\s*'purge-pending-consent-accounts',\s*'([^']+)'/,
-    );
+    // The newest schedule, should a later migration change it.
+    const scheduled = [...SQL.matchAll(
+      /cron\.schedule\(\s*'purge-pending-consent-accounts',\s*'([^']+)'/g,
+    )].at(-1) ?? null;
 
     expect(scheduled, 'the pending consent purge is not scheduled').not.toBeNull();
     // One run an hour: a fixed minute, every hour of every day.
@@ -93,6 +101,15 @@ describe('the retention terms the privacy notice states', () => {
 
     expect(own).toMatch(/private\.delete_account\s*\(\s*v_uid\s*\)/);
     expect(own).not.toMatch(/interval|pg_sleep|cron\./);
+  });
+
+  it('read a purge from the newest migration that redefines it, not the first one', () => {
+    const first = "create function private.purge_x()\nas $$\n  select now() - interval '7 days';\n$$;\n";
+    const later = "create or replace function private.purge_x()\nas $$\n  select now() - interval '14 days';\n$$;\n";
+    const code = codeOf('private.purge_x', first + later);
+
+    expect(code).toMatch(nowMinus(14, 'days'));
+    expect(code).not.toMatch(nowMinus(7, 'days'));
   });
 
   it('are whole, positive numbers', () => {
