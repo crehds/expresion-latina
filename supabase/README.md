@@ -118,15 +118,26 @@ update public.profiles set is_admin = true where id = (
   The stack mounts the files when it starts: restart it after editing one.
   The Auth service also limits how often one address can be sent a
   confirmation or reset email (`max_frequency`, 1 second by default).
-- **Google is off** until the stack is given a Google OAuth client; until
-  then its button ends on an "Unsupported provider" error page. To try it,
-  create the client as in "Google sign-in" below, with the local Auth
-  callback (`http://127.0.0.1:34321/auth/v1/callback` with this project's ports) as an
-  authorized redirect URI. Export `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
-  and `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` in the shell that starts the
-  stack, uncomment the two `env(...)` lines of `[auth.external.google]` and
-  set `enabled = true`, then restart the stack. Keep those edits out of
-  commits.
+- **Google is off** until the stack is given a Google OAuth client; the
+  login page hides its button until then. To try it:
+  1. In Google Cloud, add the local Auth callback
+     (`http://127.0.0.1:34321/auth/v1/callback`) to the client's authorized
+     redirect URIs, and `http://localhost:3000` to its JavaScript origins.
+     The client from "Google sign-in" below can serve both. Google shows a
+     client secret only once; if it is lost, add a new secret to the client
+     instead of disabling the old one, which the hosted project still uses.
+  2. Put `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and
+     `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` in the root `.env`, which git
+     ignores. The `env(...)` lines of `config.toml` read that file, and Vite
+     exposes only `VITE_` variables, so the secret stays out of the bundle.
+  3. Set `enabled = true` in `[auth.external.google]`, uncomment its two
+     `env(...)` lines, and restart the stack:
+     `npx --yes supabase@2.117.0 stop`, then
+     `npx --yes supabase@2.117.0 start -x vector`.
+
+  Keep the `config.toml` edit out of commits: `npm run test:e2e:auth`
+  expects Google off.
+
 - **Real sign-up and reset journey.** `npm run test:e2e:auth` drives a real
   sign-up through the local stack, in a browser: it builds the site against
   the stack, signs a new `e2e-auth-<time>@example.test` account up on the
